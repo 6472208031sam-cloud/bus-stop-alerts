@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f4" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0f1714" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="data:," />
+  <title>Bus Stop Alerts</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap');
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f7f4;
+      --surface: #ffffff;
+      --surface-2: #eaf0ec;
+      --surface-3: #dfe9e2;
+      --text: #13211a;
+      --muted: #53665b;
+      --line: #cedbd2;
+      --green: #087a4c;
+      --green-strong: #04613b;
+      --green-soft: #d9f1e5;
+      --amber: #b25b09;
+      --amber-soft: #fff0d9;
+      --red: #b3342f;
+      --red-soft: #fde8e6;
+      --shadow: 0 16px 42px rgba(24, 48, 35, .10);
+      --radius-lg: 22px;
+      --radius-md: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1714;
+        --surface: #16231d;
+        --surface-2: #1d2d25;
+        --surface-3: #293d32;
+        --text: #eef6f0;
+        --muted: #afbeb5;
+        --line: #35493d;
+        --green: #49d492;
+        --green-strong: #77e8ae;
+        --green-soft: #183c2a;
+        --amber: #ffc270;
+        --amber-soft: #3a2b17;
+        --red: #ff8f88;
+        --red-soft: #412321;
+        --shadow: 0 18px 50px rgba(0, 0, 0, .28);
+      }
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Nunito Sans", sans-serif;
+      color: var(--text);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--green-soft) 54%, var(--bg)) 0, var(--bg) 260px);
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    svg { display: block; }
+    .shell {
+      width: min(100%, 1060px);
+      margin: 0 auto;
+      padding: 22px clamp(16px, 4vw, 36px) max(40px, env(safe-area-inset-bottom));
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+      align-items: end;
+      gap: 28px;
+      padding: clamp(16px, 3vw, 30px) 0 26px;
+    }
+    h1, h2, h3 { font-family: "Archivo", sans-serif; margin: 0; letter-spacing: -.035em; }
+    h1 { font-size: clamp(2.35rem, 7vw, 4.7rem); line-height: .98; max-width: 760px; }
+    .hero p { margin: 14px 0 0; max-width: 580px; color: var(--muted); font-size: clamp(1rem, 2vw, 1.16rem); line-height: 1.55; }
+    .hero-note {
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      color: var(--muted);
+      font-size: .92rem;
+      line-height: 1.5;
+    }
+    .hero-note strong { color: var(--text); display: block; margin-bottom: 3px; }
+    .mode-switch {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      padding: 4px;
+      gap: 4px;
+      background: var(--surface-2);
+      border-radius: 12px;
+      margin: 4px 0 18px;
+    }
+    .mode-btn {
+      border: 0;
+      background: transparent;
+      border-radius: 9px;
+      padding: 10px 15px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .mode-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+    .dashboard {
+      display: grid;
+      grid-template-columns: minmax(270px, .78fr) minmax(0, 1.22fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .panel-head { padding: 22px 22px 16px; border-bottom: 1px solid var(--line); }
+    .panel-head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    h2 { font-size: 1.32rem; line-height: 1.2; }
+    .sub { margin: 6px 0 0; color: var(--muted); font-size: .92rem; line-height: 1.45; }
+    .badge { flex: none; padding: 6px 9px; border-radius: 8px; background: var(--surface-2); color: var(--muted); font-size: .78rem; font-weight: 700; }
+    .route-panel { position: sticky; top: 16px; }
+    .route-list { list-style: none; padding: 12px 16px 16px; margin: 0; }
+    .route-item { position: relative; display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; min-height: 52px; }
+    .route-item:not(:last-child)::after { content: ""; position: absolute; left: 17px; top: 36px; bottom: -16px; width: 2px; background: var(--line); }
+    .dot { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); border: 2px solid var(--line); font-family: "Archivo", sans-serif; font-size: .78rem; font-weight: 700; color: var(--muted); transition: .2s ease; }
+    .route-item.configured .dot { background: var(--green-soft); border-color: var(--green); color: var(--green-strong); }
+    .route-item.reached .dot { background: var(--green); border-color: var(--green); color: #fff; }
+    .route-item.next .dot { outline: 4px solid var(--green-soft); }
+    .stop-main { min-width: 0; }
+    .stop-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stop-meta { font-size: .78rem; color: var(--muted); margin-top: 1px; }
+    .stop-action { border: 0; background: transparent; color: var(--green-strong); padding: 8px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: .8rem; }
+    .stop-action:hover { background: var(--green-soft); }
+    .workspace { min-width: 0; }
+    .status-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+    .metric { background: var(--surface); padding: 16px 18px; min-width: 0; }
+    .metric-label { color: var(--muted); font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .metric-value { margin-top: 4px; font-family: "Archivo", sans-serif; font-size: 1.04rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .content { padding: 22px; }
+    .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label { display: block; font-size: .8rem; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+    input[type="text"], input[type="number"] {
+      width: 100%; min-height: 45px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); padding: 10px 12px; outline: none;
+    }
+    input:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+    .field.full { grid-column: 1 / -1; }
+    .coord-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .radius-row { display: flex; align-items: center; gap: 12px; }
+    input[type="range"] { accent-color: var(--green); flex: 1; }
+    output { font-weight: 700; min-width: 48px; text-align: right; }
+    .action-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .btn {
+      min-height: 46px; border-radius: 11px; padding: 11px 16px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:hover { background: var(--surface-2); }
+    .btn.primary { background: var(--green); color: #fff; border-color: var(--green); }
+    .btn.primary:hover { background: var(--green-strong); }
+    .btn:disabled { opacity: .48; cursor: not-allowed; }
+    .btn svg { width: 18px; height: 18px; }
+    .notice { margin-top: 16px; padding: 13px 14px; border-radius: 11px; background: var(--amber-soft); color: var(--text); display: flex; gap: 10px; align-items: flex-start; font-size: .88rem; line-height: 1.45; }
+    .notice svg { flex: none; margin-top: 1px; color: var(--amber); }
+    .gps-help { margin: 18px 22px 0; padding: 16px; border-radius: 12px; background: var(--red-soft); border: 1px solid color-mix(in srgb, var(--red) 34%, transparent); }
+    .gps-help[hidden] { display: none; }
+    .gps-help-head { display: flex; gap: 10px; align-items: flex-start; }
+    .gps-help-head svg { flex: none; color: var(--red); margin-top: 1px; }
+    .gps-help strong { display: block; font-family: "Archivo", sans-serif; font-size: 1rem; }
+    .gps-help p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; line-height: 1.45; }
+    .gps-help ol { margin: 12px 0 14px 28px; padding: 0; color: var(--text); font-size: .86rem; line-height: 1.55; }
+    .gps-help .btn { min-height: 40px; padding: 8px 13px; border-color: color-mix(in srgb, var(--red) 38%, var(--line)); }
+    .trip-view { display: none; }
+    .trip-view.active, .setup-view.active { display: block; }
+    .setup-view:not(.active) { display: none; }
+    .trip-focus { text-align: center; padding: 10px 0 24px; }
+    .pulse { width: 92px; height: 92px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; background: var(--green-soft); color: var(--green-strong); }
+    .pulse.live { animation: breathe 2.2s ease-in-out infinite; }
+    .pulse svg { width: 38px; height: 38px; }
+    @keyframes breathe { 50% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--green-soft) 50%, transparent); } }
+    .trip-kicker { color: var(--muted); font-size: .84rem; font-weight: 700; }
+    .next-stop { font-family: "Archivo", sans-serif; font-size: clamp(1.65rem, 5vw, 2.4rem); letter-spacing: -.035em; margin-top: 5px; }
+    .distance { margin-top: 8px; color: var(--muted); }
+    .progress-wrap { margin: 2px 0 20px; }
+    .progress-label { display: flex; justify-content: space-between; gap: 12px; font-size: .82rem; color: var(--muted); margin-bottom: 7px; }
+    .track { height: 9px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+    .fill { height: 100%; width: 0%; background: var(--green); transition: width .25s ease; }
+    .secondary-tools { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 9px; }
+    .small-btn { border: 0; background: var(--surface-2); color: var(--text); border-radius: 9px; padding: 9px 11px; font-size: .82rem; font-weight: 700; cursor: pointer; }
+    .follow-card { display: none; }
+    .follow-card.active { display: block; }
+    .follow-flow { display: grid; gap: 0; margin-top: 8px; }
+    .follow-step { display: grid; grid-template-columns: 34px 1fr; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .follow-step:last-child { border-bottom: 0; }
+    .step-num { width: 30px; height: 30px; border-radius: 50%; background: var(--green-soft); color: var(--green-strong); display: grid; place-items: center; font-weight: 800; }
+    .follow-step h3 { font-size: 1rem; letter-spacing: -.01em; margin: 3px 0 5px; }
+    .follow-step p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.48; }
+    .offline-tag { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); color: var(--muted); font-size: .8rem; font-weight: 700; }
+    .toast { position: fixed; z-index: 20; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translate(-50%, 18px); width: min(calc(100% - 32px), 470px); background: var(--text); color: var(--bg); border-radius: 12px; padding: 13px 16px; box-shadow: 0 14px 40px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: .22s ease; font-weight: 700; text-align: center; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .alert-sheet { position: fixed; inset: 0; z-index: 30; display: none; place-items: center; padding: 20px; background: rgba(5,15,10,.64); }
+    .alert-sheet.open { display: grid; }
+    .alert-card { width: min(100%, 430px); background: var(--surface); border-radius: 24px; padding: 28px; text-align: center; box-shadow: 0 24px 80px rgba(0,0,0,.36); }
+    .arrival-mark { width: 78px; height: 78px; margin: 0 auto 18px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; }
+    .arrival-mark svg { width: 36px; height: 36px; }
+    .alert-card h2 { font-size: 2rem; }
+    .alert-card p { color: var(--muted); margin: 8px 0 22px; }
+    .file-input { display: none; }
+    @media (max-width: 760px) {
+      .shell { padding-top: 10px; }
+      .hero { grid-template-columns: 1fr; gap: 15px; padding-top: 20px; }
+      .hero-note { display: none; }
+      .dashboard { grid-template-columns: 1fr; }
+      .route-panel { position: static; order: 2; }
+      .workspace { order: 1; }
+      .route-list { display: grid; grid-template-columns: repeat(13, 1fr); gap: 0; padding: 16px 14px 20px; }
+      .route-item { display: block; min-height: auto; text-align: center; }
+      .route-item:not(:last-child)::after { left: 50%; right: -50%; top: 16px; bottom: auto; width: auto; height: 2px; }
+      .dot { width: 32px; height: 32px; margin: 0 auto; font-size: .7rem; }
+      .stop-main, .stop-action { display: none; }
+      .panel-head.compact-mobile { padding-bottom: 10px; }
+      .mode-switch { width: 100%; }
+      .status-strip { grid-template-columns: 1fr 1fr; }
+      .metric:last-child { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+      .setup-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .content { padding: 18px; }
+      .gps-help { margin: 14px 18px 0; }
+      .action-row .btn { flex: 1 1 140px; }
+    }
+    @media (max-width: 420px) {
+      h1 { font-size: 2.5rem; }
+      .route-list { padding-left: 9px; padding-right: 9px; }
+      .dot { width: 29px; height: 29px; }
+      .route-item:not(:last-child)::after { top: 14px; }
+      .coord-row { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <h1 id="heroTitle">Ready to map your route?</h1>
+        <p id="heroText">Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 1 through 13.</p>
+      </div>
+      <div class="hero-note">
+        <strong>Designed for a phone riding on the bus</strong>
+        Browser location only works while this page is open. Keep the screen awake for reliable alerts.
+      </div>
+    </section>
+
+    <nav class="mode-switch" aria-label="Tracking mode">
+      <button class="mode-btn active" type="button" data-mode="ride">Phone on the bus</button>
+      <button class="mode-btn" type="button" data-mode="follow">Follow another phone</button>
+    </nav>
+
+    <section id="rideMode" class="dashboard">
+      <aside class="panel route-panel" aria-label="Route overview">
+        <div class="panel-head compact-mobile">
+          <div class="panel-head-row">
+            <div>
+              <h2>Your 13 stops</h2>
+              <p class="sub"><span id="configuredCount">0</span> saved · <span id="reachedCount">0</span> reached</p>
+            </div>
+            <span class="badge" id="routeBadge">Setup</span>
+          </div>
+        </div>
+        <ol class="route-list" id="routeList"></ol>
+      </aside>
+
+      <section class="panel workspace" aria-live="polite">
+        <div class="status-strip">
+          <div class="metric"><div class="metric-label">GPS</div><div class="metric-value" id="gpsStatus">Not started</div></div>
+          <div class="metric"><div class="metric-label">Accuracy</div><div class="metric-value" id="accuracyStatus">—</div></div>
+          <div class="metric"><div class="metric-label">Next</div><div class="metric-value" id="nextMetric">Stop 1</div></div>
+        </div>
+
+        <div class="gps-help" id="gpsHelp" role="alert" hidden>
+          <div class="gps-help-head">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/></svg>
+            <div>
+              <strong id="gpsHelpTitle">Location needs attention</strong>
+              <p id="gpsHelpText"></p>
+            </div>
+          </div>
+          <ol id="gpsHelpSteps"></ol>
+          <button class="btn" type="button" id="gpsRetryBtn">Try GPS again</button>
+        </div>
+
+        <div class="content setup-view active" id="setupView">
+          <div class="panel-head-row">
+            <div>
+              <h2 id="setupHeading">Set stop 1</h2>
+              <p class="sub">Stand at the stop and use your current location, or enter coordinates manually.</p>
+            </div>
+            <span class="badge" id="selectedBadge">1 / 13</span>
+          </div>
+
+          <div class="setup-grid" style="margin-top:20px">
+            <div class="field full">
+              <label for="stopName">Stop name (optional)</label>
+              <input id="stopName" type="text" maxlength="60" placeholder="e.g. Maple St & Oak Ave" autocomplete="off" />
+            </div>
+            <div class="field full">
+              <label>Location</label>
+              <div class="coord-row">
+                <input id="latitude" type="number" step="any" min="-90" max="90" inputmode="decimal" placeholder="Latitude" aria-label="Latitude" />
+                <input id="longitude" type="number" step="any" min="-180" max="180" inputmode="decimal" placeholder="Longitude" aria-label="Longitude" />
+              </div>
+            </div>
+            <div class="field full">
+              <label for="radius">Alert radius</label>
+              <div class="radius-row">
+                <input id="radius" type="range" min="30" max="250" step="10" value="80" />
+                <output id="radiusOut" for="radius">80 m</output>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button class="btn primary" type="button" id="useLocationBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+              Use current location
+            </button>
+            <button class="btn" type="button" id="saveStopBtn">Save stop</button>
+            <button class="btn" type="button" id="nextStopBtn">Next stop</button>
+          </div>
+
+          <div class="notice">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            <span>Stop locations remain in this open session. Download the route file when setup is done, then import it before your next ride.</span>
+          </div>
+
+          <div class="secondary-tools">
+            <button class="small-btn" type="button" id="downloadBtn">Download route</button>
+            <button class="small-btn" type="button" id="importBtn">Import route</button>
+            <input class="file-input" type="file" id="fileInput" accept="application/json,.json" />
+            <button class="small-btn" type="button" id="testAlertBtn">Test alert sound</button>
+            <button class="small-btn" type="button" id="clearBtn">Clear route</button>
+          </div>
+        </div>
+
+        <div class="content trip-view" id="tripView">
+          <div class="trip-focus">
+            <div class="pulse" id="gpsPulse">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            </div>
+            <div class="trip-kicker" id="tripKicker">Ready to begin</div>
+            <div class="next-stop" id="nextStopDisplay">Stop 1</div>
+            <div class="distance" id="distanceDisplay">Waiting for GPS</div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-label"><span>Route progress</span><span id="progressText">0 of 13 stops</span></div>
+            <div class="track"><div class="fill" id="progressFill"></div></div>
+          </div>
+          <div class="action-row">
+            <button class="btn primary" type="button" id="startBtn">Start ride</button>
+            <button class="btn" type="button" id="stopBtn" disabled>Stop tracking</button>
+            <button class="btn" type="button" id="resetTripBtn">Reset progress</button>
+          </div>
+          <div class="notice">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            <span>Tap Start ride, then choose Allow when your phone asks for location. Keep this page visible during the ride; tracking stops if the browser closes or locks the page.</span>
+          </div>
+          <div class="secondary-tools">
+            <button class="small-btn" type="button" id="editRouteBtn">Edit route</button>
+            <button class="small-btn" type="button" id="downloadBtn2">Download route</button>
+            <button class="small-btn" type="button" id="importBtn2">Import route</button>
+            <button class="small-btn" type="button" id="testAlertBtn2">Test alert sound</button>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section id="followMode" class="panel follow-card">
+      <div class="panel-head">
+        <h2>Follow a bus from your phone</h2>
+        <p class="sub">This page cannot receive another phone’s location. Use live location sharing between the two phones instead.</p>
+      </div>
+      <div class="content">
+        <div class="follow-flow">
+          <div class="follow-step">
+            <span class="step-num">1</span>
+            <div><h3>On the phone riding the bus</h3><p>Open Google Maps or WhatsApp and start sharing live location for the length of the ride.</p></div>
+          </div>
+          <div class="follow-step">
+            <span class="step-num">2</span>
+            <div><h3>Send the private share</h3><p>Choose only the person who needs to follow the bus. The sharing phone needs mobile data and location turned on.</p></div>
+          </div>
+          <div class="follow-step">
+            <span class="step-num">3</span>
+            <div><h3>Open it on your phone</h3><p>Watch the bus move in the same app. Stop sharing when the ride is complete.</p></div>
+          </div>
+        </div>
+        <span class="offline-tag">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></svg>
+          Stop-by-stop alerts are only available on the phone riding the bus
+        </span>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+  <div class="alert-sheet" id="alertSheet" role="dialog" aria-modal="true" aria-labelledby="arrivalTitle">
+    <div class="alert-card">
+      <div class="arrival-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+      </div>
+      <h2 id="arrivalTitle">Stop reached</h2>
+      <p id="arrivalText">You have arrived at stop 1.</p>
+      <button class="btn primary" type="button" id="dismissAlert" style="width:100%">Continue route</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      var DEFAULT_STOPS = [
+        { number: 1, time: '8:27 AM', name: 'ON WILLIAM CUTMORE AVE AT EVEREST CRES (NORTH ENTRANCE) AT PARK', lat: 43.50537, lng: -79.70545 },
+        { number: 2, time: '8:29 AM', name: 'ON FORD STRATHY CRES - OPPOSITE 1411 AT BENCHES', lat: 43.50846, lng: -79.71016 },
+        { number: 3, time: '8:31 AM', name: 'ON MEADOWRIDGE DR AT WHEAT BOOM DR (N/W CORNER)', lat: 43.50467, lng: -79.70960 },
+        { number: 4, time: '8:33 AM', name: 'ON JOHN MCKAY BLVD - NORTH OF ANSON GATE AT WALKWAY', lat: 43.49945, lng: -79.71200 },
+        { number: 5, time: '8:36 AM', name: 'ON THRESHING MILL BLVD AT MEADOW MARSH CRES (N/E CORNER)', lat: 43.49640, lng: -79.71870 },
+        { number: 6, time: '8:38 AM', name: 'ON WHEAT BOOM DR - OPPOSITE 434 WHEAT BOOM DR AT PARK', lat: 43.49298, lng: -79.71886 },
+        { number: 7, time: '8:41 AM', name: 'ON POSTRIDGE DR AT FAIRGATE WAY (N/W CORNER) - TRANSIT STYLE STOP', lat: 43.48819, lng: -79.71318 },
+        { number: 8, time: '8:47 AM', name: 'ON CRIMSON OAK TRAIL - BETWEEN NICHOLS & CEDAR', lat: 43.49153, lng: -79.71190 },
+        { number: 9, time: '8:52 AM', name: 'ON PONDVIEW PL - OPPOSITE 495 PONDVIEW PL AT PARK SIGN', lat: 43.4878529, lng: -79.7080746 },
+        { number: 10, time: '8:56 AM', name: 'ON CORONATION DR AT NORTH RIDGE TRAIL (S/E CORNER) AT PARK', lat: 43.49347, lng: -79.70835 },
+        { number: 11, time: '8:58 AM', name: 'ON CRAIGLEITH RD - OPPOSITE SYLVIA DR AT PARK (SOUTH SIDE)', lat: 43.49837, lng: -79.70403 },
+        { number: 12, time: '9:00 AM', name: 'ON CRAIGLEITH RD AT MEADOWRIDGE DR (S/W CORNER)', lat: 43.50118, lng: -79.70128 },
+        { number: 13, time: '9:05 AM', name: "SCHOOL: ST MARGUERITE D'YOUVILLE CES - 1359 BAYSHIRE DR - BUS LOADING ZONE", lat: 43.4942050, lng: -79.6937659 }
+      ];
+
+      function createDefaultStops() {
+        return DEFAULT_STOPS.map(function (stop) {
+          return { number: stop.number, time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 80, reached: false };
+        });
+      }
+
+      var stops = createDefaultStops();
+      var selected = 0;
+      var watchId = null;
+      var tracking = false;
+      var locationRequestPending = false;
+      var locationRequestToken = 0;
+      var wakeLock = null;
+      var audioContext = null;
+      var toastTimer = null;
+      var gpsRetryMode = null;
+      var locationPermissionState = 'unknown';
+
+      var $ = function (id) { return document.getElementById(id); };
+      var routeList = $('routeList');
+      var setupView = $('setupView');
+      var tripView = $('tripView');
+
+      function isConfigured(stop) {
+        return Number.isFinite(stop.lat) && Number.isFinite(stop.lng);
+      }
+
+      function configuredCount() {
+        return stops.filter(isConfigured).length;
+      }
+
+      function reachedCount() {
+        return stops.filter(function (s) { return s.reached; }).length;
+      }
+
+      function nextStopIndex() {
+        var idx = stops.findIndex(function (s) { return !s.reached; });
+        return idx === -1 ? 12 : idx;
+      }
+
+      function stopLabel(stop) {
+        return stop.name.trim() || ('Stop ' + stop.number);
+      }
+
+      function renderRoute() {
+        var nextIdx = nextStopIndex();
+        routeList.innerHTML = '';
+        stops.forEach(function (stop, i) {
+          var li = document.createElement('li');
+          li.className = 'route-item' + (isConfigured(stop) ? ' configured' : '') + (stop.reached ? ' reached' : '') + (tracking && !stop.reached && i === nextIdx ? ' next' : '');
+          li.innerHTML = '<span class="dot">' + (stop.reached ? '✓' : stop.number) + '</span>' +
+            '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabel(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (isConfigured(stop) ? stop.radius + ' m alert radius' : 'Location not saved') + '</div></span>' +
+            '<button class="stop-action" type="button" data-index="' + i + '">Edit</button>';
+          routeList.appendChild(li);
+        });
+        $('configuredCount').textContent = configuredCount();
+        $('reachedCount').textContent = reachedCount();
+        $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === 13 ? 'Ready' : 'Setup');
+        var next = stops[nextIdx];
+        $('nextMetric').textContent = reachedCount() === 13 ? 'Complete' : stopLabel(next);
+        $('progressText').textContent = reachedCount() + ' of 13 stops';
+        $('progressFill').style.width = ((reachedCount() / 13) * 100) + '%';
+      }
+
+      function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function loadStopForm() {
+        var stop = stops[selected];
+        $('setupHeading').textContent = 'Set stop ' + stop.number;
+        $('selectedBadge').textContent = stop.number + ' / 13';
+        $('stopName').value = stop.name;
+        $('latitude').value = isConfigured(stop) ? stop.lat : '';
+        $('longitude').value = isConfigured(stop) ? stop.lng : '';
+        $('radius').value = stop.radius;
+        $('radiusOut').textContent = stop.radius + ' m';
+      }
+
+      function validCoordinates(lat, lng) {
+        return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+      }
+
+      function saveCurrentStop(advance) {
+        var lat = parseFloat($('latitude').value);
+        var lng = parseFloat($('longitude').value);
+        if (!validCoordinates(lat, lng)) {
+          showToast('Add a valid latitude and longitude first.');
+          return false;
+        }
+        stops[selected].name = $('stopName').value.trim();
+        stops[selected].lat = lat;
+        stops[selected].lng = lng;
+        stops[selected].radius = parseInt($('radius').value, 10);
+        renderRoute();
+        showToast('Stop ' + stops[selected].number + ' saved.');
+        if (advance && selected < 12) {
+          selected += 1;
+          loadStopForm();
+        }
+        updateViewForCompleteness();
+        return true;
+      }
+
+      function updateViewForCompleteness() {
+        if (configuredCount() === 13) {
+          setupView.classList.remove('active');
+          tripView.classList.add('active');
+          $('heroTitle').textContent = 'Your route is ready.';
+          $('heroText').textContent = 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.';
+          $('nextStopDisplay').textContent = stopLabel(stops[nextStopIndex()]);
+        }
+        renderRoute();
+      }
+
+      function showSetup(index) {
+        if (tracking) stopTracking();
+        selected = typeof index === 'number' ? index : selected;
+        tripView.classList.remove('active');
+        setupView.classList.add('active');
+        $('heroTitle').textContent = 'Ready to map your route?';
+        $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 1 through 13.';
+        loadStopForm();
+        renderRoute();
+      }
+
+      function showToast(message) {
+        $('toast').textContent = message;
+        $('toast').classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
+      }
+
+      function geolocationAllowedByPage() {
+        try {
+          var policy = document.permissionsPolicy || document.featurePolicy;
+          return !policy || !policy.allowsFeature || policy.allowsFeature('geolocation');
+        } catch (e) {
+          return true;
+        }
+      }
+
+      function refreshLocationPermissionState() {
+        if (!navigator.permissions || !navigator.permissions.query) return;
+        navigator.permissions.query({ name: 'geolocation' }).then(function (result) {
+          locationPermissionState = result.state;
+          result.onchange = function () {
+            locationPermissionState = result.state;
+            if (result.state !== 'denied') clearGpsProblem();
+          };
+          if (result.state === 'denied') showGpsProblem({ code: 1, type: 'site-denied' }, configuredCount() === 13 ? 'trip' : 'setup');
+        }).catch(function () { locationPermissionState = 'unknown'; });
+      }
+
+      function gpsErrorDetails(error) {
+        if (!navigator.geolocation || (error && error.type === 'unsupported')) {
+          return {
+            status: 'Not supported',
+            title: 'GPS is not available here',
+            text: 'This app or browser does not provide location access to this page.',
+            steps: ['Open this page in a current browser on the phone.', 'Make sure the page is using a secure HTTPS connection.', 'Return here and try GPS again.']
+          };
+        }
+        if (!window.isSecureContext) {
+          return {
+            status: 'Secure page required',
+            title: 'Chrome cannot share location here',
+            text: 'Location permission is available only on a secure HTTPS page.',
+            steps: ['Open the original https://muse.ai link in Chrome.', 'Do not use a copied preview or an embedded copy of the page.', 'Return here and tap Try GPS again.']
+          };
+        }
+        if (!geolocationAllowedByPage()) {
+          return {
+            status: 'Blocked by viewer',
+            title: 'Open this link directly in Chrome',
+            text: 'The viewer containing this page is blocking Chrome’s location prompt.',
+            steps: ['Open the original muse.ai link directly in a Chrome tab.', 'If Chrome still does not ask, use the site controls beside the address and set Location to Allow.', 'Reload the page, then tap Try GPS again.']
+          };
+        }
+        if (error && error.code === 1) {
+          return {
+            status: 'Permission blocked',
+            title: 'Reset this site’s location permission',
+            text: locationPermissionState === 'denied' ? 'Chrome already has Location blocked for this site, so it will not ask again until that setting is reset.' : 'Chrome did not grant this site access to your location.',
+            steps: ['In Chrome, tap the site controls icon beside the address.', 'Open Permissions, then set Location to Allow (or Reset permissions).', 'Reload this page, tap Try GPS again, and choose Allow.']
+          };
+        }
+        if (error && error.code === 3) {
+          return {
+            status: 'Timed out',
+            title: 'GPS is taking too long',
+            text: 'The phone did not return a location before the request timed out.',
+            steps: ['Move near a window or outdoors.', 'Confirm Location is turned on for the phone.', 'Keep this page visible, then try GPS again.']
+          };
+        }
+        return {
+          status: 'Signal unavailable',
+          title: 'GPS position is unavailable',
+          text: 'The phone could not determine its current position.',
+          steps: ['Turn Location on and move near a window or outdoors.', 'Make sure Location is allowed for the app or browser.', 'Keep this page visible, then try GPS again.']
+        };
+      }
+
+      function showGpsProblem(error, retryMode) {
+        var details = gpsErrorDetails(error);
+        gpsRetryMode = retryMode;
+        $('gpsStatus').textContent = details.status;
+        $('accuracyStatus').textContent = '—';
+        $('gpsHelpTitle').textContent = details.title;
+        $('gpsHelpText').textContent = details.text;
+        $('gpsHelpSteps').innerHTML = details.steps.map(function (step) { return '<li>' + escapeHtml(step) + '</li>'; }).join('');
+        $('gpsHelp').hidden = false;
+      }
+
+      function clearGpsProblem() {
+        gpsRetryMode = null;
+        $('gpsHelp').hidden = true;
+      }
+
+      function useCurrentLocation() {
+        clearGpsProblem();
+        if (!navigator.geolocation) {
+          showGpsProblem({ type: 'unsupported' }, 'setup');
+          return;
+        }
+        if (!window.isSecureContext || !geolocationAllowedByPage()) {
+          showGpsProblem({ code: 1, type: 'page-blocked' }, 'setup');
+          return;
+        }
+        var btn = $('useLocationBtn');
+        btn.disabled = true;
+        btn.lastChild.textContent = ' Finding location…';
+        $('gpsStatus').textContent = 'Locating…';
+        navigator.geolocation.getCurrentPosition(function (position) {
+          $('latitude').value = position.coords.latitude.toFixed(7);
+          $('longitude').value = position.coords.longitude.toFixed(7);
+          $('gpsStatus').textContent = 'Location found';
+          $('accuracyStatus').textContent = Math.round(position.coords.accuracy) + ' m';
+          clearGpsProblem();
+          btn.disabled = false;
+          btn.lastChild.textContent = ' Use current location';
+          showToast('Current location added to stop ' + stops[selected].number + '.');
+        }, function (error) {
+          btn.disabled = false;
+          btn.lastChild.textContent = ' Use current location';
+          showGpsProblem(error, 'setup');
+        }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 });
+      }
+
+      function distanceMeters(lat1, lon1, lat2, lon2) {
+        var R = 6371000;
+        var toRad = function (v) { return v * Math.PI / 180; };
+        var dLat = toRad(lat2 - lat1);
+        var dLon = toRad(lon2 - lon1);
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+
+      function onPosition(position) {
+        var accuracy = Math.round(position.coords.accuracy);
+        clearGpsProblem();
+        $('gpsStatus').textContent = 'Tracking';
+        $('accuracyStatus').textContent = accuracy + ' m';
+        $('gpsPulse').classList.add('live');
+        var idx = stops.findIndex(function (s) { return !s.reached; });
+        if (idx === -1) {
+          finishRoute();
+          return;
+        }
+        var stop = stops[idx];
+        var distance = distanceMeters(position.coords.latitude, position.coords.longitude, stop.lat, stop.lng);
+        $('tripKicker').textContent = 'Next stop';
+        $('nextStopDisplay').textContent = stopLabel(stop);
+        $('distanceDisplay').textContent = distance < 1000 ? Math.round(distance) + ' m away' : (distance / 1000).toFixed(1) + ' km away';
+        if (distance <= stop.radius && accuracy <= Math.max(stop.radius * 1.5, 100)) {
+          stop.reached = true;
+          triggerArrival(stop);
+          renderRoute();
+          if (reachedCount() === 13) finishRoute();
+          else $('nextStopDisplay').textContent = stopLabel(stops[nextStopIndex()]);
+        }
+      }
+
+      function onLocationError(error) {
+        $('gpsPulse').classList.remove('live');
+        showGpsProblem(error, 'trip');
+        stopTracking(true);
+      }
+
+      function startTracking() {
+        if (configuredCount() !== 13) {
+          showToast('Save all 13 stop locations before starting.');
+          return;
+        }
+        if (!navigator.geolocation) {
+          showGpsProblem({ type: 'unsupported' }, 'trip');
+          return;
+        }
+        if (!window.isSecureContext || !geolocationAllowedByPage()) {
+          showGpsProblem({ code: 1, type: 'page-blocked' }, 'trip');
+          return;
+        }
+        if (tracking || locationRequestPending) return;
+
+        clearGpsProblem();
+        ensureAudio();
+        locationRequestPending = true;
+        var requestToken = ++locationRequestToken;
+        $('startBtn').disabled = true;
+        $('stopBtn').disabled = true;
+        $('gpsStatus').textContent = 'Permission needed';
+        $('tripKicker').textContent = 'Allow location when asked';
+
+        // Force a fresh one-time request directly from this tap. Chrome will
+        // show its site permission prompt when the permission is still unset.
+        navigator.geolocation.getCurrentPosition(function (position) {
+          if (!locationRequestPending || requestToken !== locationRequestToken) return;
+          locationRequestPending = false;
+          tracking = true;
+          $('stopBtn').disabled = false;
+          onPosition(position);
+          watchId = navigator.geolocation.watchPosition(onPosition, onLocationError, { enableHighAccuracy: false, maximumAge: 10000, timeout: 20000 });
+          requestWakeLock();
+          renderRoute();
+        }, function (error) {
+          if (requestToken !== locationRequestToken) return;
+          locationRequestPending = false;
+          $('startBtn').disabled = false;
+          $('stopBtn').disabled = true;
+          $('tripKicker').textContent = 'GPS needs attention';
+          showGpsProblem(error, 'trip');
+          renderRoute();
+        }, { enableHighAccuracy: false, maximumAge: 0, timeout: 20000 });
+      }
+
+      function stopTracking(preserveGpsStatus) {
+        locationRequestPending = false;
+        locationRequestToken += 1;
+        tracking = false;
+        if (watchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        $('startBtn').disabled = false;
+        $('stopBtn').disabled = true;
+        $('gpsPulse').classList.remove('live');
+        if (!preserveGpsStatus) $('gpsStatus').textContent = 'Paused';
+        $('tripKicker').textContent = preserveGpsStatus ? 'GPS needs attention' : 'Tracking paused';
+        releaseWakeLock();
+        renderRoute();
+      }
+
+      function resetProgress() {
+        stops.forEach(function (s) { s.reached = false; });
+        $('tripKicker').textContent = 'Ready to begin';
+        $('nextStopDisplay').textContent = stopLabel(stops[0]);
+        $('distanceDisplay').textContent = 'Waiting for GPS';
+        renderRoute();
+        showToast('Trip progress reset.');
+      }
+
+      function finishRoute() {
+        stopTracking();
+        $('tripKicker').textContent = 'Route complete';
+        $('nextStopDisplay').textContent = 'Final stop reached';
+        $('distanceDisplay').textContent = 'All 13 stops complete';
+        $('nextMetric').textContent = 'Complete';
+      }
+
+      function ensureAudio() {
+        if (!audioContext) {
+          var AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) audioContext = new AudioCtx();
+        }
+        if (audioContext && audioContext.state === 'suspended') audioContext.resume();
+      }
+
+      function playAlert() {
+        ensureAudio();
+        if (!audioContext) return;
+        var now = audioContext.currentTime;
+        [0, .22, .44].forEach(function (offset, i) {
+          var osc = audioContext.createOscillator();
+          var gain = audioContext.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = i === 2 ? 880 : 660;
+          gain.gain.setValueAtTime(0.0001, now + offset);
+          gain.gain.exponentialRampToValueAtTime(.24, now + offset + .02);
+          gain.gain.exponentialRampToValueAtTime(.0001, now + offset + .16);
+          osc.connect(gain); gain.connect(audioContext.destination);
+          osc.start(now + offset); osc.stop(now + offset + .18);
+        });
+      }
+
+      function triggerArrival(stop) {
+        playAlert();
+        if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
+        $('arrivalTitle').textContent = stopLabel(stop) + ' reached';
+        $('arrivalText').textContent = stop.number === 13 ? 'You have reached the final stop.' : 'Next up: ' + stopLabel(stops[stop.number]) + '.';
+        $('alertSheet').classList.add('open');
+      }
+
+      function testAlert() {
+        playAlert();
+        if (navigator.vibrate) navigator.vibrate([180, 80, 180]);
+        showToast('Alert sound tested.');
+      }
+
+      function downloadRoute() {
+        if (configuredCount() === 0) {
+          showToast('Save at least one stop before downloading.');
+          return;
+        }
+        var payload = { version: 1, stopCount: 13, stops: stops.map(function (s) { return { number: s.number, time: s.time || '', name: s.name, lat: s.lat, lng: s.lng, radius: s.radius }; }) };
+        var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'bus-route-13-stops.json';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        showToast('Route file downloaded.');
+      }
+
+      function importRoute(file) {
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var data = JSON.parse(reader.result);
+            if (!data || !Array.isArray(data.stops) || data.stops.length !== 13) throw new Error('invalid');
+            var imported = data.stops.map(function (s, i) {
+              var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 80);
+              if (!validCoordinates(lat, lng)) throw new Error('invalid');
+              return { number: i + 1, time: String(s.time || ''), name: String(s.name || ''), lat: lat, lng: lng, radius: Math.min(250, Math.max(30, radius)), reached: false };
+            });
+            stops = imported;
+            selected = 0;
+            loadStopForm();
+            updateViewForCompleteness();
+            showToast('13-stop route imported.');
+          } catch (e) {
+            showToast('That file is not a valid 13-stop route.');
+          }
+          $('fileInput').value = '';
+        };
+        reader.readAsText(file);
+      }
+
+      function clearRoute() {
+        stops = Array.from({ length: 13 }, function (_, i) { return { number: i + 1, name: '', lat: null, lng: null, radius: 80, reached: false }; });
+        selected = 0;
+        loadStopForm();
+        renderRoute();
+        showToast('Route cleared for this session.');
+      }
+
+      async function requestWakeLock() {
+        if (!('wakeLock' in navigator)) return;
+        try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* Browser may not allow it. */ }
+      }
+
+      function releaseWakeLock() {
+        if (wakeLock) { wakeLock.release(); wakeLock = null; }
+      }
+
+      document.querySelectorAll('.mode-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+          var ride = btn.dataset.mode === 'ride';
+          $('rideMode').style.display = ride ? 'grid' : 'none';
+          $('followMode').classList.toggle('active', !ride);
+          $('heroTitle').textContent = ride ? (configuredCount() === 13 ? 'Your route is ready.' : 'Ready to map your route?') : 'Keep an eye on the ride.';
+          $('heroText').textContent = ride ? (configuredCount() === 13 ? 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.' : 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 1 through 13.') : 'Location sharing lets you follow the phone riding on the bus from your own phone.';
+        });
+      });
+
+      routeList.addEventListener('click', function (e) {
+        var button = e.target.closest('[data-index]');
+        if (button) showSetup(parseInt(button.dataset.index, 10));
+      });
+      $('radius').addEventListener('input', function () { $('radiusOut').textContent = $('radius').value + ' m'; });
+      $('gpsRetryBtn').addEventListener('click', function () {
+        if (gpsRetryMode === 'trip') startTracking();
+        else useCurrentLocation();
+      });
+      $('useLocationBtn').addEventListener('click', useCurrentLocation);
+      $('saveStopBtn').addEventListener('click', function () { saveCurrentStop(false); });
+      $('nextStopBtn').addEventListener('click', function () {
+        if ($('latitude').value || $('longitude').value) saveCurrentStop(true);
+        else { selected = Math.min(12, selected + 1); loadStopForm(); }
+      });
+      $('startBtn').addEventListener('click', startTracking);
+      $('stopBtn').addEventListener('click', stopTracking);
+      $('resetTripBtn').addEventListener('click', resetProgress);
+      $('editRouteBtn').addEventListener('click', function () { showSetup(0); });
+      $('testAlertBtn').addEventListener('click', testAlert);
+      $('testAlertBtn2').addEventListener('click', testAlert);
+      $('downloadBtn').addEventListener('click', downloadRoute);
+      $('downloadBtn2').addEventListener('click', downloadRoute);
+      $('importBtn').addEventListener('click', function () { $('fileInput').click(); });
+      $('importBtn2').addEventListener('click', function () { $('fileInput').click(); });
+      $('fileInput').addEventListener('change', function () { importRoute($('fileInput').files[0]); });
+      $('clearBtn').addEventListener('click', clearRoute);
+      $('dismissAlert').addEventListener('click', function () { $('alertSheet').classList.remove('open'); });
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && tracking) requestWakeLock(); });
+      window.addEventListener('beforeunload', releaseWakeLock);
+
+      loadStopForm();
+      updateViewForCompleteness();
+      refreshLocationPermissionState();
+    })();
+  </script>
+</body>
+</html>
