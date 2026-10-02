@@ -564,7 +564,7 @@
         return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
       }
 
-      function saveCurrentStop(advance) {
+      function saveCurrentStop(advance, stayInSetup) {
         var lat = parseFloat($('latitude').value);
         var lng = parseFloat($('longitude').value);
         if (!validCoordinates(lat, lng)) {
@@ -581,7 +581,8 @@
           selected += 1;
           loadStopForm();
         }
-        updateViewForCompleteness();
+        if (stayInSetup) renderRoute();
+        else updateViewForCompleteness();
         return true;
       }
 
@@ -1016,7 +1017,7 @@
       $('backToRideBtn').addEventListener('click', showTrip);
       $('saveStopBtn').addEventListener('click', function () { saveCurrentStop(false); });
       $('nextStopBtn').addEventListener('click', function () {
-        if ($('latitude').value || $('longitude').value) saveCurrentStop(true);
+        if ($('latitude').value || $('longitude').value) saveCurrentStop(true, true);
         else { selected = Math.min(12, selected + 1); loadStopForm(); }
       });
       $('startBtn').addEventListener('click', startTracking);
