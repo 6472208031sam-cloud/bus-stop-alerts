@@ -130,6 +130,7 @@
     .dot { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); border: 2px solid var(--line); font-family: "Archivo", sans-serif; font-size: .78rem; font-weight: 700; color: var(--muted); transition: .2s ease; }
     .route-item.configured .dot { background: var(--green-soft); border-color: var(--green); color: var(--green-strong); }
     .route-item.reached .dot { background: var(--green); border-color: var(--green); color: #fff; }
+    .route-item.skipped .dot { background: var(--surface-3); border-color: var(--line); color: var(--muted); }
     .route-item.next .dot { outline: 4px solid var(--green-soft); }
     .stop-main { min-width: 0; }
     .stop-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -378,7 +379,7 @@
           </div>
           <div class="notice">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-            <span>Tap Start ride, then choose Allow when your phone asks for location. Keep this page visible during the ride; tracking stops if the browser closes or locks the page.</span>
+            <span>Tap Start ride, then choose Allow when your phone asks for location. You can board at any stop — the app picks up from the stop nearest to you and alerts from there on. Keep this page visible during the ride; tracking stops if the browser closes or locks the page.</span>
           </div>
           <div class="follower-card" id="followerCard">
             <div class="follower-head">
@@ -514,9 +515,10 @@
         routeList.innerHTML = '';
         stops.forEach(function (stop, i) {
           var li = document.createElement('li');
-          li.className = 'route-item' + (isConfigured(stop) ? ' configured' : '') + (stop.reached ? ' reached' : '') + (tracking && !stop.reached && i === nextIdx ? ' next' : '');
-          li.innerHTML = '<span class="dot">' + (stop.reached ? '✓' : stop.number) + '</span>' +
-            '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabel(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (isConfigured(stop) ? stop.radius + ' m alert radius' : 'Location not saved') + '</div></span>' +
+          var skipped = !!stop.skipped;
+          li.className = 'route-item' + (isConfigured(stop) ? ' configured' : '') + (stop.reached && !skipped ? ' reached' : '') + (skipped ? ' skipped' : '') + (tracking && !stop.reached && i === nextIdx ? ' next' : '');
+          li.innerHTML = '<span class="dot">' + (skipped ? '–' : (stop.reached ? '✓' : stop.number)) + '</span>' +
+            '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabel(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (skipped ? 'Skipped' : (isConfigured(stop) ? stop.radius + ' m alert radius' : 'Location not saved')) + '</div></span>' +
             '<button class="stop-action" type="button" data-index="' + i + '">Edit</button>';
           routeList.appendChild(li);
         });
@@ -731,13 +733,32 @@
         $('gpsStatus').textContent = 'Tracking';
         $('accuracyStatus').textContent = accuracy + ' m';
         $('gpsPulse').classList.add('live');
+        var lat = position.coords.latitude, lng = position.coords.longitude;
         var idx = stops.findIndex(function (s) { return !s.reached; });
+        // Catch-up: if the phone is near a later stop than the current "next"
+        // one, snap forward to it. This lets a ride start at any stop (or
+        // mid-route) instead of only working from stop 1. Only moves forward,
+        // only on decent fixes, and only when that stop is reasonably close.
+        if (idx !== -1 && accuracy <= 150) {
+          var best = -1, bestDist = Infinity, i, d;
+          for (i = idx; i < stops.length; i++) {
+            if (stops[i].reached) continue;
+            d = distanceMeters(lat, lng, stops[i].lat, stops[i].lng);
+            if (d < bestDist) { bestDist = d; best = i; }
+          }
+          if (best > idx && bestDist <= 500) {
+            for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
+            idx = best;
+            renderRoute();
+            showToast('Starting from ' + stopLabel(stops[best]) + ' — earlier stops skipped.');
+          }
+        }
         if (idx === -1) {
           finishRoute();
           return;
         }
         var stop = stops[idx];
-        var distance = distanceMeters(position.coords.latitude, position.coords.longitude, stop.lat, stop.lng);
+        var distance = distanceMeters(lat, lng, stop.lat, stop.lng);
         $('tripKicker').textContent = 'Next stop';
         $('nextStopDisplay').textContent = stopLabel(stop);
         $('distanceDisplay').textContent = distance < 1000 ? Math.round(distance) + ' m away' : (distance / 1000).toFixed(1) + ' km away';
@@ -818,7 +839,7 @@
       }
 
       function resetProgress() {
-        stops.forEach(function (s) { s.reached = false; });
+        stops.forEach(function (s) { s.reached = false; s.skipped = false; });
         $('tripKicker').textContent = 'Ready to begin';
         $('nextStopDisplay').textContent = stopLabel(stops[0]);
         $('distanceDisplay').textContent = 'Waiting for GPS';
