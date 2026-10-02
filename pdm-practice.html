@@ -110,6 +110,7 @@
       cursor: pointer;
     }
     .mode-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+    .dir-switch { max-width: 300px; margin: 14px 0 16px; }
     .dashboard {
       display: grid;
       grid-template-columns: minmax(270px, .78fr) minmax(0, 1.22fr);
@@ -276,7 +277,11 @@
   <main class="shell">
     <section class="hero">
       <div>
-        <div class="route-kicker">PDM Practice Route</div>
+        <div class="route-kicker" id="routeKicker">PDM Practice Route · To</div>
+        <nav class="mode-switch dir-switch" aria-label="Direction">
+          <button class="mode-btn dir-btn active" type="button" data-dir="to">To</button>
+          <button class="mode-btn dir-btn" type="button" data-dir="from">From</button>
+        </nav>
         <h1 id="heroTitle">Ready to map your route?</h1>
         <p id="heroText">Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops A through D.</p>
       </div>
@@ -498,6 +503,7 @@
       }
 
       var stops = createDefaultStops();
+      var direction = 'to'; // 'to' = A->D, 'from' = D->A
       var selected = 0;
       var watchId = null;
       var tracking = false;
@@ -543,6 +549,38 @@
 
       function accLimit(stop) {
         return stop.acc || Math.max(stop.radius * 1.5, 100);
+      }
+
+      function dirRange() { return direction === 'to' ? 'A through D' : 'D through A'; }
+      function currentPath() { return direction === 'to' ? ROUTE_PATH : ROUTE_PATH.slice().reverse(); }
+      function setupHeroText() {
+        $('heroTitle').textContent = 'Ready to map your route?';
+        $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.';
+      }
+      function setDirection(dir) {
+        if (dir === direction) return;
+        if (tracking) stopTracking();
+        direction = dir;
+        stops.reverse();
+        stops.forEach(function (s, i) { s.number = i + 1; s.reached = false; s.skipped = false; });
+        selected = 0;
+        document.querySelectorAll('.dir-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.dir === dir); });
+        $('routeKicker').textContent = 'PDM Practice Route \u00b7 ' + (dir === 'to' ? 'To' : 'From');
+        if (map && routeLine) {
+          routeLine.setLatLngs(currentPath());
+          map.fitBounds(routeLine.getBounds().pad(0.18));
+        }
+        $('nextStopDisplay').textContent = stopLabelNumbered(stops[0]);
+        $('distanceDisplay').textContent = 'Waiting for GPS';
+        $('tripKicker').textContent = 'Ready to begin';
+        if (setupView.classList.contains('active')) setupHeroText();
+        else {
+          $('heroTitle').textContent = 'Your route is ready.';
+          $('heroText').textContent = 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop\u2019s radius.';
+        }
+        loadStopForm();
+        renderRoute();
+        showToast(dir === 'to' ? 'Direction set: To (A \u2192 D).' : 'Direction set: From (D \u2192 A).');
       }
 
       function renderRoute() {
@@ -636,8 +674,7 @@
           $('heroTitle').textContent = 'Editing stops mid-ride';
           $('heroText').textContent = 'Tracking keeps running while you edit. Save your changes, then go back to the ride.';
         } else {
-          $('heroTitle').textContent = 'Ready to map your route?';
-          $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops A through D.';
+          setupHeroText();
         }
         $('backToRideRow').hidden = !tracking;
         loadStopForm();
@@ -848,7 +885,7 @@
         if (!map) {
           map = L.map('routeMap', { zoomControl: true });
           L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
-          routeLine = L.polyline(ROUTE_PATH, { color: '#087a4c', weight: 4, opacity: 0.85 }).addTo(map);
+          routeLine = L.polyline(currentPath(), { color: '#087a4c', weight: 4, opacity: 0.85 }).addTo(map);
           map.fitBounds(routeLine.getBounds().pad(0.18));
           stopLayer = L.layerGroup().addTo(map);
         } else {
@@ -1051,7 +1088,7 @@
         var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
-        a.href = url; a.download = 'pdm-practice-route-4-stops.json';
+        a.href = url; a.download = 'pdm-practice-' + direction + '-4-stops.json';
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
         showToast('Route file downloaded.');
@@ -1107,8 +1144,12 @@
           $('rideMode').style.display = ride ? 'grid' : 'none';
           $('followMode').classList.toggle('active', !ride);
           $('heroTitle').textContent = ride ? (configuredCount() === 4 ? 'Your route is ready.' : 'Ready to map your route?') : 'Keep an eye on the ride.';
-          $('heroText').textContent = ride ? (configuredCount() === 4 ? 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.' : 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops A through D.') : 'Location sharing lets you follow the phone riding on the bus from your own phone.';
+          $('heroText').textContent = ride ? (configuredCount() === 4 ? 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.' : 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.') : 'Location sharing lets you follow the phone riding on the bus from your own phone.';
         });
+      });
+
+      document.querySelectorAll('.dir-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { setDirection(btn.dataset.dir); });
       });
 
       routeList.addEventListener('click', function (e) {
