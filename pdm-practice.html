@@ -565,6 +565,9 @@
         stops.forEach(function (s, i) { s.number = i + 1; s.reached = false; s.skipped = false; });
         selected = 0;
         document.querySelectorAll('.dir-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.dir === dir); });
+        document.querySelectorAll('.mode-btn[data-mode]').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === 'ride'); });
+        $('rideMode').style.display = 'grid';
+        $('followMode').classList.remove('active');
         $('routeKicker').textContent = 'PDM Practice Route \u00b7 ' + (dir === 'to' ? 'To' : 'From');
         if (map && routeLine) {
           routeLine.setLatLngs(currentPath());
@@ -1137,9 +1140,9 @@
         if (wakeLock) { wakeLock.release(); wakeLock = null; }
       }
 
-      document.querySelectorAll('.mode-btn').forEach(function (btn) {
+      document.querySelectorAll('.mode-btn[data-mode]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+          document.querySelectorAll('.mode-btn[data-mode]').forEach(function (b) { b.classList.toggle('active', b === btn); });
           var ride = btn.dataset.mode === 'ride';
           $('rideMode').style.display = ride ? 'grid' : 'none';
           $('followMode').classList.toggle('active', !ride);
