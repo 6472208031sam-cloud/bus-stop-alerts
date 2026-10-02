@@ -156,6 +156,9 @@
     input[type="range"] { accent-color: var(--green); flex: 1; }
     output { font-weight: 700; min-width: 48px; text-align: right; }
     .action-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .back-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .back-row[hidden] { display: none; }
+    .back-row .sub { margin: 0; }
     .btn {
       min-height: 46px; border-radius: 11px; padding: 11px 16px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
@@ -308,6 +311,10 @@
         </div>
 
         <div class="content setup-view active" id="setupView">
+          <div class="back-row" id="backToRideRow" hidden>
+            <button class="btn" type="button" id="backToRideBtn">← Back to ride</button>
+            <span class="sub">Tracking is still running.</span>
+          </div>
           <div class="panel-head-row">
             <div>
               <h2 id="setupHeading">Set stop 1</h2>
@@ -579,7 +586,7 @@
       }
 
       function updateViewForCompleteness() {
-        if (configuredCount() === 13) {
+        if (configuredCount() === 13 && !tracking) {
           setupView.classList.remove('active');
           tripView.classList.add('active');
           $('heroTitle').textContent = 'Your route is ready.';
@@ -590,13 +597,24 @@
       }
 
       function showSetup(index) {
-        if (tracking) stopTracking();
         selected = typeof index === 'number' ? index : selected;
         tripView.classList.remove('active');
         setupView.classList.add('active');
-        $('heroTitle').textContent = 'Ready to map your route?';
-        $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 1 through 13.';
+        if (tracking) {
+          $('heroTitle').textContent = 'Editing stops mid-ride';
+          $('heroText').textContent = 'Tracking keeps running while you edit. Save your changes, then go back to the ride.';
+        } else {
+          $('heroTitle').textContent = 'Ready to map your route?';
+          $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 1 through 13.';
+        }
+        $('backToRideRow').hidden = !tracking;
         loadStopForm();
+        renderRoute();
+      }
+
+      function showTrip() {
+        setupView.classList.remove('active');
+        tripView.classList.add('active');
         renderRoute();
       }
 
@@ -837,6 +855,7 @@
         $('startBtn').disabled = false;
         $('stopBtn').disabled = true;
         $('gpsPulse').classList.remove('live');
+        $('backToRideRow').hidden = true;
         if (!preserveGpsStatus) $('gpsStatus').textContent = 'Paused';
         $('tripKicker').textContent = preserveGpsStatus ? 'GPS needs attention' : 'Tracking paused';
         releaseWakeLock();
@@ -994,6 +1013,7 @@
         else useCurrentLocation();
       });
       $('useLocationBtn').addEventListener('click', useCurrentLocation);
+      $('backToRideBtn').addEventListener('click', showTrip);
       $('saveStopBtn').addEventListener('click', function () { saveCurrentStop(false); });
       $('nextStopBtn').addEventListener('click', function () {
         if ($('latitude').value || $('longitude').value) saveCurrentStop(true);
