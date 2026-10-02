@@ -529,6 +529,11 @@
         return stop.name.trim() || ('Stop ' + stop.number);
       }
 
+      function stopLabelNumbered(stop) {
+        var name = stop.name.trim();
+        return name ? ('Stop ' + stop.number + ': ' + name) : ('Stop ' + stop.number);
+      }
+
       function accLimit(stop) {
         return stop.acc || Math.max(stop.radius * 1.5, 100);
       }
@@ -544,7 +549,7 @@
             : '';
           li.className = 'route-item' + (isConfigured(stop) ? ' configured' : '') + (stop.reached && !skipped ? ' reached' : '') + (skipped ? ' skipped' : '') + (tracking && !stop.reached && i === nextIdx ? ' next' : '');
           li.innerHTML = '<span class="dot">' + (skipped ? '–' : (stop.reached ? '✓' : stop.number)) + '</span>' +
-            '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabel(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (skipped ? 'Skipped' : (isConfigured(stop) ? stop.radius + ' m radius · GPS ≤' + accLimit(stop) + ' m' : 'Location not saved')) + '</div></span>' +
+            '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabelNumbered(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (skipped ? 'Skipped' : (isConfigured(stop) ? stop.radius + ' m radius · GPS ≤' + accLimit(stop) + ' m' : 'Location not saved')) + '</div></span>' +
             '<span class="stop-actions">' + navHtml + '<button class="stop-action" type="button" data-index="' + i + '">Edit</button></span>';
           routeList.appendChild(li);
         });
@@ -552,7 +557,7 @@
         $('reachedCount').textContent = reachedCount();
         $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === 13 ? 'Ready' : 'Setup');
         var next = stops[nextIdx];
-        $('nextMetric').textContent = reachedCount() === 13 ? 'Complete' : stopLabel(next);
+        $('nextMetric').textContent = reachedCount() === 13 ? 'Complete' : stopLabelNumbered(next);
         $('progressText').textContent = reachedCount() + ' of 13 stops';
         $('progressFill').style.width = ((reachedCount() / 13) * 100) + '%';
       }
@@ -609,7 +614,7 @@
           tripView.classList.add('active');
           $('heroTitle').textContent = 'Your route is ready.';
           $('heroText').textContent = 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.';
-          $('nextStopDisplay').textContent = stopLabel(stops[nextStopIndex()]);
+          $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
         }
         renderRoute();
       }
@@ -791,7 +796,7 @@
             for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
             idx = best;
             renderRoute();
-            showToast('Starting from ' + stopLabel(stops[best]) + ' — earlier stops skipped.');
+            showToast('Starting from ' + stopLabelNumbered(stops[best]) + ' — earlier stops skipped.');
           }
         }
         if (idx === -1) {
@@ -801,14 +806,14 @@
         var stop = stops[idx];
         var distance = distanceMeters(lat, lng, stop.lat, stop.lng);
         $('tripKicker').textContent = 'Next stop';
-        $('nextStopDisplay').textContent = stopLabel(stop);
+        $('nextStopDisplay').textContent = stopLabelNumbered(stop);
         $('distanceDisplay').textContent = distance < 1000 ? Math.round(distance) + ' m away' : (distance / 1000).toFixed(1) + ' km away';
         if (distance <= stop.radius && accuracy <= accLimit(stop)) {
           stop.reached = true;
           triggerArrival(stop);
           renderRoute();
           if (reachedCount() === 13) finishRoute();
-          else $('nextStopDisplay').textContent = stopLabel(stops[nextStopIndex()]);
+          else $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
         }
       }
 
@@ -883,7 +888,7 @@
       function resetProgress() {
         stops.forEach(function (s) { s.reached = false; s.skipped = false; });
         $('tripKicker').textContent = 'Ready to begin';
-        $('nextStopDisplay').textContent = stopLabel(stops[0]);
+        $('nextStopDisplay').textContent = stopLabelNumbered(stops[0]);
         $('distanceDisplay').textContent = 'Waiting for GPS';
         renderRoute();
         showToast('Trip progress reset.');
