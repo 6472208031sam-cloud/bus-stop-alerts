@@ -189,6 +189,18 @@
     .fill { height: 100%; width: 0%; background: var(--green); transition: width .25s ease; }
     .secondary-tools { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 9px; }
     .small-btn { border: 0; background: var(--surface-2); color: var(--text); border-radius: 9px; padding: 9px 11px; font-size: .82rem; font-weight: 700; cursor: pointer; }
+    .follower-card { margin-top: 16px; padding: 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+    .follower-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .follower-head h3 { font-size: 1rem; margin: 0; letter-spacing: -.01em; }
+    .follower-card .sub { font-size: .85rem; }
+    .channel-row { display: flex; gap: 8px; margin-top: 10px; }
+    .channel-row input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 9px; padding: 9px 10px; font-size: .78rem; font-family: ui-monospace, monospace; }
+    .switch { position: relative; display: inline-block; width: 46px; height: 26px; flex: none; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; border-radius: 99px; background: var(--muted); opacity: .45; transition: .2s; }
+    .slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; border-radius: 50%; background: #fff; transition: .2s; }
+    .switch input:checked + .slider { background: var(--green); opacity: 1; }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
     .follow-card { display: none; }
     .follow-card.active { display: block; }
     .follow-flow { display: grid; gap: 0; margin-top: 8px; }
@@ -368,6 +380,18 @@
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
             <span>Tap Start ride, then choose Allow when your phone asks for location. Keep this page visible during the ride; tracking stops if the browser closes or locks the page.</span>
           </div>
+          <div class="follower-card" id="followerCard">
+            <div class="follower-head">
+              <h3>Alerts to another phone</h3>
+              <label class="switch" aria-label="Send stop alerts to another phone"><input type="checkbox" id="followerToggle" checked /><span class="slider"></span></label>
+            </div>
+            <p class="sub">When on, every stop reached also sends a push notification to your private channel. The other person installs the free <strong>ntfy</strong> app and subscribes to the channel below.</p>
+            <div class="channel-row">
+              <input id="followerChannel" readonly value="bus-alerts-zpxz5jrwzkl4pwoo" aria-label="Notification channel" onclick="this.select()" />
+              <button class="small-btn" type="button" id="copyChannelBtn">Copy</button>
+              <button class="small-btn" type="button" id="testPushBtn">Send test</button>
+            </div>
+          </div>
           <div class="secondary-tools">
             <button class="small-btn" type="button" id="editRouteBtn">Edit route</button>
             <button class="small-btn" type="button" id="downloadBtn2">Download route</button>
@@ -397,10 +421,14 @@
             <span class="step-num">3</span>
             <div><h3>Open it on your phone</h3><p>Watch the bus move in the same app. Stop sharing when the ride is complete.</p></div>
           </div>
+          <div class="follow-step">
+            <span class="step-num">4</span>
+            <div><h3>Or get automatic stop alerts</h3><p>On the riding phone, the ride screen has an “Alerts to another phone” panel. Install the free <strong>ntfy</strong> app, subscribe to the channel name shown there, and you’ll get a push notification at every stop — no live-location sharing needed.</p></div>
+          </div>
         </div>
         <span class="offline-tag">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></svg>
-          Stop-by-stop alerts are only available on the phone riding the bus
+          The riding phone sends stop-by-stop push alerts; live GPS stays on that phone
         </span>
       </div>
     </section>
@@ -831,12 +859,29 @@
         });
       }
 
+      var NTFY_TOPIC = 'bus-alerts-zpxz5jrwzkl4pwoo';
+
+      function followerAlertsOn() {
+        return localStorage.getItem('bsa_follower') !== '0';
+      }
+
+      function sendStopPush(stop) {
+        if (!followerAlertsOn()) return;
+        var msg = stop.number === 13
+          ? '🚌 Final stop reached: ' + stopLabel(stop) + '.'
+          : '🚌 Stop ' + stop.number + ' reached: ' + stopLabel(stop) + '.';
+        try {
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
+        } catch (e) {}
+      }
+
       function triggerArrival(stop) {
         playAlert();
         if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
         $('arrivalTitle').textContent = stopLabel(stop) + ' reached';
         $('arrivalText').textContent = stop.number === 13 ? 'You have reached the final stop.' : 'Next up: ' + stopLabel(stops[stop.number]) + '.';
         $('alertSheet').classList.add('open');
+        sendStopPush(stop);
       }
 
       function testAlert() {
@@ -941,6 +986,25 @@
       $('fileInput').addEventListener('change', function () { importRoute($('fileInput').files[0]); });
       $('clearBtn').addEventListener('click', clearRoute);
       $('dismissAlert').addEventListener('click', function () { $('alertSheet').classList.remove('open'); });
+      $('followerToggle').checked = followerAlertsOn();
+      $('followerToggle').addEventListener('change', function () {
+        localStorage.setItem('bsa_follower', $('followerToggle').checked ? '1' : '0');
+        showToast($('followerToggle').checked ? 'Follower alerts on.' : 'Follower alerts off.');
+      });
+      $('copyChannelBtn').addEventListener('click', function () {
+        var ch = $('followerChannel').value;
+        function done() { showToast('Channel name copied.'); }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(ch).then(done, function () { $('followerChannel').select(); showToast('Copy the highlighted text.'); });
+        } else { $('followerChannel').select(); showToast('Copy the highlighted text.'); }
+      });
+      $('testPushBtn').addEventListener('click', function () {
+        try {
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: '🔔 Test: Bus Stop Alerts notifications are working.', keepalive: true })
+            .then(function () { showToast('Test sent — check the other phone.'); })
+            .catch(function () { showToast('Could not send test. Check your connection.'); });
+        } catch (e) { showToast('Could not send test. Check your connection.'); }
+      });
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && tracking) requestWakeLock(); });
       window.addEventListener('beforeunload', releaseWakeLock);
 
