@@ -939,8 +939,13 @@
       function triggerArrival(stop) {
         playAlert();
         if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
-        $('arrivalTitle').textContent = stopLabel(stop) + ' reached';
-        $('arrivalText').textContent = stop.number === 13 ? 'You have reached the final stop.' : 'Next up: ' + stopLabel(stops[stop.number]) + '.';
+        $('arrivalTitle').textContent = 'Stop ' + stop.number + ': ' + stopLabel(stop) + ' reached';
+        if (stop.number === 13) {
+          $('arrivalText').textContent = 'You have reached the final stop.';
+        } else {
+          var next = stops[stop.number];
+          $('arrivalText').textContent = 'Next up: Stop ' + next.number + ' — ' + stopLabel(next) + '.';
+        }
         $('alertSheet').classList.add('open');
         sendStopPush(stop);
       }
