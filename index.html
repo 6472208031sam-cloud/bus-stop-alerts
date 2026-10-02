@@ -342,6 +342,14 @@
                 <output id="radiusOut" for="radius">80 m</output>
               </div>
             </div>
+            <div class="field full">
+              <label for="accuracy">Required GPS accuracy</label>
+              <div class="radius-row">
+                <input id="accuracy" type="range" min="50" max="500" step="10" value="150" />
+                <output id="accuracyOut" for="accuracy">150 m</output>
+              </div>
+              <p class="sub">The alert fires only when your position error is within this. Defaults to 1.5× the alert radius. Lower = stricter.</p>
+            </div>
           </div>
 
           <div class="action-row">
@@ -477,7 +485,7 @@
 
       function createDefaultStops() {
         return DEFAULT_STOPS.map(function (stop) {
-          return { number: stop.number, time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 80, reached: false };
+          return { number: stop.number, time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 80, acc: null, reached: false };
         });
       }
 
@@ -519,6 +527,10 @@
         return stop.name.trim() || ('Stop ' + stop.number);
       }
 
+      function accLimit(stop) {
+        return stop.acc || Math.max(stop.radius * 1.5, 100);
+      }
+
       function renderRoute() {
         var nextIdx = nextStopIndex();
         routeList.innerHTML = '';
@@ -530,7 +542,7 @@
             : '';
           li.className = 'route-item' + (isConfigured(stop) ? ' configured' : '') + (stop.reached && !skipped ? ' reached' : '') + (skipped ? ' skipped' : '') + (tracking && !stop.reached && i === nextIdx ? ' next' : '');
           li.innerHTML = '<span class="dot">' + (skipped ? '–' : (stop.reached ? '✓' : stop.number)) + '</span>' +
-            '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabel(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (skipped ? 'Skipped' : (isConfigured(stop) ? stop.radius + ' m alert radius' : 'Location not saved')) + '</div></span>' +
+            '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabel(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (skipped ? 'Skipped' : (isConfigured(stop) ? stop.radius + ' m radius · GPS ≤' + accLimit(stop) + ' m' : 'Location not saved')) + '</div></span>' +
             '<span class="stop-actions">' + navHtml + '<button class="stop-action" type="button" data-index="' + i + '">Edit</button></span>';
           routeList.appendChild(li);
         });
@@ -558,6 +570,8 @@
         $('longitude').value = isConfigured(stop) ? stop.lng : '';
         $('radius').value = stop.radius;
         $('radiusOut').textContent = stop.radius + ' m';
+        $('accuracy').value = accLimit(stop);
+        $('accuracyOut').textContent = accLimit(stop) + ' m';
       }
 
       function validCoordinates(lat, lng) {
@@ -575,6 +589,7 @@
         stops[selected].lat = lat;
         stops[selected].lng = lng;
         stops[selected].radius = parseInt($('radius').value, 10);
+        stops[selected].acc = parseInt($('accuracy').value, 10);
         renderRoute();
         showToast('Stop ' + stops[selected].number + ' saved.');
         if (advance && selected < 12) {
@@ -786,7 +801,7 @@
         $('tripKicker').textContent = 'Next stop';
         $('nextStopDisplay').textContent = stopLabel(stop);
         $('distanceDisplay').textContent = distance < 1000 ? Math.round(distance) + ' m away' : (distance / 1000).toFixed(1) + ' km away';
-        if (distance <= stop.radius && accuracy <= Math.max(stop.radius * 1.5, 100)) {
+        if (distance <= stop.radius && accuracy <= accLimit(stop)) {
           stop.reached = true;
           triggerArrival(stop);
           renderRoute();
@@ -941,7 +956,7 @@
           showToast('Save at least one stop before downloading.');
           return;
         }
-        var payload = { version: 1, stopCount: 13, stops: stops.map(function (s) { return { number: s.number, time: s.time || '', name: s.name, lat: s.lat, lng: s.lng, radius: s.radius }; }) };
+        var payload = { version: 1, stopCount: 13, stops: stops.map(function (s) { return { number: s.number, time: s.time || '', name: s.name, lat: s.lat, lng: s.lng, radius: s.radius, acc: s.acc || null }; }) };
         var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
@@ -961,7 +976,8 @@
             var imported = data.stops.map(function (s, i) {
               var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 80);
               if (!validCoordinates(lat, lng)) throw new Error('invalid');
-              return { number: i + 1, time: String(s.time || ''), name: String(s.name || ''), lat: lat, lng: lng, radius: Math.min(250, Math.max(30, radius)), reached: false };
+              var acc = Number(s.acc);
+              return { number: i + 1, time: String(s.time || ''), name: String(s.name || ''), lat: lat, lng: lng, radius: Math.min(250, Math.max(30, radius)), acc: (Number.isFinite(acc) && acc >= 50 && acc <= 500) ? Math.round(acc) : null, reached: false };
             });
             stops = imported;
             selected = 0;
@@ -977,7 +993,7 @@
       }
 
       function clearRoute() {
-        stops = Array.from({ length: 13 }, function (_, i) { return { number: i + 1, name: '', lat: null, lng: null, radius: 80, reached: false }; });
+        stops = Array.from({ length: 13 }, function (_, i) { return { number: i + 1, name: '', lat: null, lng: null, radius: 80, acc: null, reached: false }; });
         selected = 0;
         loadStopForm();
         renderRoute();
@@ -1009,6 +1025,7 @@
         if (button) showSetup(parseInt(button.dataset.index, 10));
       });
       $('radius').addEventListener('input', function () { $('radiusOut').textContent = $('radius').value + ' m'; });
+      $('accuracy').addEventListener('input', function () { $('accuracyOut').textContent = $('accuracy').value + ' m'; });
       $('gpsRetryBtn').addEventListener('click', function () {
         if (gpsRetryMode === 'trip') startTracking();
         else useCurrentLocation();
