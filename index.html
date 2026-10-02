@@ -8,6 +8,8 @@
   <meta name="theme-color" content="#0f1714" media="(prefers-color-scheme: dark)" />
   <link rel="icon" href="data:," />
   <title>Bus Stop Alerts</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap');
     :root {
@@ -159,6 +161,13 @@
     .back-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     .back-row[hidden] { display: none; }
     .back-row .sub { margin: 0; }
+    .map-wrap { margin: 2px 0 18px; }
+    #routeMap { height: 300px; border-radius: 14px; border: 1px solid var(--line); z-index: 0; background: var(--surface-2); }
+    .stop-pin { width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 2px solid var(--green); color: var(--green-strong); display: grid; place-items: center; font-family: "Archivo", sans-serif; font-weight: 800; font-size: .82rem; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+    .stop-pin.done { background: var(--green); border-color: var(--green); color: #fff; }
+    .stop-pin.skip { background: var(--surface-3); border-color: var(--line); color: var(--muted); }
+    .stop-pin.next { outline: 4px solid var(--green-soft); }
+    .user-dot { width: 18px; height: 18px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
     .btn {
       min-height: 46px; border-radius: 11px; padding: 11px 16px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
@@ -389,6 +398,9 @@
             <div class="progress-label"><span>Route progress</span><span id="progressText">0 of 13 stops</span></div>
             <div class="track"><div class="fill" id="progressFill"></div></div>
           </div>
+          <div class="map-wrap">
+            <div id="routeMap" aria-label="Route map"></div>
+          </div>
           <div class="action-row">
             <button class="btn primary" type="button" id="startBtn">Start ride</button>
             <button class="btn" type="button" id="stopBtn" disabled>Stop tracking</button>
@@ -560,6 +572,7 @@
         $('nextMetric').textContent = reachedCount() === 13 ? 'Complete' : stopLabelNumbered(next);
         $('progressText').textContent = reachedCount() + ' of 13 stops';
         $('progressFill').style.width = ((reachedCount() / 13) * 100) + '%';
+        refreshMapMarkers();
       }
 
       function escapeHtml(text) {
@@ -617,6 +630,7 @@
           $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
         }
         renderRoute();
+        ensureMap();
       }
 
       function showSetup(index) {
@@ -639,6 +653,7 @@
         setupView.classList.remove('active');
         tripView.classList.add('active');
         renderRoute();
+        ensureMap();
       }
 
       function showToast(message) {
@@ -780,6 +795,7 @@
         $('accuracyStatus').textContent = accuracy + ' m';
         $('gpsPulse').classList.add('live');
         var lat = position.coords.latitude, lng = position.coords.longitude;
+        updateUserDot(lat, lng);
         var idx = stops.findIndex(function (s) { return !s.reached; });
         // Catch-up: if the phone is near a later stop than the current "next"
         // one, snap forward to it. This lets a ride start at any stop (or
@@ -823,6 +839,54 @@
         stopTracking(true);
       }
 
+      var map = null, stopLayer = null, routeLine = null, userMarker = null;
+
+      function stopPinIcon(stop, isNext) {
+        var cls = 'stop-pin' + (stop.skipped ? ' skip' : (stop.reached ? ' done' : '')) + (isNext ? ' next' : '');
+        return L.divIcon({ className: '', html: '<div class="' + cls + '">' + stop.number + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
+      }
+
+      function ensureMap() {
+        if (typeof L === 'undefined') return;
+        if (!$('tripView').classList.contains('active')) return;
+        if (!map) {
+          map = L.map('routeMap', { zoomControl: true });
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+          var pts = stops.filter(isConfigured).map(function (s) { return [s.lat, s.lng]; });
+          routeLine = L.polyline(pts, { color: '#087a4c', weight: 4, opacity: 0.85 }).addTo(map);
+          if (pts.length > 1) map.fitBounds(routeLine.getBounds().pad(0.18));
+          else if (pts.length === 1) map.setView(pts[0], 15);
+          stopLayer = L.layerGroup().addTo(map);
+        } else {
+          map.invalidateSize();
+        }
+        refreshMapMarkers();
+      }
+
+      function refreshMapMarkers() {
+        if (!map || !stopLayer) return;
+        stopLayer.clearLayers();
+        var nextIdx = nextStopIndex();
+        var pts = [];
+        stops.forEach(function (stop, i) {
+          if (!isConfigured(stop)) return;
+          pts.push([stop.lat, stop.lng]);
+          L.marker([stop.lat, stop.lng], { icon: stopPinIcon(stop, tracking && i === nextIdx), title: stopLabelNumbered(stop) }).addTo(stopLayer);
+        });
+        if (routeLine) routeLine.setLatLngs(pts);
+      }
+
+      function updateUserDot(lat, lng) {
+        if (!map || typeof L === 'undefined') return;
+        var ll = [lat, lng];
+        if (!userMarker) {
+          userMarker = L.marker(ll, { icon: L.divIcon({ className: '', html: '<div class="user-dot"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }), zIndexOffset: 1000, interactive: false }).addTo(map);
+        } else {
+          userMarker.setLatLng(ll);
+        }
+        if (!map.getBounds().contains(ll)) map.panTo(ll);
+      }
+
       function startTracking() {
         if (configuredCount() !== 13) {
           showToast('Save all 13 stop locations before starting.');
@@ -857,6 +921,7 @@
           onPosition(position);
           watchId = navigator.geolocation.watchPosition(onPosition, onLocationError, { enableHighAccuracy: false, maximumAge: 10000, timeout: 20000 });
           requestWakeLock();
+          ensureMap();
           renderRoute();
         }, function (error) {
           if (requestToken !== locationRequestToken) return;
