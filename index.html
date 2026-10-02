@@ -499,6 +499,7 @@
       var wakeLock = null;
       var audioContext = null;
       var toastTimer = null;
+      var alertDismissTimer = null;
       var gpsRetryMode = null;
       var locationPermissionState = 'unknown';
 
@@ -950,6 +951,10 @@
         }
         $('alertSheet').classList.add('open');
         sendStopPush(stop);
+        clearTimeout(alertDismissTimer);
+        alertDismissTimer = setTimeout(function () {
+          $('alertSheet').classList.remove('open');
+        }, 8000);
       }
 
       function testAlert() {
@@ -1062,7 +1067,10 @@
       $('importBtn2').addEventListener('click', function () { $('fileInput').click(); });
       $('fileInput').addEventListener('change', function () { importRoute($('fileInput').files[0]); });
       $('clearBtn').addEventListener('click', clearRoute);
-      $('dismissAlert').addEventListener('click', function () { $('alertSheet').classList.remove('open'); });
+      $('dismissAlert').addEventListener('click', function () {
+        clearTimeout(alertDismissTimer);
+        $('alertSheet').classList.remove('open');
+      });
       $('followerToggle').checked = followerAlertsOn();
       $('followerToggle').addEventListener('change', function () {
         localStorage.setItem('bsa_follower', $('followerToggle').checked ? '1' : '0');
