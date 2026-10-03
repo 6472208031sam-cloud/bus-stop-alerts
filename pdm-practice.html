@@ -516,6 +516,7 @@
       var gpsRetryMode = null;
       var locationPermissionState = 'unknown';
       var NATIVE = !!(window.NativeBridge);
+      var dotWatchId = null; // visual-only position watch for the blue dot
       var RIDE_PAGE = 'pdm';
 
       var $ = function (id) { return document.getElementById(id); };
@@ -969,6 +970,46 @@
         }
       }
 
+      function startDotWatch() {
+        // Display-only: keeps the blue dot and distance readout live while the
+        // app is in the foreground. Arrival detection stays with the native
+        // service (which also works backgrounded). Uses the same proven
+        // watchPosition path as the browser version.
+        if (dotWatchId !== null || !navigator.geolocation) return;
+        try {
+          dotWatchId = navigator.geolocation.watchPosition(function (pos) {
+            var acc = Math.round(pos.coords.accuracy);
+            var lat = pos.coords.latitude, lng = pos.coords.longitude;
+            if (typeof updateUserDot === 'function') updateUserDot(lat, lng, acc);
+            if (!tracking) return;
+            $('gpsStatus').textContent = 'Tracking';
+            var accEl = $('accuracyStatus');
+            if (accEl) accEl.textContent = acc + ' m';
+            var pulse = $('gpsPulse');
+            if (pulse) pulse.classList.add('live');
+            var idx = -1, i;
+            for (i = 0; i < stops.length; i++) {
+              if (!stops[i].reached) { idx = i; break; }
+            }
+            if (idx !== -1 && typeof distanceMeters === 'function') {
+              var d = distanceMeters(lat, lng, stops[idx].lat, stops[idx].lng);
+              $('tripKicker').textContent = 'Next stop';
+              $('nextStopDisplay').textContent = stopLabelNumbered(stops[idx]);
+              $('distanceDisplay').textContent = d < 1000
+                ? Math.round(d) + ' m away'
+                : (d / 1000).toFixed(1) + ' km away';
+            }
+          }, function () {}, { enableHighAccuracy: false, maximumAge: 5000, timeout: 20000 });
+        } catch (e) {}
+      }
+
+      function stopDotWatch() {
+        if (dotWatchId !== null && navigator.geolocation) {
+          try { navigator.geolocation.clearWatch(dotWatchId); } catch (e) {}
+        }
+        dotWatchId = null;
+      }
+
       function enterNativeTrackingUI() {
         tracking = true;
         clearGpsProblem();
@@ -977,6 +1018,7 @@
         $('gpsStatus').textContent = 'Tracking';
         $('tripKicker').textContent = 'Next stop';
         showTrip(); // make sure the ride view (not the editor) is visible
+        startDotWatch();
       }
 
       function startNativeTracking() {
@@ -1113,6 +1155,7 @@
 
       function stopTracking(preserveGpsStatus) {
         if (NATIVE && tracking) { try { window.NativeBridge.stopRide(); } catch (e) {} }
+        stopDotWatch();
         locationRequestPending = false;
         locationRequestToken += 1;
         tracking = false;
