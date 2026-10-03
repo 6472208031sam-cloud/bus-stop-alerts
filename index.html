@@ -623,6 +623,7 @@
           loadStopForm();
         }
         if (stayInSetup) renderRoute();
+        else if (tracking) showTrip(); // mid-ride edit: Save returns to the ride
         else updateViewForCompleteness();
         return true;
       }
@@ -943,8 +944,7 @@
         $('stopBtn').disabled = false;
         $('gpsStatus').textContent = 'Tracking';
         $('tripKicker').textContent = 'Next stop';
-        if (typeof ensureMap === 'function') ensureMap();
-        renderRoute();
+        showTrip(); // make sure the ride view (not the editor) is visible
       }
 
       function startNativeTracking() {
