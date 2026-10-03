@@ -351,17 +351,17 @@
             <div class="field full">
               <label for="radius">Alert radius</label>
               <div class="radius-row">
-                <input id="radius" type="range" min="30" max="250" step="10" value="80" />
-                <output id="radiusOut" for="radius">80 m</output>
+                <input id="radius" type="range" min="30" max="250" step="10" value="30" />
+                <output id="radiusOut" for="radius">30 m</output>
               </div>
             </div>
             <div class="field full">
               <label for="accuracy">Required GPS accuracy</label>
               <div class="radius-row">
-                <input id="accuracy" type="range" min="50" max="500" step="10" value="150" />
-                <output id="accuracyOut" for="accuracy">150 m</output>
+                <input id="accuracy" type="range" min="50" max="500" step="10" value="50" />
+                <output id="accuracyOut" for="accuracy">50 m</output>
               </div>
-              <p class="sub">The alert fires only when your position error is within this. Defaults to 1.5× the alert radius. Lower = stricter.</p>
+              <p class="sub">The alert fires only when your position error is within this. Defaults to 50 m (strictest). Lower = stricter.</p>
             </div>
           </div>
 
@@ -484,24 +484,24 @@
     (function () {
       'use strict';
       var DEFAULT_STOPS = [
-        { number: 1, letter: 'S', time: '', name: "SCHOOL: ST MARGUERITE D'YOUVILLE CES - 1359 BAYSHIRE DR - BUS LOADING ZONE", lat: 43.494205, lng: -79.6937659, radius: 80, acc: 120 },
-        { number: 2, letter: 'A', time: '', name: "ON PONDVIEW PL - OPPOSITE 495 PONDVIEW PL AT PARK SIGN", lat: 43.4878529, lng: -79.7080746, radius: 80, acc: 120 },
-        { number: 3, letter: 'B', time: '', name: "ON CRIMSON OAK TRAIL - BETWEEN NICHOLS & CEDAR", lat: 43.49153, lng: -79.7119, radius: 80, acc: 120 },
-        { number: 4, letter: 'C', time: '', name: "ON CORONATION DR AT NORTH RIDGE TRAIL (S/E CORNER) AT PARK", lat: 43.49347, lng: -79.70835, radius: 80, acc: 120 },
-        { number: 5, letter: 'D', time: '', name: "ON CRAIGLEITH RD - OPPOSITE SYLVIA DR AT PARK (SOUTH SIDE)", lat: 43.49837, lng: -79.70403, radius: 80, acc: 120 },
-        { number: 6, letter: 'E', time: '', name: "ON CRAIGLEITH RD AT MEADOWRIDGE DR (S/W CORNER)", lat: 43.50118, lng: -79.70128, radius: 80, acc: 120 },
-        { number: 7, letter: 'F', time: '', name: "ON WILLIAM CUTMORE AVE AT EVEREST CRES (NORTH ENTRANCE) AT PARK", lat: 43.50537, lng: -79.70545, radius: 80, acc: 120 },
-        { number: 8, letter: 'G', time: '', name: "ON FORD STRATHY CRES - OPPOSITE 1411 AT BENCHES", lat: 43.50846, lng: -79.71016, radius: 80, acc: 120 },
-        { number: 9, letter: 'H', time: '', name: "ON MEADOWRIDGE DR AT WHEAT BOOM DR (N/W CORNER)", lat: 43.50467, lng: -79.7096, radius: 80, acc: 120 },
-        { number: 10, letter: 'I', time: '', name: "ON JOHN MCKAY BLVD - NORTH OF ANSON GATE AT WALKWAY", lat: 43.49945, lng: -79.712, radius: 80, acc: 120 },
-        { number: 11, letter: 'J', time: '', name: "ON THRESHING MILL BLVD AT MEADOW MARSH CRES (N/E CORNER)", lat: 43.4964, lng: -79.7187, radius: 80, acc: 120 },
-        { number: 12, letter: 'K', time: '', name: "ON WHEAT BOOM DR - OPPOSITE 434 WHEAT BOOM DR AT PARK", lat: 43.49298, lng: -79.71886, radius: 80, acc: 120 },
-        { number: 13, letter: 'L', time: '', name: "ON POSTRIDGE DR AT FAIRGATE WAY (N/W CORNER) - TRANSIT STYLE STOP", lat: 43.48819, lng: -79.71318, radius: 80, acc: 120 }
+        { number: 1, letter: 'S', time: '', name: "SCHOOL: ST MARGUERITE D'YOUVILLE CES - 1359 BAYSHIRE DR - BUS LOADING ZONE", lat: 43.494205, lng: -79.6937659, radius: 30, acc: 120 },
+        { number: 2, letter: 'A', time: '', name: "ON PONDVIEW PL - OPPOSITE 495 PONDVIEW PL AT PARK SIGN", lat: 43.4878529, lng: -79.7080746, radius: 30, acc: 120 },
+        { number: 3, letter: 'B', time: '', name: "ON CRIMSON OAK TRAIL - BETWEEN NICHOLS & CEDAR", lat: 43.49153, lng: -79.7119, radius: 30, acc: 120 },
+        { number: 4, letter: 'C', time: '', name: "ON CORONATION DR AT NORTH RIDGE TRAIL (S/E CORNER) AT PARK", lat: 43.49347, lng: -79.70835, radius: 30, acc: 120 },
+        { number: 5, letter: 'D', time: '', name: "ON CRAIGLEITH RD - OPPOSITE SYLVIA DR AT PARK (SOUTH SIDE)", lat: 43.49837, lng: -79.70403, radius: 30, acc: 120 },
+        { number: 6, letter: 'E', time: '', name: "ON CRAIGLEITH RD AT MEADOWRIDGE DR (S/W CORNER)", lat: 43.50118, lng: -79.70128, radius: 30, acc: 120 },
+        { number: 7, letter: 'F', time: '', name: "ON WILLIAM CUTMORE AVE AT EVEREST CRES (NORTH ENTRANCE) AT PARK", lat: 43.50537, lng: -79.70545, radius: 30, acc: 120 },
+        { number: 8, letter: 'G', time: '', name: "ON FORD STRATHY CRES - OPPOSITE 1411 AT BENCHES", lat: 43.50846, lng: -79.71016, radius: 30, acc: 120 },
+        { number: 9, letter: 'H', time: '', name: "ON MEADOWRIDGE DR AT WHEAT BOOM DR (N/W CORNER)", lat: 43.50467, lng: -79.7096, radius: 30, acc: 120 },
+        { number: 10, letter: 'I', time: '', name: "ON JOHN MCKAY BLVD - NORTH OF ANSON GATE AT WALKWAY", lat: 43.49945, lng: -79.712, radius: 30, acc: 120 },
+        { number: 11, letter: 'J', time: '', name: "ON THRESHING MILL BLVD AT MEADOW MARSH CRES (N/E CORNER)", lat: 43.4964, lng: -79.7187, radius: 30, acc: 120 },
+        { number: 12, letter: 'K', time: '', name: "ON WHEAT BOOM DR - OPPOSITE 434 WHEAT BOOM DR AT PARK", lat: 43.49298, lng: -79.71886, radius: 30, acc: 120 },
+        { number: 13, letter: 'L', time: '', name: "ON POSTRIDGE DR AT FAIRGATE WAY (N/W CORNER) - TRANSIT STYLE STOP", lat: 43.48819, lng: -79.71318, radius: 30, acc: 120 }
     ];
 
       function createDefaultStops() {
         return DEFAULT_STOPS.map(function (stop) {
-          return { number: stop.number, letter: stop.letter || String(stop.number), time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 80, acc: null, reached: false };
+          return { number: stop.number, letter: stop.letter || String(stop.number), time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
       }
 
@@ -554,7 +554,7 @@
       }
 
       function accLimit(stop) {
-        return stop.acc || Math.max(stop.radius * 1.5, 100);
+        return stop.acc || 50;
       }
 
       function renderRoute() {
@@ -1273,7 +1273,7 @@
             var data = JSON.parse(reader.result);
             if (!data || !Array.isArray(data.stops) || data.stops.length !== 13) throw new Error('invalid');
             var imported = data.stops.map(function (s, i) {
-              var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 80);
+              var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 30);
               if (!validCoordinates(lat, lng)) throw new Error('invalid');
               var acc = Number(s.acc);
               return { number: i + 1, time: String(s.time || ''), name: String(s.name || ''), lat: lat, lng: lng, radius: Math.min(250, Math.max(30, radius)), acc: (Number.isFinite(acc) && acc >= 50 && acc <= 500) ? Math.round(acc) : null, reached: false };
@@ -1292,7 +1292,7 @@
       }
 
       function clearRoute() {
-        stops = Array.from({ length: 13 }, function (_, i) { return { number: i + 1, name: '', lat: null, lng: null, radius: 80, acc: null, reached: false }; });
+        stops = Array.from({ length: 13 }, function (_, i) { return { number: i + 1, name: '', lat: null, lng: null, radius: 30, acc: null, reached: false }; });
         selected = 0;
         loadStopForm();
         renderRoute();

@@ -357,17 +357,17 @@
             <div class="field full">
               <label for="radius">Alert radius</label>
               <div class="radius-row">
-                <input id="radius" type="range" min="30" max="250" step="10" value="80" />
-                <output id="radiusOut" for="radius">80 m</output>
+                <input id="radius" type="range" min="30" max="250" step="10" value="30" />
+                <output id="radiusOut" for="radius">30 m</output>
               </div>
             </div>
             <div class="field full">
               <label for="accuracy">Required GPS accuracy</label>
               <div class="radius-row">
-                <input id="accuracy" type="range" min="50" max="500" step="10" value="150" />
-                <output id="accuracyOut" for="accuracy">150 m</output>
+                <input id="accuracy" type="range" min="50" max="500" step="10" value="50" />
+                <output id="accuracyOut" for="accuracy">50 m</output>
               </div>
-              <p class="sub">The alert fires only when your position error is within this. Defaults to 1.5× the alert radius. Lower = stricter.</p>
+              <p class="sub">The alert fires only when your position error is within this. Defaults to 50 m (strictest). Lower = stricter.</p>
             </div>
           </div>
 
@@ -490,15 +490,15 @@
     (function () {
       'use strict';
       var DEFAULT_STOPS = [
-        { number: 1, letter: 'A', time: '', name: "TRAFALGAR RD & DUNDAS ST E", lat: 43.487978, lng: -79.720021, radius: 80, acc: null },
-        { number: 2, letter: 'B', time: '', name: "MUNN'S UNITED CHURCH", lat: 43.4797422, lng: -79.7291765, radius: 80, acc: null },
-        { number: 3, letter: 'C', time: '', name: "HARMAN GATE SOCCER FIELD", lat: 43.4723533, lng: -79.7319714, radius: 80, acc: null },
-        { number: 4, letter: 'D', time: '', name: "OUR LADY OF PEACE CATHOLIC ELEMENTARY SCHOOL", lat: 43.4661457, lng: -79.736262, radius: 80, acc: null }
+        { number: 1, letter: 'A', time: '', name: "TRAFALGAR RD & DUNDAS ST E", lat: 43.487978, lng: -79.720021, radius: 30, acc: null },
+        { number: 2, letter: 'B', time: '', name: "MUNN'S UNITED CHURCH", lat: 43.4797422, lng: -79.7291765, radius: 30, acc: null },
+        { number: 3, letter: 'C', time: '', name: "HARMAN GATE SOCCER FIELD", lat: 43.4723533, lng: -79.7319714, radius: 30, acc: null },
+        { number: 4, letter: 'D', time: '', name: "OUR LADY OF PEACE CATHOLIC ELEMENTARY SCHOOL", lat: 43.4661457, lng: -79.736262, radius: 30, acc: null }
       ];
 
       function createDefaultStops() {
         return DEFAULT_STOPS.map(function (stop) {
-          return { number: stop.number, letter: stop.letter || String(stop.number), time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 80, acc: null, reached: false };
+          return { number: stop.number, letter: stop.letter || String(stop.number), time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
       }
 
@@ -552,7 +552,7 @@
       }
 
       function accLimit(stop) {
-        return stop.acc || Math.max(stop.radius * 1.5, 100);
+        return stop.acc || 50;
       }
 
       function dirRange() { return direction === 'to' ? 'A through D' : 'D through A'; }
@@ -1305,7 +1305,7 @@
             var data = JSON.parse(reader.result);
             if (!data || !Array.isArray(data.stops) || data.stops.length !== 4) throw new Error('invalid');
             var imported = data.stops.map(function (s, i) {
-              var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 80);
+              var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 30);
               if (!validCoordinates(lat, lng)) throw new Error('invalid');
               var acc = Number(s.acc);
               return { number: i + 1, time: String(s.time || ''), name: String(s.name || ''), lat: lat, lng: lng, radius: Math.min(250, Math.max(30, radius)), acc: (Number.isFinite(acc) && acc >= 50 && acc <= 500) ? Math.round(acc) : null, reached: false };
@@ -1324,7 +1324,7 @@
       }
 
       function clearRoute() {
-        stops = Array.from({ length: 4 }, function (_, i) { return { number: i + 1, letter: 'ABCD'[i], name: '', lat: null, lng: null, radius: 80, acc: null, reached: false }; });
+        stops = Array.from({ length: 4 }, function (_, i) { return { number: i + 1, letter: 'ABCD'[i], name: '', lat: null, lng: null, radius: 30, acc: null, reached: false }; });
         selected = 0;
         loadStopForm();
         renderRoute();
