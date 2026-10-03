@@ -515,6 +515,8 @@
       var alertDismissTimer = null;
       var gpsRetryMode = null;
       var locationPermissionState = 'unknown';
+      var NATIVE = !!(window.NativeBridge);
+      var RIDE_PAGE = 'pdm';
 
       var $ = function (id) { return document.getElementById(id); };
       var routeList = $('routeList');
@@ -647,6 +649,7 @@
         stops[selected].radius = parseInt($('radius').value, 10);
         stops[selected].acc = parseInt($('accuracy').value, 10);
         renderRoute();
+        pushConfigToNative();
         showToast('Stop ' + stops[selected].letter + ' saved.');
         if (advance && selected < 12) {
           selected += 1;
@@ -935,11 +938,137 @@
         if (!inner.contains(ll)) map.panTo(ll, { animate: true });
       }
 
+
+      // ---- Native background tracking (Android app) ----
+      // When running inside the native app (window.NativeBridge exists),
+      // location tracking, arrival detection, alert sound/vibration and
+      // follower pushes are handled by the native foreground service so
+      // they keep working when the app is minimized or the phone is locked.
+      function buildRideConfig() {
+        return {
+          page: RIDE_PAGE,
+          topic: NTFY_TOPIC,
+          followerOn: followerAlertsOn(),
+          stops: stops.map(function (s) {
+            return {
+              number: s.number,
+              label: stopLabelNumbered(s),
+              name: stopLabel(s),
+              lat: s.lat, lng: s.lng,
+              radius: s.radius,
+              acc: (s.acc == null ? null : s.acc)
+            };
+          })
+        };
+      }
+
+      function pushConfigToNative() {
+        if (NATIVE && tracking) {
+          try { window.NativeBridge.updateConfig(JSON.stringify(buildRideConfig())); } catch (e) {}
+        }
+      }
+
+      function enterNativeTrackingUI() {
+        tracking = true;
+        clearGpsProblem();
+        $('startBtn').disabled = true;
+        $('stopBtn').disabled = false;
+        $('gpsStatus').textContent = 'Tracking';
+        $('tripKicker').textContent = 'Next stop';
+        if (typeof ensureMap === 'function') ensureMap();
+        renderRoute();
+      }
+
+      function startNativeTracking() {
+        if (tracking) return;
+        var res = 'error';
+        try { res = window.NativeBridge.startRide(JSON.stringify(buildRideConfig())); }
+        catch (e) { res = 'error'; }
+        if (res === 'started') {
+          enterNativeTrackingUI();
+          try {
+            var st = window.NativeBridge.getStatus();
+            if (st) applyNativeSync(JSON.parse(st), null);
+          } catch (e2) {}
+        } else if (res === 'permission_needed') {
+          showToast('Choose "Allow all the time" for location, then tap Start again.');
+        } else {
+          showToast('Could not start background tracking.');
+        }
+      }
+
+      function nativeAutoStarted() {
+        if (!tracking) enterNativeTrackingUI();
+      }
+
+      function nativePosition(lat, lng, acc) {
+        if (!tracking) return;
+        acc = Math.round(acc);
+        $('gpsStatus').textContent = 'Tracking';
+        var accEl = $('accuracyStatus');
+        if (accEl) accEl.textContent = acc + ' m';
+        var pulse = $('gpsPulse');
+        if (pulse) pulse.classList.add('live');
+        if (typeof updateUserDot === 'function') updateUserDot(lat, lng, acc);
+        var idx = -1, i, d;
+        for (i = 0; i < stops.length; i++) {
+          if (!stops[i].reached) { idx = i; break; }
+        }
+        if (idx !== -1 && typeof distanceMeters === 'function') {
+          d = distanceMeters(lat, lng, stops[idx].lat, stops[idx].lng);
+          $('tripKicker').textContent = 'Next stop';
+          $('nextStopDisplay').textContent = stopLabelNumbered(stops[idx]);
+          $('distanceDisplay').textContent = d < 1000
+            ? Math.round(d) + ' m away'
+            : (d / 1000).toFixed(1) + ' km away';
+        }
+      }
+
+      function applyNativeSync(status, toast) {
+        if (!status || !status.reached) return;
+        var newly = [], i, j;
+        for (i = 0; i < stops.length && i < status.reached.length; i++) {
+          if (status.reached[i] && !stops[i].reached) newly.push(i);
+          stops[i].reached = !!status.reached[i];
+          stops[i].skipped = !!status.skipped[i];
+        }
+        renderRoute();
+        for (j = 0; j < newly.length; j++) {
+          triggerArrival(stops[newly[j]], true); // quiet: native already alerted
+        }
+        var allDone = true;
+        for (i = 0; i < stops.length; i++) {
+          if (!stops[i].reached) { allDone = false; break; }
+        }
+        if (allDone) { finishRoute(); return; }
+        if (status.next >= 0 && status.next < stops.length) {
+          $('nextStopDisplay').textContent = stopLabelNumbered(stops[status.next]);
+        }
+        if (toast) showToast(toast);
+      }
+
+      function nativeSync(b64, toast) {
+        try {
+          var status = JSON.parse(atob(b64));
+          if (!tracking && status.active && status.page === RIDE_PAGE) enterNativeTrackingUI();
+          if (tracking) applyNativeSync(status, toast);
+        } catch (e) {}
+      }
+
+      function nativeFinished() {
+        if (tracking) finishRoute();
+      }
+
+      function nativeNoRide() {
+        if (NATIVE && tracking) stopTracking();
+      }
+
       function startTracking() {
         if (configuredCount() !== 4) {
-          showToast('Save all 4 stop locations before starting.');
+          showToast('Save all %s stop locations before starting.');
           return;
         }
+        if (NATIVE) { startNativeTracking(); return; }
         if (!navigator.geolocation) {
           showGpsProblem({ type: 'unsupported' }, 'trip');
           return;
@@ -983,6 +1112,7 @@
       }
 
       function stopTracking(preserveGpsStatus) {
+        if (NATIVE && tracking) { try { window.NativeBridge.stopRide(); } catch (e) {} }
         locationRequestPending = false;
         locationRequestToken += 1;
         tracking = false;
@@ -1057,9 +1187,11 @@
         } catch (e) {}
       }
 
-      function triggerArrival(stop) {
-        playAlert();
-        if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
+      function triggerArrival(stop, quiet) {
+        if (!quiet) {
+          playAlert();
+          if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
+        }
         $('arrivalTitle').textContent = 'Stop ' + stop.letter + ': ' + stopLabel(stop) + ' reached';
         $('arrivalNumber').textContent = stop.letter;
         if (stop.number === 4) {
@@ -1069,7 +1201,7 @@
           $('arrivalText').textContent = 'Next up: Stop ' + next.letter + ' — ' + stopLabel(next) + '.';
         }
         $('alertSheet').classList.add('open');
-        sendStopPush(stop);
+        if (!quiet) sendStopPush(stop);
         clearTimeout(alertDismissTimer);
         alertDismissTimer = setTimeout(function () {
           $('alertSheet').classList.remove('open');
@@ -1198,6 +1330,7 @@
       $('followerToggle').addEventListener('change', function () {
         localStorage.setItem('bsa_follower_pdm', $('followerToggle').checked ? '1' : '0');
         showToast($('followerToggle').checked ? 'Follower alerts on.' : 'Follower alerts off.');
+        pushConfigToNative();
       });
       $('copyChannelBtn').addEventListener('click', function () {
         var ch = $('followerChannel').value;
@@ -1216,6 +1349,18 @@
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && tracking) requestWakeLock(); });
       window.addEventListener('beforeunload', releaseWakeLock);
 
+      if (NATIVE) {
+        try {
+          var _nst = window.NativeBridge.getStatus();
+          if (_nst) {
+            var _nstatus = JSON.parse(_nst);
+            if (_nstatus.active && _nstatus.page === RIDE_PAGE) {
+              enterNativeTrackingUI();
+              applyNativeSync(_nstatus, null);
+            }
+          }
+        } catch (e) {}
+      }
       loadStopForm();
       updateViewForCompleteness();
       refreshLocationPermissionState();
