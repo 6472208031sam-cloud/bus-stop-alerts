@@ -958,7 +958,9 @@
               name: stopLabel(s),
               lat: s.lat, lng: s.lng,
               radius: s.radius,
-              acc: (s.acc == null ? null : s.acc)
+              acc: (s.acc == null ? null : s.acc),
+              reached: !!s.reached,
+              skipped: !!s.skipped
             };
           })
         };
