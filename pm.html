@@ -519,6 +519,7 @@
       var locationPermissionState = 'unknown';
       var NATIVE = !!(window.NativeBridge);
       var dotWatchId = null; // visual-only position watch for the blue dot
+      var syncPollId = null; // fallback poll: guarantees UI converges with service
       var RIDE_PAGE = 'pm';
 
       var $ = function (id) { return document.getElementById(id); };
@@ -940,6 +941,26 @@
         }
       }
 
+      function startSyncPoll() {
+        // Safety net: broadcasts can be missed (activity paused, WebView busy).
+        // Polling the service state every few seconds guarantees the screen
+        // always converges to the true ride progress.
+        stopSyncPoll();
+        syncPollId = setInterval(function () {
+          if (!tracking || !NATIVE) return;
+          try {
+            var st = window.NativeBridge.getStatus();
+            if (!st) return;
+            var status = JSON.parse(st);
+            if (status.active && status.page === RIDE_PAGE) applyNativeSync(status, null);
+          } catch (e) {}
+        }, 3000);
+      }
+
+      function stopSyncPoll() {
+        if (syncPollId !== null) { clearInterval(syncPollId); syncPollId = null; }
+      }
+
       function startDotWatch() {
         // Display-only: keeps the blue dot and distance readout live while the
         // app is in the foreground. Arrival detection stays with the native
@@ -989,6 +1010,7 @@
         $('tripKicker').textContent = 'Next stop';
         showTrip(); // make sure the ride view (not the editor) is visible
         startDotWatch();
+        startSyncPoll();
       }
 
       function startNativeTracking() {
@@ -1126,6 +1148,7 @@
       function stopTracking(preserveGpsStatus) {
         if (NATIVE && tracking) { try { window.NativeBridge.stopRide(); } catch (e) {} }
         stopDotWatch();
+        stopSyncPoll();
         locationRequestPending = false;
         locationRequestToken += 1;
         tracking = false;
