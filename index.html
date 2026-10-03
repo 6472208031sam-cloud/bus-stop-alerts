@@ -1,6 +1,19 @@
 <!doctype html>
 <html lang="en">
 <head>
+    <script>
+    // Auto-route by time: before 12pm ET show AM, at/after 12pm ET go to PM.
+    // ?route=am overrides (used by the PM page's "Switch to AM" button).
+    (function () {
+      try {
+        if (new URLSearchParams(location.search).get('route') === 'am') return;
+        var hour = parseInt(new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Toronto', hour: 'numeric', hourCycle: 'h23'
+        }).format(new Date()), 10);
+        if (hour >= 12) location.replace('pm.html');
+      } catch (e) {}
+    })();
+    </script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" />
