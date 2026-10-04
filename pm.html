@@ -1387,6 +1387,10 @@
             if (_nstatus.active && _nstatus.page === RIDE_PAGE) {
               enterNativeTrackingUI();
               applyNativeSync(_nstatus, null);
+            } else if (_nstatus.active) {
+              // Native ride is for the other route (AM vs PM) — stop it so
+              // switching pages doesn't leave the wrong route tracking.
+              try { window.NativeBridge.stopRide(); } catch (e) {}
             }
           }
         } catch (e) {}
