@@ -818,40 +818,36 @@
         $('gpsPulse').classList.add('live');
         var lat = position.coords.latitude, lng = position.coords.longitude;
         updateUserDot(lat, lng, accuracy);
+        // Every-stop mode: check ALL unreached stops, not just the next in order.
+        // Each stop alerts when you're near it, even out of order. No skipping.
         var idx = stops.findIndex(function (s) { return !s.reached; });
-        // Catch-up: if the phone is near a later stop than the current "next"
-        // one, snap forward to it. This lets a ride start at any stop (or
-        // mid-route) instead of only working from stop 1. Only moves forward,
-        // only on decent fixes, and only when that stop is reasonably close.
-        if (idx !== -1 && accuracy <= 150) {
-          var best = -1, bestDist = Infinity, i, d;
-          for (i = idx; i < stops.length; i++) {
-            if (stops[i].reached) continue;
-            d = distanceMeters(lat, lng, stops[i].lat, stops[i].lng);
-            if (d < bestDist) { bestDist = d; best = i; }
-          }
-          if (best > idx && bestDist <= 500) {
-            for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
-            idx = best;
-            renderRoute();
-            showToast('Starting from ' + stopLabelNumbered(stops[best]) + ' — earlier stops skipped.');
-          }
-        }
         if (idx === -1) {
           finishRoute();
           return;
         }
-        var stop = stops[idx];
-        var distance = distanceMeters(lat, lng, stop.lat, stop.lng);
+        var nextStop = stops[idx];
+        var nextDist = distanceMeters(lat, lng, nextStop.lat, nextStop.lng);
         $('tripKicker').textContent = 'Next stop';
-        $('nextStopDisplay').textContent = stopLabelNumbered(stop);
-        $('distanceDisplay').textContent = distance < 1000 ? Math.round(distance) + ' m away' : (distance / 1000).toFixed(1) + ' km away';
-        if (distance <= stop.radius && accuracy <= accLimit(stop)) {
-          stop.reached = true;
-          triggerArrival(stop);
+        $('nextStopDisplay').textContent = stopLabelNumbered(nextStop);
+        $('distanceDisplay').textContent = nextDist < 1000 ? Math.round(nextDist) + ' m away' : (nextDist / 1000).toFixed(1) + ' km away';
+        var anyTriggered = false;
+        for (var i = 0; i < stops.length; i++) {
+          var s = stops[i];
+          if (s.reached) continue;
+          var d = distanceMeters(lat, lng, s.lat, s.lng);
+          if (d <= s.radius && accuracy <= accLimit(s)) {
+            s.reached = true;
+            triggerArrival(s);
+            anyTriggered = true;
+          }
+        }
+        if (anyTriggered) {
           renderRoute();
           if (reachedCount() === 13) finishRoute();
-          else $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
+          else {
+            var ni = nextStopIndex();
+            if (ni !== -1) $('nextStopDisplay').textContent = stopLabelNumbered(stops[ni]);
+          }
         }
       }
 
