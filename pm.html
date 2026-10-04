@@ -1216,8 +1216,8 @@
 
       function sendStopPush(stop) {
         if (!followerAlertsOn()) return;
-        var msg = stop.number === 13
-          ? '🚌 Final stop reached: ' + stopLabel(stop) + '.'
+        var msg = stop.letter === 'L'
+          ? '🚌 Final stop reached (PM): ' + stopLabel(stop) + '.'
           : '🚌 ' + stopLabelNumbered(stop) + ' reached.';
         try {
           fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
@@ -1231,7 +1231,7 @@
         }
         $('arrivalTitle').textContent = stopLabelNumbered(stop) + ' reached';
         $('arrivalNumber').textContent = stop.letter + (stop.amNumber ? ' (' + stop.amNumber + ')' : '');
-        if (stop.number === 13) {
+        if (stop.letter === 'L') {
           $('arrivalText').textContent = 'You have reached the final stop.';
         } else {
           var next = stops[stop.number];

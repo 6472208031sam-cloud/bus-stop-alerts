@@ -1229,7 +1229,7 @@
       function sendStopPush(stop) {
         if (!followerAlertsOn()) return;
         var msg = stop.number === 13
-          ? '🚌 Final stop reached: ' + stopLabel(stop) + '.'
+          ? '🚌 Final stop reached (AM): ' + stopLabel(stop) + '.'
           : '🚌 Stop ' + stop.number + ' reached: ' + stopLabel(stop) + '.';
         try {
           fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
