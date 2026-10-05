@@ -1101,8 +1101,8 @@
       }
 
       function startTracking() {
-        if (configuredCount() !== 13) {
-          showToast('Save all %s stop locations before starting.');
+        if (configuredCount() !== 14) {
+          showToast('Save all 14 stop locations before starting.');
           return;
         }
         if (NATIVE) { startNativeTracking(); return; }
@@ -1274,7 +1274,7 @@
         reader.onload = function () {
           try {
             var data = JSON.parse(reader.result);
-            if (!data || !Array.isArray(data.stops) || data.stops.length !== 13) throw new Error('invalid');
+            if (!data || !Array.isArray(data.stops) || data.stops.length !== 14) throw new Error('invalid');
             var imported = data.stops.map(function (s, i) {
               var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 30);
               if (!validCoordinates(lat, lng)) throw new Error('invalid');
