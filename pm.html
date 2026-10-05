@@ -272,7 +272,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.2</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.1</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -410,7 +410,6 @@
             <button class="btn" type="button" id="stopBtn" disabled>Stop tracking</button>
             <button class="btn" type="button" id="resetTripBtn">Reset progress</button>
             <button class="btn" type="button" id="navNextBtn">Navigate to next stop</button>
-            <button class="btn" type="button" id="dimBtn">Dim screen</button>
           </div>
           <div class="notice">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
@@ -1337,18 +1336,6 @@
       });
       $('startBtn').addEventListener('click', startTracking);
       $('stopBtn').addEventListener('click', stopTracking);
-      // Dim screen overlay: keeps page active (GPS keeps working) but blacks out display to save battery
-      $('dimBtn').addEventListener('click', function () {
-        $('dimOverlay').style.display = 'block';
-        // Re-request wake lock to ensure screen stays on (dimmed, not off)
-        if (typeof requestWakeLock === 'function') { try { requestWakeLock(); } catch (e) {} }
-      });
-      $('dimOverlay').addEventListener('click', function () {
-        $('dimOverlay').style.display = 'none';
-      });
-      $('dimOverlay').addEventListener('touchstart', function () {
-        $('dimOverlay').style.display = 'none';
-      }, { passive: true });
       $('resetTripBtn').addEventListener('click', resetProgress);
       $('navNextBtn').addEventListener('click', function () {
         if (reachedCount() === 13) { showToast('Route complete.'); return; }
@@ -1413,12 +1400,5 @@
       refreshLocationPermissionState();
     })();
   </script>
-<div id="dimOverlay" style="display:none;position:fixed;inset:0;background:#000;z-index:10000;touch-action:none;">
-  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#333;font-size:1rem;text-align:center;line-height:1.6;">
-    <div style="font-size:2.5rem;margin-bottom:0.5rem;">🌙</div>
-    <div>Screen dimmed — GPS still tracking</div>
-    <div style="font-size:0.85rem;opacity:0.7;">Tap anywhere to wake</div>
-  </div>
-</div>
 </body>
 </html>
