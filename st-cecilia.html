@@ -497,15 +497,16 @@
         { number: 4, letter: 'D', time: '', name: "St. Cecilia", lat: 43.494925, lng: -79.721142, radius: 30, acc: null }
       ];
 
+      var mode = 'am'; // 'am' = 1,2,3,4 (Emma->StCec), 'pm' = A,B,C,D reversed (StCec->Emma)
       function createDefaultStops() {
-        var labels = mode === 'am' ? ['1','2','3','4'] : ['D','C','B','A'];
+        // Always start in AM order; setDirection handles PM transformation
+        var labels = ['1','2','3','4'];
         return DEFAULT_STOPS.map(function (stop, i) {
-          return { number: stop.number, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
+          return { number: i + 1, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
       }
 
       var stops = createDefaultStops();
-      var mode = 'am'; // 'am' = stops 1-4, 'pm' = stops D,C,B,A
       var selected = 0;
       var watchId = null;
       var tracking = false;
