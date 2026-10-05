@@ -274,14 +274,14 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v1.5</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v1.6</div>
   <main class="shell">
     <section class="hero">
       <div>
-        <div class="route-kicker" id="routeKicker">St Cecilia · To</div>
+        <div class="route-kicker" id="routeKicker">St Cecilia · AM</div>
         <nav class="mode-switch dir-switch" aria-label="Direction">
-          <button class="mode-btn dir-btn active" type="button" data-dir="to">To</button>
-          <button class="mode-btn dir-btn" type="button" data-dir="from">From</button>
+          <button class="mode-btn dir-btn active" type="button" data-dir="am">AM</button>
+          <button class="mode-btn dir-btn" type="button" data-dir="pm">PM</button>
         </nav>
         <h1 id="heroTitle">Ready to map your route?</h1>
         <p id="heroText">Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops A through D.</p>
@@ -498,13 +498,14 @@
       ];
 
       function createDefaultStops() {
-        return DEFAULT_STOPS.map(function (stop) {
-          return { number: stop.number, letter: stop.letter || String(stop.number), time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
+        var labels = mode === 'am' ? ['1','2','3','4'] : ['D','C','B','A'];
+        return DEFAULT_STOPS.map(function (stop, i) {
+          return { number: stop.number, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
       }
 
       var stops = createDefaultStops();
-      var direction = 'to'; // 'to' = A->D, 'from' = D->A
+      var mode = 'am'; // 'am' = stops 1-4, 'pm' = stops D,C,B,A
       var selected = 0;
       var watchId = null;
       var tracking = false;
@@ -556,18 +557,19 @@
         return stop.acc || 50;
       }
 
-      function dirRange() { return direction === 'to' ? 'A through D' : 'D through A'; }
-      function currentPath() { return direction === 'to' ? ROUTE_PATH : ROUTE_PATH.slice().reverse(); }
+      function dirRange() { return mode === 'am' ? '1 through 4' : 'D through A'; }
+      function currentPath() { return ROUTE_PATH; }
       function setupHeroText() {
         $('heroTitle').textContent = 'Ready to map your route?';
         $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.';
       }
       function setDirection(dir) {
-        if (dir === direction) return;
+        if (dir === mode) return;
         if (tracking) stopTracking();
-        direction = dir;
-        stops.reverse();
-        stops.forEach(function (s, i) { s.number = i + 1; s.reached = false; s.skipped = false; });
+        mode = dir;
+        // AM: labels 1,2,3,4. PM: labels D,C,B,A (physical stop 1=D, 2=C, 3=B, 4=A).
+        var labels = mode === 'am' ? ['1','2','3','4'] : ['D','C','B','A'];
+        stops.forEach(function (s, i) { s.letter = labels[i]; s.reached = false; s.skipped = false; });
         selected = 0;
         document.querySelectorAll('.dir-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.dir === dir); });
         document.querySelectorAll('.mode-btn[data-mode]').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === 'ride'); });
@@ -1292,7 +1294,7 @@
         var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
-        a.href = url; a.download = 'st-cecilia-' + direction + '-4-stops.json';
+        a.href = url; a.download = 'st-cecilia-' + mode + '-4-stops.json';
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
         showToast('Route file downloaded.');
