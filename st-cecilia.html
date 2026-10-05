@@ -498,7 +498,7 @@
       ];
 
       function createDefaultStops() {
-        var labels = mode === 'am' ? ['1','2','3','4'] : ['D','C','B','A'];
+        var labels = mode === 'am' ? ['1','2','3','4'] : ['A','B','C','D'];
         return DEFAULT_STOPS.map(function (stop, i) {
           return { number: stop.number, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
@@ -567,8 +567,8 @@
         if (dir === mode) return;
         if (tracking) stopTracking();
         mode = dir;
-        // AM: labels 1,2,3,4. PM: labels D,C,B,A (physical stop 1=D, 2=C, 3=B, 4=A).
-        var labels = mode === 'am' ? ['1','2','3','4'] : ['D','C','B','A'];
+        // AM: labels 1,2,3,4. PM: labels A,B,C,D.
+        var labels = mode === 'am' ? ['1','2','3','4'] : ['A','B','C','D'];
         stops.forEach(function (s, i) { s.letter = labels[i]; s.reached = false; s.skipped = false; });
         selected = 0;
         document.querySelectorAll('.dir-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.dir === dir); });
@@ -852,7 +852,7 @@
             d = distanceMeters(lat, lng, stops[i].lat, stops[i].lng);
             if (d < bestDist) { bestDist = d; best = i; }
           }
-          if (best > idx && bestDist <= 500) {
+          if (best > idx && bestDist <= 250) {
             for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
             idx = best;
             renderRoute();
