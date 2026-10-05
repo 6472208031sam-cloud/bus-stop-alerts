@@ -852,7 +852,7 @@
             d = distanceMeters(lat, lng, stops[i].lat, stops[i].lng);
             if (d < bestDist) { bestDist = d; best = i; }
           }
-          if (best > idx && bestDist <= 500) {
+          if (best > idx && bestDist <= 250) {
             for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
             idx = best;
             renderRoute();
