@@ -498,7 +498,7 @@
       ];
 
       function createDefaultStops() {
-        var labels = mode === 'am' ? ['1','2','3','4'] : ['A','B','C','D'];
+        var labels = mode === 'am' ? ['1','2','3','4'] : ['D','C','B','A'];
         return DEFAULT_STOPS.map(function (stop, i) {
           return { number: stop.number, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
@@ -558,7 +558,7 @@
       }
 
       function dirRange() { return mode === 'am' ? '1 through 4' : 'D through A'; }
-      function currentPath() { return ROUTE_PATH; }
+      function currentPath() { return mode === 'am' ? ROUTE_PATH : ROUTE_PATH.slice().reverse(); }
       function setupHeroText() {
         $('heroTitle').textContent = 'Ready to map your route?';
         $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.';
@@ -567,9 +567,19 @@
         if (dir === mode) return;
         if (tracking) stopTracking();
         mode = dir;
-        // AM: labels 1,2,3,4. PM: labels A,B,C,D.
+        // AM: 1,2,3,4 (Emma->StCec). PM: A,B,C,D reversed (StCec->Emma).
+        // PM: A=StCec, B=Half, C=Natalia, D=Emma
+        if (mode === 'pm') {
+          stops.reverse();
+        } else {
+          // Ensure AM order (reverse back if needed)
+          // Check if first stop is StCec (reversed), if so reverse back
+          if (stops[0] && stops[0].name === 'St. Cecilia') {
+            stops.reverse();
+          }
+        }
         var labels = mode === 'am' ? ['1','2','3','4'] : ['A','B','C','D'];
-        stops.forEach(function (s, i) { s.letter = labels[i]; s.reached = false; s.skipped = false; });
+        stops.forEach(function (s, i) { s.letter = labels[i]; s.number = i + 1; s.reached = false; s.skipped = false; });
         selected = 0;
         document.querySelectorAll('.dir-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.dir === dir); });
         document.querySelectorAll('.mode-btn[data-mode]').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === 'ride'); });
