@@ -559,7 +559,7 @@
         return stop.acc || 50;
       }
 
-      function dirRange() { return mode === 'am' ? '1 through 4' : 'D through A'; }
+      function dirRange() { return mode === 'am' ? '1 through 5' : 'A through D'; }
       function currentPath() { return mode === 'am' ? ROUTE_PATH : ROUTE_PATH.slice(0, 4).reverse(); }
       function setupHeroText() {
         $('heroTitle').textContent = 'Ready to map your route?';
@@ -625,9 +625,9 @@
         });
         $('configuredCount').textContent = configuredCount();
         $('reachedCount').textContent = reachedCount();
-        $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === 4 ? 'Ready' : 'Setup');
+        $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === (mode === 'am' ? 5 : 4) ? 'Ready' : 'Setup');
         var next = stops[nextIdx];
-        $('nextMetric').textContent = reachedCount() === 4 ? 'Complete' : stopLabelNumbered(next);
+        $('nextMetric').textContent = reachedCount() === stops.length ? 'Complete' : stopLabelNumbered(next);
         $('progressText').textContent = reachedCount() + ' of 4 stops';
         $('progressFill').style.width = ((reachedCount() / 4) * 100) + '%';
         refreshMapMarkers();
@@ -682,7 +682,7 @@
       }
 
       function updateViewForCompleteness() {
-        if (configuredCount() === 4 && !tracking) {
+        if (configuredCount() === (mode === 'am' ? 5 : 4) && !tracking) {
           setupView.classList.remove('active');
           tripView.classList.add('active');
           $('heroTitle').textContent = 'Your route is ready.';
@@ -739,7 +739,7 @@
             locationPermissionState = result.state;
             if (result.state !== 'denied') clearGpsProblem();
           };
-          if (result.state === 'denied') showGpsProblem({ code: 1, type: 'site-denied' }, configuredCount() === 4 ? 'trip' : 'setup');
+          if (result.state === 'denied') showGpsProblem({ code: 1, type: 'site-denied' }, configuredCount() === (mode === 'am' ? 5 : 4) ? 'trip' : 'setup');
         }).catch(function () { locationPermissionState = 'unknown'; });
       }
 
@@ -1365,8 +1365,9 @@
           var ride = btn.dataset.mode === 'ride';
           $('rideMode').style.display = ride ? 'grid' : 'none';
           $('followMode').classList.toggle('active', !ride);
-          $('heroTitle').textContent = ride ? (configuredCount() === 4 ? 'Your route is ready.' : 'Ready to map your route?') : 'Keep an eye on the ride.';
-          $('heroText').textContent = ride ? (configuredCount() === 4 ? 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.' : 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.') : 'Location sharing lets you follow the phone riding on the bus from your own phone.';
+          var expectedCount = mode === 'am' ? 5 : 4;
+          $('heroTitle').textContent = ride ? (configuredCount() === expectedCount ? 'Your route is ready.' : 'Ready to map your route?') : 'Keep an eye on the ride.';
+          $('heroText').textContent = ride ? (configuredCount() === expectedCount ? 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.' : 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.') : 'Location sharing lets you follow the phone riding on the bus from your own phone.';
         });
       });
 
@@ -1395,7 +1396,7 @@
       $('stopBtn').addEventListener('click', stopTracking);
       $('resetTripBtn').addEventListener('click', resetProgress);
       $('navNextBtn').addEventListener('click', function () {
-        if (reachedCount() === 4) { showToast('Route complete.'); return; }
+        if (reachedCount() === stops.length) { showToast('Route complete.'); return; }
         var s = stops[nextStopIndex()];
         if (!isConfigured(s)) { showToast('The next stop has no saved location yet.'); return; }
         window.open('https://www.google.com/maps/dir/?api=1&destination=' + s.lat + ',' + s.lng, '_blank', 'noopener');
