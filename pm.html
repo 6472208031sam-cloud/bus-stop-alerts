@@ -242,7 +242,7 @@
       .dashboard { grid-template-columns: 1fr; }
       .route-panel { position: static; order: 2; }
       .workspace { order: 1; }
-      .route-list { display: grid; grid-template-columns: repeat(14, 1fr); gap: 0; padding: 16px 14px 20px; }
+      .route-list { display: grid; grid-template-columns: repeat(15, 1fr); gap: 0; padding: 16px 14px 20px; }
       .route-item { display: block; min-height: auto; text-align: center; }
       .route-item:not(:last-child)::after { left: 50%; right: -50%; top: 16px; bottom: auto; width: auto; height: 2px; }
       .dot { width: 32px; height: 32px; margin: 0 auto; font-size: .7rem; }
@@ -277,7 +277,7 @@
     <section class="hero">
       <div>
         <h1 id="heroTitle">Ready to map your route?</h1>
-        <p id="heroText">Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 0 through 13.</p>
+        <p id="heroText">Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 0 through 14.</p>
         <p style="margin-top:10px"><a href="index.html?route=am" style="display:inline-block;padding:10px 18px;background:#0b6e4f;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">← Switch to AM Route</a></p>
       </div>
       <div class="hero-note">
@@ -296,7 +296,7 @@
         <div class="panel-head compact-mobile">
           <div class="panel-head-row">
             <div>
-              <h2>Your 14 stops</h2>
+              <h2>Your 15 stops</h2>
               <p class="sub"><span id="configuredCount">0</span> saved · <span id="reachedCount">0</span> reached</p>
             </div>
             <span class="badge" id="routeBadge">Setup</span>
@@ -334,7 +334,7 @@
               <h2 id="setupHeading">Set stop 1</h2>
               <p class="sub">Stand at the stop and use your current location, or enter coordinates manually.</p>
             </div>
-            <span class="badge" id="selectedBadge">1 / 14</span>
+            <span class="badge" id="selectedBadge">1 / 15</span>
           </div>
 
           <div class="setup-grid" style="margin-top:20px">
@@ -399,7 +399,7 @@
             <div class="distance" id="distanceDisplay">Waiting for GPS</div>
           </div>
           <div class="progress-wrap">
-            <div class="progress-label"><span>Route progress</span><span id="progressText">0 of 14 stops</span></div>
+            <div class="progress-label"><span>Route progress</span><span id="progressText">0 of 15 stops</span></div>
             <div class="track"><div class="fill" id="progressFill"></div></div>
           </div>
           <div class="map-wrap">
@@ -487,18 +487,19 @@
       var DEFAULT_STOPS = [
         { number: 1, letter: 'S', amNumber: 13, time: '', name: "SCHOOL: ST MARGUERITE D'YOUVILLE CES - 1359 BAYSHIRE DR - BUS LOADING ZONE", lat: 43.494205, lng: -79.6937659, radius: 30, acc: 120 },
         { number: 2, letter: '0', amNumber: 0, time: '', name: "STOP 0", lat: 43.492605, lng: -79.692526, radius: 30, acc: 120 },
-        { number: 3, letter: 'A', amNumber: 9, time: '', name: "ON PONDVIEW PL - OPPOSITE 495 PONDVIEW PL AT PARK SIGN", lat: 43.4878529, lng: -79.7080746, radius: 30, acc: 120 },
-        { number: 4, letter: 'B', amNumber: 8, time: '', name: "ON CRIMSON OAK TRAIL - BETWEEN NICHOLS & CEDAR", lat: 43.49153, lng: -79.7119, radius: 30, acc: 120 },
-        { number: 5, letter: 'C', amNumber: 10, time: '', name: "ON CORONATION DR AT NORTH RIDGE TRAIL (S/E CORNER) AT PARK", lat: 43.49347, lng: -79.70835, radius: 30, acc: 120 },
-        { number: 6, letter: 'D', amNumber: 11, time: '', name: "ON CRAIGLEITH RD - OPPOSITE SYLVIA DR AT PARK (SOUTH SIDE)", lat: 43.49837, lng: -79.70403, radius: 30, acc: 120 },
-        { number: 7, letter: 'E', amNumber: 12, time: '', name: "ON CRAIGLEITH RD AT MEADOWRIDGE DR (S/W CORNER)", lat: 43.50118, lng: -79.70128, radius: 30, acc: 120 },
-        { number: 8, letter: 'F', amNumber: 1, time: '', name: "ON WILLIAM CUTMORE AVE AT EVEREST CRES (NORTH ENTRANCE) AT PARK", lat: 43.50537, lng: -79.70545, radius: 30, acc: 120 },
-        { number: 9, letter: 'G', amNumber: 2, time: '', name: "ON FORD STRATHY CRES - OPPOSITE 1411 AT BENCHES", lat: 43.50846, lng: -79.71016, radius: 30, acc: 120 },
-        { number: 10, letter: 'H', amNumber: 3, time: '', name: "ON MEADOWRIDGE DR AT WHEAT BOOM DR (N/W CORNER)", lat: 43.50467, lng: -79.7096, radius: 30, acc: 120 },
-        { number: 11, letter: 'I', amNumber: 4, time: '', name: "ON JOHN MCKAY BLVD - NORTH OF ANSON GATE AT WALKWAY", lat: 43.49945, lng: -79.712, radius: 30, acc: 120 },
-        { number: 12, letter: 'J', amNumber: 5, time: '', name: "ON THRESHING MILL BLVD AT MEADOW MARSH CRES (N/E CORNER)", lat: 43.4964, lng: -79.7187, radius: 30, acc: 120 },
-        { number: 13, letter: 'K', amNumber: 6, time: '', name: "ON WHEAT BOOM DR - OPPOSITE 434 WHEAT BOOM DR AT PARK", lat: 43.49298, lng: -79.71886, radius: 30, acc: 120 },
-        { number: 14, letter: 'L', amNumber: 7, time: '', name: "ON POSTRIDGE DR AT FAIRGATE WAY (N/W CORNER) - TRANSIT STYLE STOP", lat: 43.48828, lng: -79.71337, radius: 30, acc: 120 }
+        { number: 3, letter: '01', amNumber: 0, time: '', name: "STOP 01 - BIG TASTE", lat: 43.488486, lng: -79.698247, radius: 30, acc: 120 },
+        { number: 4, letter: 'A', amNumber: 9, time: '', name: "ON PONDVIEW PL - OPPOSITE 495 PONDVIEW PL AT PARK SIGN", lat: 43.4878529, lng: -79.7080746, radius: 30, acc: 120 },
+        { number: 5, letter: 'B', amNumber: 8, time: '', name: "ON CRIMSON OAK TRAIL - BETWEEN NICHOLS & CEDAR", lat: 43.49153, lng: -79.7119, radius: 30, acc: 120 },
+        { number: 6, letter: 'C', amNumber: 10, time: '', name: "ON CORONATION DR AT NORTH RIDGE TRAIL (S/E CORNER) AT PARK", lat: 43.49347, lng: -79.70835, radius: 30, acc: 120 },
+        { number: 7, letter: 'D', amNumber: 11, time: '', name: "ON CRAIGLEITH RD - OPPOSITE SYLVIA DR AT PARK (SOUTH SIDE)", lat: 43.49837, lng: -79.70403, radius: 30, acc: 120 },
+        { number: 8, letter: 'E', amNumber: 12, time: '', name: "ON CRAIGLEITH RD AT MEADOWRIDGE DR (S/W CORNER)", lat: 43.50118, lng: -79.70128, radius: 30, acc: 120 },
+        { number: 9, letter: 'F', amNumber: 1, time: '', name: "ON WILLIAM CUTMORE AVE AT EVEREST CRES (NORTH ENTRANCE) AT PARK", lat: 43.50537, lng: -79.70545, radius: 30, acc: 120 },
+        { number: 10, letter: 'G', amNumber: 2, time: '', name: "ON FORD STRATHY CRES - OPPOSITE 1411 AT BENCHES", lat: 43.50846, lng: -79.71016, radius: 30, acc: 120 },
+        { number: 11, letter: 'H', amNumber: 3, time: '', name: "ON MEADOWRIDGE DR AT WHEAT BOOM DR (N/W CORNER)", lat: 43.50467, lng: -79.7096, radius: 30, acc: 120 },
+        { number: 12, letter: 'I', amNumber: 4, time: '', name: "ON JOHN MCKAY BLVD - NORTH OF ANSON GATE AT WALKWAY", lat: 43.49945, lng: -79.712, radius: 30, acc: 120 },
+        { number: 13, letter: 'J', amNumber: 5, time: '', name: "ON THRESHING MILL BLVD AT MEADOW MARSH CRES (N/E CORNER)", lat: 43.4964, lng: -79.7187, radius: 30, acc: 120 },
+        { number: 14, letter: 'K', amNumber: 6, time: '', name: "ON WHEAT BOOM DR - OPPOSITE 434 WHEAT BOOM DR AT PARK", lat: 43.49298, lng: -79.71886, radius: 30, acc: 120 },
+        { number: 15, letter: 'L', amNumber: 7, time: '', name: "ON POSTRIDGE DR AT FAIRGATE WAY (N/W CORNER) - TRANSIT STYLE STOP", lat: 43.48828, lng: -79.71337, radius: 30, acc: 120 }
     ];
 
       function createDefaultStops() {
@@ -577,9 +578,9 @@
         });
         $('configuredCount').textContent = configuredCount();
         $('reachedCount').textContent = reachedCount();
-        $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === 14 ? 'Ready' : 'Setup');
+        $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === 15 ? 'Ready' : 'Setup');
         var next = stops[nextIdx];
-        $('nextMetric').textContent = reachedCount() === 14 ? 'Complete' : stopLabelNumbered(next);
+        $('nextMetric').textContent = reachedCount() === 15 ? 'Complete' : stopLabelNumbered(next);
         $('progressText').textContent = reachedCount() + ' of 13 stops';
         $('progressFill').style.width = ((reachedCount() / 13) * 100) + '%';
         refreshMapMarkers();
@@ -634,7 +635,7 @@
       }
 
       function updateViewForCompleteness() {
-        if (configuredCount() === 14 && !tracking) {
+        if (configuredCount() === 15 && !tracking) {
           setupView.classList.remove('active');
           tripView.classList.add('active');
           $('heroTitle').textContent = 'Your route is ready.';
@@ -654,7 +655,7 @@
           $('heroText').textContent = 'Tracking keeps running while you edit. Save your changes, then go back to the ride.';
         } else {
           $('heroTitle').textContent = 'Ready to map your route?';
-          $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 0 through 13.';
+          $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 0 through 14.';
         }
         $('backToRideRow').hidden = !tracking;
         loadStopForm();
@@ -692,7 +693,7 @@
             locationPermissionState = result.state;
             if (result.state !== 'denied') clearGpsProblem();
           };
-          if (result.state === 'denied') showGpsProblem({ code: 1, type: 'site-denied' }, configuredCount() === 14 ? 'trip' : 'setup');
+          if (result.state === 'denied') showGpsProblem({ code: 1, type: 'site-denied' }, configuredCount() === 15 ? 'trip' : 'setup');
         }).catch(function () { locationPermissionState = 'unknown'; });
       }
 
@@ -840,7 +841,7 @@
           stop.reached = true;
           triggerArrival(stop);
           renderRoute();
-          if (reachedCount() === 14) finishRoute();
+          if (reachedCount() === 15) finishRoute();
           else $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
         }
       }
@@ -1101,8 +1102,8 @@
       }
 
       function startTracking() {
-        if (configuredCount() !== 14) {
-          showToast('Save all 14 stop locations before starting.');
+        if (configuredCount() !== 15) {
+          showToast('Save all 15 stop locations before starting.');
           return;
         }
         if (NATIVE) { startNativeTracking(); return; }
@@ -1274,7 +1275,7 @@
         reader.onload = function () {
           try {
             var data = JSON.parse(reader.result);
-            if (!data || !Array.isArray(data.stops) || data.stops.length !== 14) throw new Error('invalid');
+            if (!data || !Array.isArray(data.stops) || data.stops.length !== 15) throw new Error('invalid');
             var imported = data.stops.map(function (s, i) {
               var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 30);
               if (!validCoordinates(lat, lng)) throw new Error('invalid');
@@ -1325,8 +1326,8 @@
           var ride = btn.dataset.mode === 'ride';
           $('rideMode').style.display = ride ? 'grid' : 'none';
           $('followMode').classList.toggle('active', !ride);
-          $('heroTitle').textContent = ride ? (configuredCount() === 14 ? 'Your route is ready.' : 'Ready to map your route?') : 'Keep an eye on the ride.';
-          $('heroText').textContent = ride ? (configuredCount() === 14 ? 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.' : 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 0 through 13.') : 'Location sharing lets you follow the phone riding on the bus from your own phone.';
+          $('heroTitle').textContent = ride ? (configuredCount() === 15 ? 'Your route is ready.' : 'Ready to map your route?') : 'Keep an eye on the ride.';
+          $('heroText').textContent = ride ? (configuredCount() === 15 ? 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.' : 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops 0 through 14.') : 'Location sharing lets you follow the phone riding on the bus from your own phone.';
         });
       });
 
@@ -1351,7 +1352,7 @@
       $('stopBtn').addEventListener('click', stopTracking);
       $('resetTripBtn').addEventListener('click', resetProgress);
       $('navNextBtn').addEventListener('click', function () {
-        if (reachedCount() === 14) { showToast('Route complete.'); return; }
+        if (reachedCount() === 15) { showToast('Route complete.'); return; }
         var s = stops[nextStopIndex()];
         if (!isConfigured(s)) { showToast('The next stop has no saved location yet.'); return; }
         window.open('https://www.google.com/maps/dir/?api=1&destination=' + s.lat + ',' + s.lng, '_blank', 'noopener');
