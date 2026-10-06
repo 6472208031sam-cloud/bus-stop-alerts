@@ -824,7 +824,10 @@
         // one, snap forward to it. This lets a ride start at any stop (or
         // mid-route) instead of only working from stop 1. Only moves forward,
         // only on decent fixes, and only when that stop is reasonably close.
-        if (idx !== -1 && accuracy <= 150) {
+        // Snap-forward only at ride start (no stops reached yet).
+        // Mid-ride, follow sequentially to avoid false jumps to geographically-near
+        // but route-distant stops (e.g. B -> L skipping C-K).
+        if (idx !== -1 && idx === 0 && accuracy <= 150) {
           var best = -1, bestDist = Infinity, i, d;
           for (i = idx; i < stops.length; i++) {
             if (stops[i].reached) continue;
