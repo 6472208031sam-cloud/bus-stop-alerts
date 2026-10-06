@@ -494,13 +494,14 @@
         { number: 1, letter: 'A', time: '', name: "Emma house", lat: 43.497004, lng: -79.718877, radius: 30, acc: null },
         { number: 2, letter: 'B', time: '', name: "Natalia House", lat: 43.496826, lng: -79.718729, radius: 30, acc: null },
         { number: 3, letter: 'C', time: '', name: "Half way", lat: 43.496237, lng: -79.720459, radius: 30, acc: null },
-        { number: 4, letter: 'D', time: '', name: "St. Cecilia", lat: 43.495124, lng: -79.721188, radius: 30, acc: null }
+        { number: 4, letter: 'D', time: '', name: "St. Cecilia", lat: 43.495124, lng: -79.721188, radius: 30, acc: null },
+        { number: 5, letter: 'E', time: '', name: "Stop 5", lat: 43.494348, lng: -79.722536, radius: 30, acc: null }
       ];
 
-      var mode = 'am'; // 'am' = 1,2,3,4 (Emma->StCec), 'pm' = A,B,C,D reversed (StCec->Emma)
+      var mode = 'am'; // 'am' = 1-5, 'pm' = A-D (reverse of first 4)
       function createDefaultStops() {
-        // Always start in AM order; setDirection handles PM transformation
-        var labels = ['1','2','3','4'];
+        // Always start in AM order (5 stops); setDirection handles PM transformation
+        var labels = ['1','2','3','4','5'];
         return DEFAULT_STOPS.map(function (stop, i) {
           return { number: i + 1, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
@@ -559,7 +560,7 @@
       }
 
       function dirRange() { return mode === 'am' ? '1 through 4' : 'D through A'; }
-      function currentPath() { return mode === 'am' ? ROUTE_PATH : ROUTE_PATH.slice().reverse(); }
+      function currentPath() { return mode === 'am' ? ROUTE_PATH : ROUTE_PATH.slice(0, 4).reverse(); }
       function setupHeroText() {
         $('heroTitle').textContent = 'Ready to map your route?';
         $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.';
@@ -568,18 +569,21 @@
         if (dir === mode) return;
         if (tracking) stopTracking();
         mode = dir;
-        // AM: 1,2,3,4 (Emma->StCec). PM: A,B,C,D reversed (StCec->Emma).
-        // PM: A=StCec, B=Half, C=Natalia, D=Emma
+        // AM: 5 stops 1-5 (Emma->Stop5). PM: 4 stops A-D, reverse of first 4 AM stops.
+        // PM: A=StCec(4), B=Half(3), C=Natalia(2), D=Emma(1)
         if (mode === 'pm') {
-          stops.reverse();
+          // Use first 4 stops reversed for PM
+          var pmStops = stops.slice(0, 4).reverse();
+          stops.length = 0;
+          pmStops.forEach(function(s) { stops.push(s); });
         } else {
-          // Ensure AM order (reverse back if needed)
-          // Check if first stop is StCec (reversed), if so reverse back
-          if (stops[0] && stops[0].name === 'St. Cecilia') {
-            stops.reverse();
-          }
+          // Restore all 5 stops in AM order
+          // Rebuild from DEFAULT_STOPS to ensure correct order
+          var amStops = createDefaultStops();
+          stops.length = 0;
+          amStops.forEach(function(s) { stops.push(s); });
         }
-        var labels = mode === 'am' ? ['1','2','3','4'] : ['A','B','C','D'];
+        var labels = mode === 'am' ? ['1','2','3','4','5'] : ['A','B','C','D'];
         stops.forEach(function (s, i) { s.letter = labels[i]; s.number = i + 1; s.reached = false; s.skipped = false; });
         selected = 0;
         document.querySelectorAll('.dir-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.dir === dir); });
@@ -883,7 +887,7 @@
           stop.reached = true;
           triggerArrival(stop);
           renderRoute();
-          if (reachedCount() === 4) finishRoute();
+          if (reachedCount() === stops.length) finishRoute();
           else $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
         }
       }
@@ -894,7 +898,7 @@
         stopTracking(true);
       }
 
-      var ROUTE_PATH = [[43.497004,-79.718877],[43.496826,-79.718729],[43.496237,-79.720459],[43.495124,-79.721188]];
+      var ROUTE_PATH = [[43.497004,-79.718877],[43.496826,-79.718729],[43.496237,-79.720459],[43.495124,-79.721188],[43.494348,-79.722536]];
       var map = null, stopLayer = null, routeLine = null, userMarker = null, didZoomToUser = false;
 
       function stopPinIcon(stop, isNext) {
@@ -1144,8 +1148,9 @@
       }
 
       function startTracking() {
-        if (configuredCount() !== 4) {
-          showToast('Save all %s stop locations before starting.');
+        var expected = mode === 'am' ? 5 : 4;
+        if (configuredCount() !== expected) {
+          showToast('Save all ' + expected + ' stop locations before starting.');
           return;
         }
         if (NATIVE) { startNativeTracking(); return; }
@@ -1224,7 +1229,7 @@
         stopTracking();
         $('tripKicker').textContent = 'Route complete';
         $('nextStopDisplay').textContent = 'Final stop reached';
-        $('distanceDisplay').textContent = 'All 4 stops complete';
+        $('distanceDisplay').textContent = 'All ' + stops.length + ' stops complete';
         $('nextMetric').textContent = 'Complete';
       }
 
@@ -1261,7 +1266,7 @@
 
       function sendStopPush(stop) {
         if (!followerAlertsOn()) return;
-        var msg = stop.number === 4
+        var msg = stop.number === stops.length
           ? '🚌 Final stop reached: ' + stopLabel(stop) + '.'
           : '🚌 Stop ' + stop.letter + ' reached: ' + stopLabel(stop) + '.';
         try {
@@ -1276,7 +1281,7 @@
         }
         $('arrivalTitle').textContent = 'Stop ' + stop.letter + ': ' + stopLabel(stop) + ' reached';
         $('arrivalNumber').textContent = stop.letter;
-        if (stop.number === 4) {
+        if (stop.number === stops.length) {
           $('arrivalText').textContent = 'You have reached the final stop.';
         } else {
           var next = stops[stop.number];
@@ -1317,7 +1322,7 @@
         reader.onload = function () {
           try {
             var data = JSON.parse(reader.result);
-            if (!data || !Array.isArray(data.stops) || data.stops.length !== 4) throw new Error('invalid');
+            if (!data || !Array.isArray(data.stops) || (data.stops.length !== 4 && data.stops.length !== 5)) throw new Error('invalid');
             var imported = data.stops.map(function (s, i) {
               var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 30);
               if (!validCoordinates(lat, lng)) throw new Error('invalid');
