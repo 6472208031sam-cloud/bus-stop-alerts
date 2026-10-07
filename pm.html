@@ -207,6 +207,13 @@
     .follower-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .follower-head h3 { font-size: 1rem; margin: 0; letter-spacing: -.01em; }
     .follower-card .sub { font-size: .85rem; }
+    .sched-card { margin-top: 16px; padding: 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+    .sched-card .sub { font-size: .85rem; }
+    .sched-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .sched-label { flex: 1; font-weight: 700; font-size: .9rem; }
+    .sched-row input[type="time"] { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 9px; padding: 8px 10px; font-size: .9rem; }
+    .sched-dash { color: var(--muted); }
+    .sched-days { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: .9rem; font-weight: 600; }
     .channel-row { display: flex; gap: 8px; margin-top: 10px; }
     .channel-row input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 9px; padding: 9px 10px; font-size: .78rem; font-family: ui-monospace, monospace; }
     .switch { position: relative; display: inline-block; width: 46px; height: 26px; flex: none; }
@@ -422,6 +429,16 @@
               <output id="snapDistanceOut" for="snapDistance">350 m</output>
             </div>
             <p class="sub">When you start a ride, the app jumps to the nearest stop within this distance. Default 350 m.</p>
+          </div>
+          <div class="sched-card" id="schedCard">
+            <div class="follower-head">
+              <h3>Tracking schedule</h3>
+              <label class="switch" aria-label="Run tracking on a schedule"><input type="checkbox" id="schedToggle" /><span class="slider"></span></label>
+            </div>
+            <p class="sub">Toronto time. Turns GPS tracking on and off automatically, even with the phone locked (Android app only). The morning window runs the AM route, the afternoon window the PM route.</p>
+            <div class="sched-row"><span class="sched-label">Morning on / off</span><input type="time" id="schedOn1" value="08:00" /><span class="sched-dash">–</span><input type="time" id="schedOff1" value="10:00" /></div>
+            <div class="sched-row"><span class="sched-label">Afternoon on / off</span><input type="time" id="schedOn2" value="15:30" /><span class="sched-dash">–</span><input type="time" id="schedOff2" value="18:30" /></div>
+            <label class="sched-days"><input type="checkbox" id="schedWeekdays" checked /> Weekdays only (Mon–Fri)</label>
           </div>
           <div class="follower-card" id="followerCard">
             <div class="follower-head">
@@ -932,11 +949,18 @@
       // follower pushes are handled by the native foreground service so
       // they keep working when the app is minimized or the phone is locked.
       function buildRideConfig() {
+        var sched = getSchedSettings();
         return {
           page: RIDE_PAGE,
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           snapDistance: getSnapDistance(),
+          schedEnabled: sched.enabled,
+          schedOn1: sched.on1,
+          schedOff1: sched.off1,
+          schedOn2: sched.on2,
+          schedOff2: sched.off2,
+          schedWeekdaysOnly: sched.weekdaysOnly,
           stops: stops.map(function (s) {
             return {
               number: s.number,
@@ -1242,6 +1266,43 @@
         return v;
       }
 
+      // ---- Tracking schedule (Toronto time; Android app only) ----
+      function parseTimeToMin(s, def) {
+        var m = /^(\d{1,2}):(\d{2})/.exec(s || '');
+        if (!m) return def;
+        return (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) % 1440;
+      }
+      function minToTime(min) {
+        var h = Math.floor(min / 60), m = min % 60;
+        return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+      }
+      function getSchedSettings() {
+        return {
+          enabled: localStorage.getItem('bsa_sched_enabled') === '1',
+          on1: parseTimeToMin(localStorage.getItem('bsa_sched_on1'), 480),
+          off1: parseTimeToMin(localStorage.getItem('bsa_sched_off1'), 600),
+          on2: parseTimeToMin(localStorage.getItem('bsa_sched_on2'), 930),
+          off2: parseTimeToMin(localStorage.getItem('bsa_sched_off2'), 1110),
+          weekdaysOnly: localStorage.getItem('bsa_sched_weekdays') !== '0'
+        };
+      }
+      function saveSchedSettings(s) {
+        localStorage.setItem('bsa_sched_enabled', s.enabled ? '1' : '0');
+        localStorage.setItem('bsa_sched_on1', minToTime(s.on1));
+        localStorage.setItem('bsa_sched_off1', minToTime(s.off1));
+        localStorage.setItem('bsa_sched_on2', minToTime(s.on2));
+        localStorage.setItem('bsa_sched_off2', minToTime(s.off2));
+        localStorage.setItem('bsa_sched_weekdays', s.weekdaysOnly ? '1' : '0');
+      }
+      function pushScheduleToNative() {
+        // Sends the schedule (and current route config) to the native
+        // service even when no ride is active, so alarms work after reboot
+        // and the service knows the route for scheduled starts.
+        if (NATIVE) {
+          try { window.NativeBridge.updateConfig(JSON.stringify(buildRideConfig())); } catch (e) {}
+        }
+      }
+
       function sendStopPush(stop) {
         if (!followerAlertsOn()) return;
         var msg = stop.letter === 'L'
@@ -1408,6 +1469,41 @@
         $('snapDistanceOut').textContent = v + ' m';
         pushConfigToNative();
       });
+      // Tracking schedule controls.
+      (function initScheduleUi() {
+        var s = getSchedSettings();
+        $('schedToggle').checked = s.enabled;
+        $('schedOn1').value = minToTime(s.on1);
+        $('schedOff1').value = minToTime(s.off1);
+        $('schedOn2').value = minToTime(s.on2);
+        $('schedOff2').value = minToTime(s.off2);
+        $('schedWeekdays').checked = s.weekdaysOnly;
+        function readUi() {
+          return {
+            enabled: $('schedToggle').checked,
+            on1: parseTimeToMin($('schedOn1').value, 480),
+            off1: parseTimeToMin($('schedOff1').value, 600),
+            on2: parseTimeToMin($('schedOn2').value, 930),
+            off2: parseTimeToMin($('schedOff2').value, 1110),
+            weekdaysOnly: $('schedWeekdays').checked
+          };
+        }
+        function onSchedChange(msg) {
+          saveSchedSettings(readUi());
+          pushScheduleToNative();
+          if (msg) showToast(msg);
+        }
+        $('schedToggle').addEventListener('change', function () {
+          onSchedChange($('schedToggle').checked ? 'Tracking schedule on.' : 'Tracking schedule off.');
+        });
+        ['schedOn1', 'schedOff1', 'schedOn2', 'schedOff2'].forEach(function (id) {
+          $(id).addEventListener('change', function () { onSchedChange('Schedule saved.'); });
+        });
+        $('schedWeekdays').addEventListener('change', function () { onSchedChange('Schedule saved.'); });
+        // Hand the current schedule (and route) to the native service on
+        // page open, so alarms survive reboots and fresh installs.
+        pushScheduleToNative();
+      })();
       $('copyChannelBtn').addEventListener('click', function () {
         var ch = $('followerChannel').value;
         function done() { showToast('Channel name copied.'); }
