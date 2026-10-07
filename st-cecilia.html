@@ -519,6 +519,21 @@
       var PM_EXTRA_STOP = { number: 5, letter: 'E', time: '', name: "Stop E", lat: 43.498334, lng: -79.720660, radius: 30, acc: null };
       var PM_EXTRA_STOP_F = { number: 6, letter: 'F', time: '', name: "Stop F", lat: 43.498717, lng: -79.722201, radius: 30, acc: null };
       var mode = 'am'; // 'am' = 1-5, 'pm' = A-F (E,F are PM-only)
+
+      // Time-based default tab: before 12pm Toronto time the page opens on
+      // AM, at/after 12pm on PM. A manual tab switch stays put for the rest
+      // of the day (stored with the Toronto date).
+      function torontoDateStr() {
+        try {
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        } catch (e) { return ''; }
+      }
+      function defaultModeByTime() {
+        try {
+          var hour = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Toronto', hour: 'numeric', hourCycle: 'h23' }).format(new Date()), 10);
+          return hour >= 12 ? 'pm' : 'am';
+        } catch (e) { return 'am'; }
+      }
       function createDefaultStops() {
         // Always start in AM order (5 stops); setDirection handles PM transformation
         var labels = ['1','2','3','4','5'];
@@ -585,7 +600,7 @@
         $('heroTitle').textContent = 'Ready to map your route?';
         $('heroText').textContent = 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.';
       }
-      function setDirection(dir) {
+      function setDirection(dir, quiet) {
         if (dir === mode) return;
         if (tracking) stopTracking();
         mode = dir;
@@ -637,7 +652,13 @@
         }
         loadStopForm();
         renderRoute();
-        showToast(dir === 'to' ? 'Direction set: To (A \u2192 D).' : 'Direction set: From (D \u2192 A).');
+        if (!quiet) {
+          try {
+            localStorage.setItem('stcecilia_dir', dir);
+            localStorage.setItem('stcecilia_dir_day', torontoDateStr());
+          } catch (e) {}
+          showToast(dir === 'to' ? 'Direction set: To (A \u2192 D).' : 'Direction set: From (D \u2192 A).');
+        }
       }
 
       function renderRoute() {
@@ -1465,6 +1486,19 @@
       document.querySelectorAll('.dir-btn').forEach(function (btn) {
         btn.addEventListener('click', function () { setDirection(btn.dataset.dir); });
       });
+
+      // Apply the time-based default tab on load (AM before 12pm Toronto
+      // time, PM after), unless the user manually picked a tab today.
+      (function initDefaultTab() {
+        try {
+          var today = torontoDateStr();
+          var savedDay = localStorage.getItem('stcecilia_dir_day');
+          var savedDir = localStorage.getItem('stcecilia_dir');
+          var initial = (savedDay === today && (savedDir === 'am' || savedDir === 'pm'))
+            ? savedDir : defaultModeByTime();
+          if (initial !== mode) setDirection(initial, true);
+        } catch (e) {}
+      })();
 
       routeList.addEventListener('click', function (e) {
         var button = e.target.closest('[data-index]');
