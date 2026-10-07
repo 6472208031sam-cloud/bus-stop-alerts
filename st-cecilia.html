@@ -1031,7 +1031,7 @@
       }
       function getSchedSettings() {
         return {
-          enabled: localStorage.getItem('stcecilia_sched_enabled') === '1',
+          enabled: localStorage.getItem('stcecilia_sched_enabled') !== '0',
           on1: parseTimeToMin(localStorage.getItem('stcecilia_sched_on1'), 480),
           off1: parseTimeToMin(localStorage.getItem('stcecilia_sched_off1'), 600),
           on2: parseTimeToMin(localStorage.getItem('stcecilia_sched_on2'), 930),
