@@ -415,6 +415,14 @@
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
             <span>Tap Start ride, then choose Allow when your phone asks for location. You can board at any stop — the app picks up from the stop nearest to you and alerts from there on. Keep this page visible during the ride; tracking stops if the browser closes or locks the page.</span>
           </div>
+          <div class="field full">
+            <label for="snapDistance">Start pickup distance</label>
+            <div class="radius-row">
+              <input id="snapDistance" type="range" min="100" max="1000" step="50" value="350" />
+              <output id="snapDistanceOut" for="snapDistance">350 m</output>
+            </div>
+            <p class="sub">When you start a ride, the app jumps to the nearest stop within this distance. Default 350 m.</p>
+          </div>
           <div class="follower-card" id="followerCard">
             <div class="follower-head">
               <h3>Alerts to another phone</h3>
@@ -825,7 +833,7 @@
             d = distanceMeters(lat, lng, stops[i].lat, stops[i].lng);
             if (d < bestDist) { bestDist = d; best = i; }
           }
-          if (best > idx && bestDist <= 250) {
+          if (best > idx && bestDist <= getSnapDistance()) {
             for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
             idx = best;
             renderRoute();
@@ -928,6 +936,7 @@
           page: RIDE_PAGE,
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
+          snapDistance: getSnapDistance(),
           stops: stops.map(function (s) {
             return {
               number: s.number,
@@ -1221,6 +1230,18 @@
         return localStorage.getItem('bsa_follower') !== '0';
       }
 
+      var DEFAULT_SNAP_DISTANCE = 350;
+      function getSnapDistance() {
+        var v = parseInt(localStorage.getItem('bsa_snap_distance'), 10);
+        if (!isFinite(v) || v < 100 || v > 1000) v = DEFAULT_SNAP_DISTANCE;
+        return v;
+      }
+      function setSnapDistance(v) {
+        v = Math.min(1000, Math.max(100, Math.round(v / 50) * 50));
+        localStorage.setItem('bsa_snap_distance', String(v));
+        return v;
+      }
+
       function sendStopPush(stop) {
         if (!followerAlertsOn()) return;
         var msg = stop.letter === 'L'
@@ -1378,6 +1399,13 @@
       $('followerToggle').addEventListener('change', function () {
         localStorage.setItem('bsa_follower', $('followerToggle').checked ? '1' : '0');
         showToast($('followerToggle').checked ? 'Follower alerts on.' : 'Follower alerts off.');
+        pushConfigToNative();
+      });
+      $('snapDistance').value = getSnapDistance();
+      $('snapDistanceOut').textContent = getSnapDistance() + ' m';
+      $('snapDistance').addEventListener('input', function () {
+        var v = setSnapDistance(parseInt($('snapDistance').value, 10));
+        $('snapDistanceOut').textContent = v + ' m';
         pushConfigToNative();
       });
       $('copyChannelBtn').addEventListener('click', function () {
