@@ -417,6 +417,7 @@
             <button class="btn" type="button" id="stopBtn" disabled>Stop tracking</button>
             <button class="btn" type="button" id="resetTripBtn">Reset progress</button>
             <button class="btn" type="button" id="navNextBtn">Navigate to next stop</button>
+            <button class="btn" type="button" id="soundBtn">🔊 Sound on</button>
           </div>
           <div class="notice">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
@@ -948,12 +949,15 @@
       // location tracking, arrival detection, alert sound/vibration and
       // follower pushes are handled by the native foreground service so
       // they keep working when the app is minimized or the phone is locked.
+      function soundOn() { return localStorage.getItem('bsa_sound') !== '0'; }
+
       function buildRideConfig() {
         var sched = getSchedSettings();
         return {
           page: RIDE_PAGE,
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
+          sound: soundOn(),
           snapDistance: getSnapDistance(),
           schedEnabled: sched.enabled,
           schedOn1: sched.on1,
@@ -1232,6 +1236,7 @@
       }
 
       function playAlert() {
+        if (!soundOn()) return;
         ensureAudio();
         if (!audioContext) return;
         var now = audioContext.currentTime;
@@ -1397,6 +1402,17 @@
       function releaseWakeLock() {
         if (wakeLock) { wakeLock.release(); wakeLock = null; }
       }
+
+      function renderSoundBtn() {
+        $('soundBtn').textContent = soundOn() ? '🔊 Sound on' : '🔇 Sound off';
+      }
+      $('soundBtn').addEventListener('click', function () {
+        localStorage.setItem('bsa_sound', soundOn() ? '0' : '1');
+        renderSoundBtn();
+        updateConfig();
+        showToast(soundOn() ? 'Arrival sound on.' : 'Arrival sound muted (vibration still on).');
+      });
+      renderSoundBtn();
 
       $('gpsPulse').addEventListener('click', function () {
         if (typeof tracking !== 'undefined' && tracking) {
