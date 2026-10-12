@@ -167,6 +167,7 @@
     .stop-pin.done { background: var(--green); border-color: var(--green); color: #fff; }
     .stop-pin.skip { background: var(--surface-3); border-color: var(--line); color: var(--muted); }
     .stop-pin.next { outline: 4px solid var(--green-soft); }
+    .arrivedlbl { background: var(--green); color: #fff; font-weight: 800; font-size: 15px; padding: 5px 16px; border-radius: 18px; text-align: center; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
     .user-dot { width: 18px; height: 18px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
     .btn {
       min-height: 46px; border-radius: 11px; padding: 11px 16px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -912,6 +913,12 @@
         stops.forEach(function (stop, i) {
           if (!isConfigured(stop)) return;
           L.marker([stop.lat, stop.lng], { icon: stopPinIcon(stop, tracking && i === nextIdx), title: stopLabelNumbered(stop) }).addTo(stopLayer);
+          if (stop.reached && i === stops.length - 1) {
+            L.marker([stop.lat, stop.lng], {
+              icon: L.divIcon({ className: '', html: '<div class="arrivedlbl">\u2713 Arrived</div>', iconSize: [110, 32], iconAnchor: [55, -18] }),
+              interactive: false, keyboard: false, zIndexOffset: 900
+            }).addTo(stopLayer);
+          }
         });
       }
 
