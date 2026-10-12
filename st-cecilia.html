@@ -424,6 +424,7 @@
             <button class="btn" type="button" id="stopBtn" disabled>Stop tracking</button>
             <button class="btn" type="button" id="resetTripBtn">Reset progress</button>
             <button class="btn" type="button" id="navNextBtn">Navigate to next stop</button>
+            <button class="btn" type="button" id="markReachedBtn">✓ Mark reached</button>
             <button class="btn" type="button" id="soundBtn">🔊 Sound on</button>
           </div>
           <div class="notice">
@@ -1568,6 +1569,19 @@
         var s = stops[nextStopIndex()];
         if (!isConfigured(s)) { showToast('The next stop has no saved location yet.'); return; }
         window.open('https://www.google.com/maps/dir/?api=1&destination=' + s.lat + ',' + s.lng, '_blank', 'noopener');
+      });
+      $('markReachedBtn').addEventListener('click', function () {
+        if (NATIVE && window.NativeBridge && window.NativeBridge.markReached) {
+          try { window.NativeBridge.markReached(); } catch (e) { showToast('Could not mark reached.'); }
+        } else {
+          var idx = nextStopIndex();
+          if (idx >= 0 && idx < stops.length) {
+            stops[idx].reached = true;
+            triggerArrival(stops[idx]);
+            renderRoute();
+            if (reachedCount() === stops.length) finishRoute();
+          }
+        }
       });
       $('editRouteBtn').addEventListener('click', function () { showSetup(0); });
       $('testAlertBtn').addEventListener('click', testAlert);
