@@ -280,7 +280,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.2</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.3</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1006,6 +1006,10 @@
             var st = window.NativeBridge.getStatus();
             if (!st) return;
             var status = JSON.parse(st);
+            if (status.completed && status.reached) {
+              applyNativeSync(status, null);
+              return;
+            }
             if (status.active && status.page === RIDE_PAGE) applyNativeSync(status, null);
           } catch (e) {}
         }, 3000);
