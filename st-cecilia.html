@@ -413,7 +413,7 @@
             <div class="distance" id="distanceDisplay">Waiting for GPS</div>
           </div>
           <div class="progress-wrap">
-            <div class="progress-label"><span>Route progress</span><span id="progressText">0 of 4 stops</span></div>
+            <div class="progress-label"><span>Route progress</span><span id="progressText">0 of 5 stops</span></div>
             <div class="track"><div class="fill" id="progressFill"></div></div>
           </div>
           <div class="map-wrap">
@@ -680,8 +680,8 @@
         $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === 5 ? 'Ready' : 'Setup');
         var next = stops[nextIdx];
         $('nextMetric').textContent = reachedCount() === stops.length ? 'Complete' : stopLabelNumbered(next);
-        $('progressText').textContent = reachedCount() + ' of 4 stops';
-        $('progressFill').style.width = ((reachedCount() / 4) * 100) + '%';
+        $('progressText').textContent = reachedCount() + ' of ' + stops.length + ' stops';
+        $('progressFill').style.width = ((reachedCount() / stops.length) * 100) + '%';
         refreshMapMarkers();
       }
 
