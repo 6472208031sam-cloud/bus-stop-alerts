@@ -282,7 +282,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v1.7</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v1.8</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1281,9 +1281,26 @@
       function nativeFinished() {
         // Finished ride = all stops reached. Mark them so pins turn green
         // even if the final sync was lost or tracking state is out of sync.
+        // Check the native tab first — the page may be on the wrong AM/PM tab.
+        try {
+          if (NATIVE && window.NativeBridge && window.NativeBridge.getStatus) {
+            var st = window.NativeBridge.getStatus();
+            if (st) {
+              var status = JSON.parse(st);
+              if (status.tab && status.tab !== mode && typeof setDirection === 'function') {
+                setDirection(status.tab);
+              }
+            }
+          }
+        } catch (e) {}
         stops.forEach(function (s) { s.reached = true; });
         if (tracking) finishRoute();
-        else renderRoute();
+        else {
+          // Ensure the UI reflects tracking state for the finished ride.
+          if (typeof enterNativeTrackingUI === 'function') enterNativeTrackingUI();
+          renderRoute();
+          if (typeof finishRoute === 'function') finishRoute();
+        }
       }
 
       function nativeNoRide() {
