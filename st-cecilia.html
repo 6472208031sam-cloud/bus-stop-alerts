@@ -1267,7 +1267,14 @@
             if (status.tab && status.tab !== mode) setDirection(status.tab);
             enterNativeTrackingUI();
           }
-          if (tracking) applyNativeSync(status, toast);
+          // Always apply reached/skipped state if present — the native side
+          // is authoritative, even if our local tracking flag is out of sync.
+          if (status && status.reached) {
+            if (!tracking) enterNativeTrackingUI();
+            applyNativeSync(status, toast);
+          } else if (tracking) {
+            applyNativeSync(status, toast);
+          }
         } catch (e) {}
       }
 
