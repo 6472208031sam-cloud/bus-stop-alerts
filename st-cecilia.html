@@ -282,7 +282,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.0</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.1</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1296,6 +1296,8 @@
         if (NATIVE && tracking) stopTracking();
       }
 
+      window.startTracking = startTracking;
+      window.stopTracking = stopTracking;
       function startTracking() {
         var expected = 5;
         if (configuredCount() !== expected) {

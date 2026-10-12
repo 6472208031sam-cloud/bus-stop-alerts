@@ -293,7 +293,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.3</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.4</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1168,6 +1168,8 @@
         if (NATIVE && tracking) stopTracking();
       }
 
+      window.startTracking = startTracking;
+      window.stopTracking = stopTracking;
       function startTracking() {
         if (configuredCount() !== 13) {
           showToast('Save all %s stop locations before starting.');
