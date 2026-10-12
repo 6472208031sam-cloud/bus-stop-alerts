@@ -938,7 +938,8 @@
         $('tripKicker').textContent = 'Next stop';
         $('nextStopDisplay').textContent = stopLabelNumbered(stop);
         $('distanceDisplay').textContent = distance < 1000 ? Math.round(distance) + ' m away' : (distance / 1000).toFixed(1) + ' km away';
-        if (distance <= stop.radius && accuracy <= accLimit(stop)) {
+        if ((distance <= stop.radius && accuracy <= accLimit(stop)) ||
+            (distance <= 15 && accuracy <= 150)) {
           stop.reached = true;
           triggerArrival(stop);
           renderRoute();
