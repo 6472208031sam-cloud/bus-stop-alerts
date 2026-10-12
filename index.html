@@ -1148,7 +1148,12 @@
       }
 
       function nativeFinished() {
-        if (tracking) finishRoute();
+        if (tracking) {
+          // Finished ride = all stops reached. Mark them so pins turn green
+          // even if the final sync broadcast was lost in the teardown race.
+          stops.forEach(function (s) { s.reached = true; });
+          finishRoute();
+        }
       }
 
       function nativeNoRide() {
