@@ -1466,16 +1466,27 @@
         window.open('https://www.google.com/maps/dir/?api=1&destination=' + s.lat + ',' + s.lng, '_blank', 'noopener');
       });
       $('markReachedBtn').addEventListener('click', function () {
+        // Always mark locally too — the native ride may have already finished
+        // (e.g. ntfy sent but UI sync lost), in which case the bridge is a no-op.
+        var idx = nextStopIndex();
+        var marked = false;
+        if (idx >= 0 && idx < stops.length) {
+          stops[idx].reached = true;
+          marked = true;
+        }
         if (NATIVE && window.NativeBridge && window.NativeBridge.markReached) {
-          try { window.NativeBridge.markReached(); } catch (e) { showToast('Could not mark reached.'); }
-        } else {
-          var idx = nextStopIndex();
-          if (idx >= 0 && idx < stops.length) {
-            stops[idx].reached = true;
-            triggerArrival(stops[idx]);
-            renderRoute();
-            if (reachedCount() === stops.length) finishRoute();
+          try { window.NativeBridge.markReached(); } catch (e) {}
+        }
+        if (marked) {
+          // If this completes the route, show the arrived state.
+          if (reachedCount() === stops.length) {
+            stops.forEach(function (s) { s.reached = true; });
+            if (typeof finishRoute === 'function') finishRoute();
+            else if (typeof renderRoute === 'function') renderRoute();
+          } else {
+            if (typeof renderRoute === 'function') renderRoute();
           }
+          showToast('Marked as reached.');
         }
       });
       $('editRouteBtn').addEventListener('click', function () { showSetup(0); });
