@@ -282,7 +282,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.4</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.5</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -658,6 +658,10 @@
             localStorage.setItem('stcecilia_dir_day', torontoDateStr());
           } catch (e) {}
           showToast(dir === 'to' ? 'Direction set: To (A \u2192 D).' : 'Direction set: From (D \u2192 A).');
+        }
+        // Auto-start tracking on tab switch if not already on (Android).
+        if (typeof NATIVE !== 'undefined' && NATIVE && !tracking) {
+          setTimeout(function () { try { startTracking(); } catch (e) {} }, 800);
         }
       }
 
