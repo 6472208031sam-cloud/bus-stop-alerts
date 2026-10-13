@@ -280,7 +280,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.4</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.5</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1599,6 +1599,21 @@
       loadStopForm();
       updateViewForCompleteness();
       refreshLocationPermissionState();
+      // Self auto-start for native apps (backup for native timer).
+      // Waits for the NativeBridge to be ready before starting.
+      (function autoStartWhenReady() {
+        var tries = 0;
+        function attempt() {
+          try {
+            if (typeof NATIVE !== 'undefined' && NATIVE && window.NativeBridge && !tracking && typeof startTracking === 'function') {
+              startTracking();
+              return;
+            }
+          } catch (e) {}
+          if (++tries < 10) setTimeout(attempt, 500);
+        }
+        setTimeout(attempt, 2000);
+      })();
     })();
   </script>
 </body>
