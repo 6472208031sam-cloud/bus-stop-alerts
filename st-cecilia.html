@@ -282,7 +282,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.3</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.4</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1702,6 +1702,16 @@
       loadStopForm();
       updateViewForCompleteness();
       refreshLocationPermissionState();
+      // Self auto-start for native apps: if running in the Android/iOS
+      // wrapper and not already tracking, start after the page settles.
+      // (Backup for the native onPageFinished timer.)
+      setTimeout(function () {
+        try {
+          if (typeof NATIVE !== 'undefined' && NATIVE && !tracking && typeof startTracking === 'function') {
+            startTracking();
+          }
+        } catch (e) {}
+      }, 2500);
     })();
   </script>
 </body>
