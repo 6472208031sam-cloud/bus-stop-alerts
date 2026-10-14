@@ -282,7 +282,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.7</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.8</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1061,12 +1061,68 @@
         localStorage.setItem('stcecilia_sched_off2', minToTime(s.off2));
         localStorage.setItem('stcecilia_sched_weekdays', s.weekdaysOnly ? '1' : '0');
       }
+      function buildRideConfigForTab(targetTab) {
+        // Builds a ride config for the specified tab ('am' or 'pm')
+        // without disturbing the live stops/mode. Used so the native
+        // service has configs for BOTH tabs (scheduled alarms need them).
+        var sched = getSchedSettings();
+        var tabStops;
+        if (targetTab === mode) {
+          tabStops = stops;
+        } else {
+          // Build the other tab's stops from DEFAULT_STOPS
+          var base = createDefaultStops();
+          if (targetTab === 'pm') {
+            // PM: reverse AM order, assign letters A-E
+            var labels = ['A','B','C','D','E'];
+            tabStops = base.slice().reverse().map(function (s, i) {
+              return { number: i + 1, letter: labels[i], amNumber: s.number,
+                       time: s.time, name: s.name, lat: s.lat, lng: s.lng,
+                       radius: s.radius, acc: s.acc, reached: false, skipped: false };
+            });
+          } else {
+            // AM: default order, numbers 1-5
+            tabStops = base;
+          }
+        }
+        return {
+          page: RIDE_PAGE,
+          tab: targetTab,
+          topic: NTFY_TOPIC,
+          followerOn: followerAlertsOn(),
+          sound: soundOn(),
+          snapDistance: getSnapDistance(),
+          schedEnabled: sched.enabled,
+          schedOn1: sched.on1,
+          schedOff1: sched.off1,
+          schedOn2: sched.on2,
+          schedOff2: sched.off2,
+          schedWeekdaysOnly: sched.weekdaysOnly,
+          stops: tabStops.map(function (s) {
+            return {
+              number: s.number,
+              label: stopLabelNumbered(s),
+              name: stopLabel(s),
+              lat: s.lat, lng: s.lng,
+              radius: s.radius,
+              acc: (s.acc == null ? null : s.acc),
+              reached: !!s.reached,
+              skipped: !!s.skipped
+            };
+          })
+        };
+      }
       function pushScheduleToNative() {
-        // Sends the schedule (and current route config) to the native
+        // Sends the schedule (and BOTH tab configs) to the native
         // service even when no ride is active, so alarms work after reboot
         // and the service knows the route for scheduled starts.
+        // Both tabs are sent because the 8am alarm needs config_am and
+        // the 3:30pm alarm needs config_pm, regardless of which tab is open.
         if (NATIVE) {
-          try { window.NativeBridge.updateConfig(JSON.stringify(buildRideConfig())); } catch (e) {}
+          try {
+            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab('am')));
+            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab('pm')));
+          } catch (e) {}
         }
       }
 
