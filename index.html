@@ -293,7 +293,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.5</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.6</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1592,6 +1592,9 @@
       loadStopForm();
       updateViewForCompleteness();
       refreshLocationPermissionState();
+      // Save the ride config to native storage on every page load, so
+      // scheduled alarms can start tracking even if no ride was started.
+      try { updateConfig(); } catch (e) {}
       // Self auto-start for native apps (backup for native timer).
       // Waits for the NativeBridge to be ready before starting.
       (function autoStartWhenReady() {
