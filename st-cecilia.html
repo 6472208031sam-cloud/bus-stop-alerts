@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.6 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.7 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1169,7 +1169,7 @@
         return v;
       }
 
-      function soundOn() { return localStorage.getItem('stcecilia_sound') !== '0'; }
+      function soundOn() { return localStorage.getItem('stcecilia_sound') === '1'; }
 
       function buildRideConfig() {
         var sched = getSchedSettings();

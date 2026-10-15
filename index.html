@@ -283,7 +283,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.0 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.1 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1418,7 +1418,7 @@
 
       var NTFY_TOPIC = 'bus-alerts-00-hdkdhsjbd';
 
-      function soundOn() { return localStorage.getItem('bsa_sound') !== '0'; }
+      function soundOn() { return localStorage.getItem('bsa_sound') === '1'; }
 
       function followerAlertsOn() {
         return localStorage.getItem('bsa_follower') !== '0';
