@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.1</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.2 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -518,6 +518,29 @@
   </div>
 
   <script>
+      // Device ID for ntfy alerts: 1 letter + 2 digits (e.g. A42, i07, W15)
+      // A=Android app, i=iOS app, W=web browser. Generated once, stored persistently.
+      function getDeviceType() {
+        if (window.NativeBridge) return 'A';
+        if (window.webkit && window.webkit.messageHandlers) return 'i';
+        return 'W';
+      }
+      function getDeviceId() {
+        var type = getDeviceType();
+        var stored = null;
+        try { stored = localStorage.getItem('device_id'); } catch (e) {}
+        if (stored && stored.charAt(0) === type && /^.[0-9]{2}$/.test(stored)) return stored;
+        var num = String(Math.floor(Math.random() * 99) + 1).padStart(2, '0');
+        var id = type + num;
+        try { localStorage.setItem('device_id', id); } catch (e) {}
+        return id;
+      }
+      var DEVICE_ID = getDeviceId();
+      document.addEventListener("DOMContentLoaded", function() {
+        var b = document.getElementById("devIdBadge");
+        if (b) b.textContent = DEVICE_ID;
+      });
+
     (function () {
       'use strict';
       var DEFAULT_STOPS = [
@@ -1484,7 +1507,7 @@
           ? '🚌 Final stop reached (' + mode.toUpperCase() + '): ' + stopLabel(stop) + '.'
           : '🚌 ' + stopLabelNumbered(stop) + ' reached.';
         try {
-          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg + ' [' + DEVICE_ID + ']', keepalive: true }).catch(function () {});
         } catch (e) {}
       }
 
@@ -1742,7 +1765,7 @@
       });
       $('testPushBtn').addEventListener('click', function () {
         try {
-          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: '🔔 Test: St Cecilia notifications are working.', keepalive: true })
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: '🔔 Test: St Cecilia notifications are working. [' + DEVICE_ID + ']', keepalive: true })
             .then(function () { showToast('Test sent — check the other phone.'); })
             .catch(function () { showToast('Could not send test. Check your connection.'); });
         } catch (e) { showToast('Could not send test. Check your connection.'); }
