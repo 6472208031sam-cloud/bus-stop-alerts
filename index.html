@@ -520,9 +520,11 @@
       // Device ID for ntfy alerts: 1 letter + 2 digits (e.g. A42, i07, W15)
       // A=Android app, i=iOS app, W=web browser. Generated once, stored persistently.
       function getDeviceType() {
-        if (window.NativeBridge) return 'A';
-        if (window.webkit && window.webkit.messageHandlers) return 'i';
-        return 'W';
+        var ua = navigator.userAgent || '';
+        var isApp = !!(window.NativeBridge || (window.webkit && window.webkit.messageHandlers));
+        if (!isApp) return 'W';
+        if (/iPhone|iPad|iPod/.test(ua)) return 'i';
+        return 'A';
       }
       function getDeviceId() {
         var type = getDeviceType();
