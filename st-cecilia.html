@@ -1116,6 +1116,7 @@
         return {
           page: RIDE_PAGE,
           tab: targetTab,
+          deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
@@ -1175,6 +1176,7 @@
         return {
           page: RIDE_PAGE,
           tab: mode,
+          deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           sound: soundOn(),

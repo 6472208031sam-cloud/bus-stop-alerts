@@ -1103,6 +1103,7 @@
         }
         return {
           page: targetTab,
+          deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
