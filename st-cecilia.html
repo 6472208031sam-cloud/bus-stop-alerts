@@ -284,14 +284,11 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.0</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.1</div>
   <main class="shell">
     <section class="hero">
       <div>
         <div class="route-kicker" id="routeKicker">St Cecilia · AM</div>
-        <div style="margin-top:10px">
-          <button id="routeSwitchBtn" type="button" class="route-switch-btn">&larr; Switch to AM</button>
-        </div>
         <h1 id="heroTitle">Ready to map your route?</h1>
         <p id="heroText">Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops A through D.</p>
       </div>
@@ -305,6 +302,10 @@
       <button class="mode-btn active" type="button" data-mode="ride">Phone on the bus</button>
       <button class="mode-btn" type="button" data-mode="follow">Follow another phone</button>
     </nav>
+
+    <div style="margin-top:12px">
+      <button id="routeSwitchBtn" type="button" class="route-switch-btn">&larr; Switch to AM</button>
+    </div>
 
     <section id="rideMode" class="dashboard">
       <aside class="panel route-panel" aria-label="Route overview">
