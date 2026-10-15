@@ -253,8 +253,8 @@
       .dashboard { grid-template-columns: 1fr; }
       .route-panel { position: static; order: 2; }
       .workspace { order: 1; }
-      .route-list { display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px 0; padding: 16px 14px 20px; }
-      .route-item { display: block; min-height: auto; text-align: center; }
+      .route-list { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px 0; padding: 16px 14px 20px; }
+      .route-item { display: block; min-height: auto; text-align: center; min-width: 0; overflow: hidden; }
       .route-item::after { display: none; }
       .dot { width: 32px; height: 32px; margin: 0 auto; font-size: .7rem; }
       .stop-main, .stop-action { display: none; }
@@ -283,7 +283,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.4</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.5</div>
   <main class="shell">
     <section class="hero">
       <div>
