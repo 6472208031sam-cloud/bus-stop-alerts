@@ -283,7 +283,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.1</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.2</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1422,7 +1422,7 @@
       }
       function getSchedSettings() {
         return {
-          enabled: localStorage.getItem('bsa_sched_enabled') === '1',
+          enabled: localStorage.getItem('bsa_sched_enabled') !== '0',
           on1: parseTimeToMin(localStorage.getItem('bsa_sched_on1'), 480),
           off1: parseTimeToMin(localStorage.getItem('bsa_sched_off1'), 600),
           on2: parseTimeToMin(localStorage.getItem('bsa_sched_on2'), 930),
