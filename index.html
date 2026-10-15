@@ -253,9 +253,9 @@
       .dashboard { grid-template-columns: 1fr; }
       .route-panel { position: static; order: 2; }
       .workspace { order: 1; }
-      .route-list { display: grid; grid-template-columns: repeat(13, 1fr); gap: 0; padding: 16px 14px 20px; }
+      .route-list { display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px 0; padding: 16px 14px 20px; }
       .route-item { display: block; min-height: auto; text-align: center; }
-      .route-item:not(:last-child)::after { left: 50%; right: -50%; top: 16px; bottom: auto; width: auto; height: 2px; }
+      .route-item::after { display: none; }
       .dot { width: 32px; height: 32px; margin: 0 auto; font-size: .7rem; }
       .stop-main, .stop-action { display: none; }
       .panel-head.compact-mobile { padding-bottom: 10px; }
@@ -272,7 +272,7 @@
       h1 { font-size: 2.5rem; }
       .route-list { padding-left: 9px; padding-right: 9px; }
       .dot { width: 29px; height: 29px; }
-      .route-item:not(:last-child)::after { top: 14px; }
+      .route-list { grid-template-columns: repeat(8, 1fr); }
       .coord-row { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -283,7 +283,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.2</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.3</div>
   <main class="shell">
     <section class="hero">
       <div>
