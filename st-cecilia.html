@@ -110,6 +110,8 @@
       cursor: pointer;
     }
     .mode-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+    .route-switch-btn { display: inline-block; padding: 12px 22px; background: #0b6e4f; color: #fff; border: none; border-radius: 10px; font-weight: bold; font-size: 1.05rem; cursor: pointer; }
+    .route-switch-btn:active { transform: scale(.98); }
     .dir-switch { max-width: 300px; margin: 14px 0 16px; }
     .dashboard {
       display: grid;
@@ -282,15 +284,14 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v2.9</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.0</div>
   <main class="shell">
     <section class="hero">
       <div>
         <div class="route-kicker" id="routeKicker">St Cecilia · AM</div>
-        <nav class="mode-switch dir-switch" aria-label="Direction">
-          <button class="mode-btn dir-btn active" type="button" data-dir="am">AM</button>
-          <button class="mode-btn dir-btn" type="button" data-dir="pm">PM</button>
-        </nav>
+        <div style="margin-top:10px">
+          <button id="routeSwitchBtn" type="button" class="route-switch-btn">&larr; Switch to AM</button>
+        </div>
         <h1 id="heroTitle">Ready to map your route?</h1>
         <p id="heroText">Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops A through D.</p>
       </div>
@@ -633,7 +634,8 @@
         var labels = mode === 'am' ? ['1','2','3','4','5'] : ['A','B','C','D','E'];
         stops.forEach(function (s, i) { s.letter = labels[i]; s.number = i + 1; s.reached = false; s.skipped = false; });
         selected = 0;
-        document.querySelectorAll('.dir-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.dir === dir); });
+        var swBtn = $('routeSwitchBtn');
+        if (swBtn) swBtn.innerHTML = (dir === 'am' ? 'Switch to PM &rarr;' : '&larr; Switch to AM');
         document.querySelectorAll('.mode-btn[data-mode]').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === 'ride'); });
         $('rideMode').style.display = 'grid';
         $('followMode').classList.remove('active');
@@ -1601,8 +1603,8 @@
         });
       });
 
-      document.querySelectorAll('.dir-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () { setDirection(btn.dataset.dir); });
+      $('routeSwitchBtn').addEventListener('click', function () {
+        setDirection(mode === 'am' ? 'pm' : 'am');
       });
 
       // Apply the time-based default tab on load (AM before 12pm Toronto
