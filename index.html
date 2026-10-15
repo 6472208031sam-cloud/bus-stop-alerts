@@ -108,6 +108,8 @@
       cursor: pointer;
     }
     .mode-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+    .route-switch-btn { display: inline-block; padding: 12px 22px; background: #0b6e4f; color: #fff; border: none; border-radius: 10px; font-weight: bold; font-size: 1.05rem; cursor: pointer; }
+    .route-switch-btn:active { transform: scale(.98); }
     .dashboard {
       display: grid;
       grid-template-columns: minmax(270px, .78fr) minmax(0, 1.22fr);
@@ -281,7 +283,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.0</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.1</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -300,10 +302,9 @@
       <button class="mode-btn" type="button" data-mode="follow">Follow another phone</button>
     </nav>
 
-    <nav class="mode-switch dir-switch" aria-label="Route" style="margin-top:8px">
-      <button class="mode-btn dir-btn active" type="button" data-dir="am">AM Route</button>
-      <button class="mode-btn dir-btn" type="button" data-dir="pm">PM Route</button>
-    </nav>
+    <div style="margin-top:12px">
+      <button id="routeSwitchBtn" type="button" class="route-switch-btn">&larr; Switch to AM Route</button>
+    </div>
 
     <section id="rideMode" class="dashboard">
       <aside class="panel route-panel" aria-label="Route overview">
@@ -583,7 +584,8 @@
         stops.length = 0;
         fresh.forEach(function (s) { stops.push(s); });
         selected = 0;
-        document.querySelectorAll('.dir-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.dir === dir); });
+        var swBtn = $('routeSwitchBtn');
+        if (swBtn) swBtn.innerHTML = (dir === 'am' ? 'Switch to PM Route &rarr;' : '&larr; Switch to AM Route');
         // Update route list grid columns
         if (routeList) routeList.style.gridTemplateColumns = 'repeat(' + expectedCount() + ', 1fr)';
         // Update map route line
@@ -1726,8 +1728,8 @@
       // scheduled alarms can start tracking even if no ride was started.
       try { pushScheduleToNative(); } catch (e) {}
       // AM/PM tab buttons
-      document.querySelectorAll('.dir-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () { setDirection(btn.dataset.dir); });
+      $('routeSwitchBtn').addEventListener('click', function () {
+        setDirection(mode === 'am' ? 'pm' : 'am');
       });
       // Apply the time-based default tab on load (AM before 12pm Toronto
       // time, PM after), unless the user manually picked a tab today.
