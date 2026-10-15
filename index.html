@@ -283,7 +283,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.3</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.4</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -587,7 +587,7 @@
         var swBtn = $('routeSwitchBtn');
         if (swBtn) swBtn.innerHTML = (dir === 'am' ? 'Switch to PM Route &rarr;' : '&larr; Switch to AM Route');
         // Update route list grid columns
-        if (routeList) routeList.style.gridTemplateColumns = 'repeat(' + expectedCount() + ', 1fr)';
+
         // Update map route line
         if (typeof map !== 'undefined' && map && typeof routeLine !== 'undefined' && routeLine) {
           routeLine.setLatLngs(currentPath());
