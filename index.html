@@ -288,7 +288,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.9 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v6.0 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -469,7 +469,7 @@
             </div>
             <p class="sub">When on, every stop reached also sends a push notification to your private channel. The other person installs the free <strong>ntfy</strong> app and subscribes to the channel below.</p>
             <div class="channel-row">
-              <input id="followerChannel" readonly value="bus-alerts-00-hdkdhsjbd" aria-label="Notification channel" onclick="this.select()" />
+              <input id="followerChannel" readonly value="bus-alerts-01-hdkdhsjbd" aria-label="Notification channel" onclick="this.select()" />
               <button class="small-btn" type="button" id="copyChannelBtn">Copy</button>
               <button class="small-btn" type="button" id="testPushBtn">Send test</button>
             </div>
@@ -1435,7 +1435,7 @@
         });
       }
 
-      var NTFY_TOPIC = 'bus-alerts-00-hdkdhsjbd';
+      var NTFY_TOPIC = 'bus-alerts-01-hdkdhsjbd';
 
       function soundOn() { return localStorage.getItem('bsa_sound') === '1'; }
 
