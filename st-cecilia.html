@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.0 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.1 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1396,8 +1396,8 @@
       window.startTracking = startTracking;
       window.stopTracking = stopTracking;
       function startTracking() {
-        if (configuredCount() !== 5) {
-          showToast('Save all 5 stop locations before starting.');
+        if (configuredCount() !== DEFAULT_STOPS.length) {
+          showToast('Save all ' + DEFAULT_STOPS.length + ' stop locations before starting.');
           return;
         }
         if (NATIVE) { startNativeTracking(); return; }
@@ -1570,7 +1570,7 @@
         reader.onload = function () {
           try {
             var data = JSON.parse(reader.result);
-            if (!data || !Array.isArray(data.stops) || (data.stops.length !== 4 && data.stops.length !== 5)) throw new Error('invalid');
+            if (!data || !Array.isArray(data.stops) || data.stops.length !== DEFAULT_STOPS.length) throw new Error('invalid');
             var imported = data.stops.map(function (s, i) {
               var lat = Number(s.lat), lng = Number(s.lng), radius = Number(s.radius || 30);
               if (!validCoordinates(lat, lng)) throw new Error('invalid');
