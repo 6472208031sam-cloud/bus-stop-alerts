@@ -293,7 +293,7 @@
 </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.6 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.7 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -842,7 +842,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '5.6';
+      var APP_VERSION = '5.7';
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
       var logEntries = [];
@@ -898,7 +898,7 @@
               for (var i = 0; i < arr.length; i++) {
                 if (!arr[i].trim()) continue;
                 var m = arr[i].match(/^\[(.*?)\] \[(.*?)\] (.*)$/);
-                if (m) { logEntries.push({ t: m[1], c: 'N-' + m[2], m: m[3] }); }
+                if (m) { logEntries.push({ t: m[1], c: m[2], m: '[native] ' + m[3] }); }
                 else { logEntries.push({ t: '?', c: 'NATIVE', m: arr[i] }); }
               }
               if (logEntries.length > LOG_MAX) logEntries = logEntries.slice(-LOG_MAX);
