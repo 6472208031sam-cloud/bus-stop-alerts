@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PM Route Preview - Blue Line Proposal</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+body { margin: 0; font-family: sans-serif; }
+#map { height: 80vh; }
+#info { padding: 15px; background: #f0f0f0; }
+.legend { display: flex; gap: 20px; margin: 10px 0; }
+.legend div { display: flex; align-items: center; gap: 8px; }
+.line { width: 30px; height: 4px; }
+</style>
+</head>
+<body>
+<div id="info">
+<h2>PM Route Change Preview</h2>
+<div class="legend">
+<div><div class="line" style="background: #087a4c;"></div> Current PM route (green)</div>
+<div><div class="line" style="background: #0000ff;"></div> Proposed blue route (S→E)</div>
+<div><div class="line" style="background: #ff8800;"></div> Original route E→L (orange)</div>
+</div>
+<p><strong>Proposal:</strong> Replace PM route geometry with blue line from S to E, then follow original route from E to L. All 16 stops stay in current positions.</p>
+<p><strong>Review:</strong> Does the blue line match your screenshot? Should the connection from E to L be adjusted?</p>
+</div>
+<div id="map"></div>
+<script>
+// Blue route coordinates (traced from screenshot)
+const blueRoute = [[43.48338, -79.697358], [43.480776, -79.69735], [43.47776, -79.697508], [43.475934, -79.697041], [43.474612, -79.699038], [43.474714, -79.701359], [43.474684, -79.704396], [43.474163, -79.707367], [43.47394, -79.7102], [43.473952, -79.713457], [43.473228, -79.716005], [43.472751, -79.718519], [43.474099, -79.720395], [43.474726, -79.723982], [43.475946, -79.725648], [43.476616, -79.727813], [43.477432, -79.729409], [43.478674, -79.729985], [43.479682, -79.731654], [43.478712, -79.732418], [43.477647, -79.732847], [43.476621, -79.731463], [43.476866, -79.730182], [43.477432, -79.729409], [43.476616, -79.727813], [43.475946, -79.725648], [43.474726, -79.723982], [43.474099, -79.720395], [43.472751, -79.718519], [43.475442, -79.71864], [43.478029, -79.718681], [43.480743, -79.718935], [43.482426, -79.719318], [43.484119, -79.719599], [43.485333, -79.720231], [43.486643, -79.721141], [43.489347, -79.721583], [43.490885, -79.723648], [43.493133, -79.724731], [43.494893, -79.726477], [43.495295, -79.727078], [43.496926, -79.731752], [43.498247, -79.733527], [43.506122, -79.733348], [43.50687, -79.732534], [43.506982, -79.732412], [43.506032, -79.733447], [43.504018, -79.735076], [43.504018, -79.735076], [43.505543, -79.73398], [43.506122, -79.733348], [43.498247, -79.733527], [43.496926, -79.731752], [43.497948, -79.723087], [43.497279, -79.723017], [43.49657, -79.720862], [43.496444, -79.717833], [43.497956, -79.715457], [43.499599, -79.714999], [43.500601, -79.712705], [43.499295, -79.711822], [43.498068, -79.711123], [43.496213, -79.711755], [43.495072, -79.712784], [43.495608, -79.715007], [43.497956, -79.715457], [43.496444, -79.717833], [43.49657, -79.720862], [43.495839, -79.721806], [43.494314, -79.72571], [43.493133, -79.724731], [43.490885, -79.723648], [43.489347, -79.721583], [43.486643, -79.721141], [43.485333, -79.720231], [43.484119, -79.719599], [43.482426, -79.719318], [43.485144, -79.722047], [43.484794, -79.72516], [43.484755, -79.728047], [43.484695, -79.730554], [43.485453, -79.734109], [43.485492, -79.736712], [43.485854, -79.739471], [43.485857, -79.743334]];
+
+// Current PM route (simplified - first few and last few points)
+const pmRouteStart = [43.494805,-79.692655];
+const pmRouteEnd = [43.48828,-79.71337];
+
+// PM stops
+const pmStops = [
+  {letter:'S', lat:43.494805, lng:-79.692655},
+  {letter:'0', lat:43.492605, lng:-79.692526},
+  {letter:'01', lat:43.488486, lng:-79.698247},
+  {letter:'02', lat:43.485614, lng:-79.702145},
+  {letter:'A', lat:43.488259, lng:-79.707735},
+  {letter:'B', lat:43.491238, lng:-79.712185},
+  {letter:'C', lat:43.49347, lng:-79.70835},
+  {letter:'D', lat:43.49837, lng:-79.70403},
+  {letter:'E', lat:43.50118, lng:-79.70128},
+  {letter:'F', lat:43.50537, lng:-79.70545},
+  {letter:'G', lat:43.5084, lng:-79.710098},
+  {letter:'H', lat:43.50467, lng:-79.7096},
+  {letter:'I', lat:43.49945, lng:-79.712},
+  {letter:'J', lat:43.4964, lng:-79.7187},
+  {letter:'K', lat:43.492996, lng:-79.719124},
+  {letter:'L', lat:43.48828, lng:-79.71337},
+];
+
+const map = L.map('map').setView([43.49, -79.72], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// Blue route (proposed)
+L.polyline(blueRoute, {color: '#0000ff', weight: 5, opacity: 0.8}).addTo(map);
+
+// Mark S and E of blue route
+L.marker([43.48338,-79.697358], {icon: L.divIcon({html:'<div style="background:blue;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:bold;">S</div>', iconSize:[24,24]})}).addTo(map).bindPopup('Blue S (start)');
+L.marker([43.485857,-79.743334], {icon: L.divIcon({html:'<div style="background:blue;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:bold;">E</div>', iconSize:[24,24]})}).addTo(map).bindPopup('Blue E (end)');
+
+// PM stops
+pmStops.forEach(s => {
+  L.marker([s.lat, s.lng], {icon: L.divIcon({html:`<div style="background:green;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;">${s.letter}</div>`, iconSize:[20,20]})}).addTo(map).bindPopup(`Stop ${s.letter}`);
+});
+
+// Connection from blue E to L (straight line for preview - will follow roads in final)
+L.polyline([[43.485857,-79.743334], [43.48828,-79.71337]], {color: '#ff8800', weight: 4, opacity: 0.8, dashArray: '10,10'}).addTo(map).bindPopup('E → L (original route)');
+
+map.fitBounds(L.polyline(blueRoute).getBounds().pad(0.1));
+</script>
+</body>
+</html>
