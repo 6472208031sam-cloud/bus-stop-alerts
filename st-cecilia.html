@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.8 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.9 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1774,7 +1774,21 @@
       })();
 
       routeList.addEventListener('click', function (e) {
+        // Mobile: tapping the stop circle simulates arrival (buttons hidden on mobile)
+        var item = e.target.closest('.route-item');
         var simBtn = e.target.closest('[data-sim]');
+        if (!simBtn && item && !e.target.closest('a') && !e.target.closest('[data-index]')) {
+          var items = Array.prototype.slice.call(routeList.querySelectorAll('.route-item'));
+          var idx = items.indexOf(item);
+          var stop = stops[idx];
+          if (stop && isConfigured(stop) && !stop.reached) {
+            if (confirm('Simulate arrival at ' + stopLabelNumbered(stop) + '?')) {
+              triggerArrival(stop);
+            }
+            return;
+          }
+        }
+        if (simBtn) {
         if (simBtn) {
           var idx = parseInt(simBtn.dataset.sim, 10);
           var stop = stops[idx];
