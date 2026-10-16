@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.7 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.8 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -731,7 +731,7 @@
           li.className = 'route-item' + (isConfigured(stop) ? ' configured' : '') + (stop.reached && !skipped ? ' reached' : '') + (skipped ? ' skipped' : '') + (tracking && !stop.reached && i === nextIdx ? ' next' : '');
           li.innerHTML = '<span class="dot">' + (skipped ? '–' : (stop.reached ? '✓' : stop.letter)) + '</span>' +
             '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabelNumbered(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (skipped ? 'Skipped' : (isConfigured(stop) ? stop.radius + ' m radius · GPS ≤' + accLimit(stop) + ' m' : 'Location not saved')) + '</div></span>' +
-            '<span class="stop-actions">' + navHtml + '<button class="stop-action" type="button" data-index="' + i + '">Edit</button></span>';
+            '<span class="stop-actions">' + navHtml + '<button class="stop-action" type="button" data-sim="' + i + '">Test</button><button class="stop-action" type="button" data-index="' + i + '">Edit</button></span>';
           routeList.appendChild(li);
         });
         $('configuredCount').textContent = configuredCount();
@@ -1774,6 +1774,14 @@
       })();
 
       routeList.addEventListener('click', function (e) {
+        var simBtn = e.target.closest('[data-sim]');
+        if (simBtn) {
+          var idx = parseInt(simBtn.dataset.sim, 10);
+          var stop = stops[idx];
+          if (stop && isConfigured(stop)) { triggerArrival(stop); }
+          else { showToast('Stop not configured.'); }
+          return;
+        }
         var button = e.target.closest('[data-index]');
         if (button) showSetup(parseInt(button.dataset.index, 10));
       });
