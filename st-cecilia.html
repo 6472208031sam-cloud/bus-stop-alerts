@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.3 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.4 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -980,6 +980,13 @@
             if (stops[i].reached) continue;
             d = distanceMeters(lat, lng, stops[i].lat, stops[i].lng);
             if (d < bestDist) { bestDist = d; best = i; }
+          }
+          // Safeguard: never snap more than 3 stops ahead on startup.
+          // On compact routes a cold-GPS fix can appear "nearest" to a far stop;
+          // skipping most of the route is almost certainly wrong.
+          var maxSkip = 3;
+          if (best > idx && (best - idx) > maxSkip) {
+            best = -1; // too far ahead, don't snap
           }
           if (best > idx && bestDist <= getSnapDistance()) {
             for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
