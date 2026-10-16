@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.7 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.8 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -415,7 +415,7 @@
             <div class="distance" id="distanceDisplay">Waiting for GPS</div>
           </div>
           <div class="progress-wrap">
-            <div class="progress-label"><span>Route progress</span><span id="progressText">0 of 5 stops</span></div>
+            <div class="progress-label"><span>Route progress</span><span id="progressText">0 of 7 stops</span></div>
             <div class="track"><div class="fill" id="progressFill"></div></div>
           </div>
           <div class="map-wrap">
@@ -547,12 +547,14 @@
       'use strict';
       var DEFAULT_STOPS = [
         { number: 1, letter: '1', time: '', name: "Mia", lat: 43.498334, lng: -79.720660, radius: 30, acc: null },
-        { number: 2, letter: '2', time: '', name: "Emma", lat: 43.497004, lng: -79.718877, radius: 30, acc: null },
-        { number: 3, letter: '3', time: '', name: "Natalia", lat: 43.496826, lng: -79.718729, radius: 30, acc: null },
-        { number: 4, letter: '4', time: '', name: "Buttonbush", lat: 43.496237, lng: -79.720459, radius: 30, acc: null },
-        { number: 5, letter: '5', time: '', name: "St. Cecilia", lat: 43.495124, lng: -79.721188, radius: 30, acc: null }
+        { number: 2, letter: '2', time: '', name: "En Route", lat: 43.498164, lng: -79.720464, radius: 30, acc: null },
+        { number: 3, letter: '3', time: '', name: "Emma", lat: 43.497004, lng: -79.718877, radius: 30, acc: null },
+        { number: 4, letter: '4', time: '', name: "Natalia", lat: 43.496826, lng: -79.718729, radius: 30, acc: null },
+        { number: 5, letter: '5', time: '', name: "Threshing Mills", lat: 43.496391, lng: -79.718768, radius: 30, acc: null },
+        { number: 6, letter: '6', time: '', name: "Buttonbush", lat: 43.496237, lng: -79.720459, radius: 30, acc: null },
+        { number: 7, letter: '7', time: '', name: "St. Cecilia", lat: 43.495124, lng: -79.721188, radius: 30, acc: null }
       ];
-      var mode = 'am'; // 'am' = 1-5, 'pm' = A-E (PM = reverse of the AM route)
+      var mode = 'am'; // 'am' = 1-7, 'pm' = A-G (PM = reverse of the AM route)
 
       // Time-based default tab: before 12pm Toronto time the page opens on
       // AM, at/after 12pm on PM. A manual tab switch stays put for the rest
@@ -569,7 +571,7 @@
         } catch (e) { return 'am'; }
       }
       function createDefaultStops() {
-        // Always start in AM order (5 stops); setDirection handles PM transformation
+        // Always start in AM order (7 stops); setDirection handles PM transformation
         var labels = ['1','2','3','4','5'];
         return DEFAULT_STOPS.map(function (stop, i) {
           return { number: i + 1, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
@@ -639,11 +641,11 @@
         if (dir === mode) return;
         if (tracking) stopTracking();
         mode = dir;
-        // AM: 5 stops 1-5 (Mia->St. Cecilia). PM: reverse of the AM route.
-        // PM: A=StCecilia(5), B=Buttonbush(4), C=Natalia(3), D=Emma(2), E=Mia(1)
+        // AM: 7 stops 1-7 (Mia->St. Cecilia). PM: reverse of the AM route.
+        // PM: A=StCecilia(7), B=Buttonbush(6), C=ThreshingMills(5), D=Natalia(4), E=Emma(3), F=EnRoute(2), G=Mia(1)
         if (mode === 'pm') {
           // PM: all 5 AM stops reversed
-          var pmStops = stops.slice(0, 5).reverse().map(function (s) {
+          var pmStops = stops.slice(0, 7).reverse().map(function (s) {
             return { number: 0, letter: '', amNumber: s.number, time: s.time, name: s.name,
                      lat: s.lat, lng: s.lng, radius: s.radius, acc: s.acc,
                      reached: false, skipped: false };
@@ -651,13 +653,13 @@
           stops.length = 0;
           pmStops.forEach(function(s) { stops.push(s); });
         } else {
-          // Restore all 5 stops in AM order
+          // Restore all 7 stops in AM order
           // Rebuild from DEFAULT_STOPS to ensure correct order
           var amStops = createDefaultStops();
           stops.length = 0;
           amStops.forEach(function(s) { stops.push(s); });
         }
-        var labels = mode === 'am' ? ['1','2','3','4','5'] : ['A','B','C','D','E'];
+        var labels = mode === 'am' ? ['1','2','3','4','5','6','7'] : ['A','B','C','D','E','F','G'];
         stops.forEach(function (s, i) { s.letter = labels[i]; s.number = i + 1; s.reached = false; s.skipped = false; });
         selected = 0;
         var swBtn = $('routeSwitchBtn');
@@ -1101,7 +1103,7 @@
           // Build the other tab's stops from DEFAULT_STOPS
           var base = createDefaultStops();
           if (targetTab === 'pm') {
-            // PM: reverse AM order, assign letters A-E
+            // PM: reverse AM order, assign letters A-G
             var labels = ['A','B','C','D','E'];
             tabStops = base.slice().reverse().map(function (s, i) {
               return { number: i + 1, letter: labels[i], amNumber: s.number,
@@ -1109,7 +1111,7 @@
                        radius: s.radius, acc: s.acc, reached: false, skipped: false };
             });
           } else {
-            // AM: default order, numbers 1-5
+            // AM: default order, numbers 1-7
             tabStops = base;
           }
         }
