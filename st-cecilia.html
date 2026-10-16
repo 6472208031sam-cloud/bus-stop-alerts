@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.6 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.7 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -581,7 +581,7 @@
       }
       function createDefaultStops() {
         // Always start in AM order; setDirection handles PM transformation
-        var labels = ['1','2','3','4','5','6','7','8','9'];
+        var labels = amLabels();
         return DEFAULT_STOPS.map(function (stop, i) {
           return { number: i + 1, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
@@ -640,6 +640,16 @@
         return stop.acc || 50;
       }
 
+      function amLabels() {
+        var labels = [];
+        for (var i = 1; i <= DEFAULT_STOPS.length; i++) labels.push(String(i));
+        return labels;
+      }
+      function pmLabels() {
+        var labels = [];
+        for (var i = 0; i < DEFAULT_STOPS.length; i++) labels.push(String.fromCharCode(65 + i));
+        return labels;
+      }
       function dirRange() {
         var n = DEFAULT_STOPS.length;
         if (mode === 'am') return '1 through ' + n;
@@ -673,7 +683,7 @@
           stops.length = 0;
           amStops.forEach(function(s) { stops.push(s); });
         }
-        var labels = mode === 'am' ? ['1','2','3','4','5','6','7','8','9'] : ['A','B','C','D','E','F','G','H','I'];
+        var labels = mode === 'am' ? amLabels() : pmLabels();
         stops.forEach(function (s, i) { s.letter = labels[i]; s.number = i + 1; s.reached = false; s.skipped = false; });
         selected = 0;
         var swBtn = $('routeSwitchBtn');
@@ -1120,7 +1130,7 @@
           var base = createDefaultStops();
           if (targetTab === 'pm') {
             // PM: reverse AM order, assign letters A-I
-            var labels = ['A','B','C','D','E','F','G','H','I'];
+            var labels = pmLabels();
             tabStops = base.slice().reverse().map(function (s, i) {
               return { number: i + 1, letter: labels[i], amNumber: s.number,
                        time: s.time, name: s.name, lat: s.lat, lng: s.lng,

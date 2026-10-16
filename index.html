@@ -288,7 +288,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.2 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.3 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -1528,7 +1528,7 @@
       function sendStopPush(stop) {
         if (!followerAlertsOn()) return;
         var dev = (typeof DEVICE_ID !== 'undefined' && DEVICE_ID) ? DEVICE_ID : '';
-        var isFinal = mode === 'am' ? stop.number === 13 : stop.letter === 'L';
+        var isFinal = stop.number === stops.length;
         var ref = shortStopRef(stop);
         var ms = myStopLabels();
         var msg;
@@ -1563,7 +1563,7 @@
           ? (mode === 'am' ? 'Waiting at ' + stopLabelNumbered(stop) : 'Got off at ' + stopLabelNumbered(stop))
           : (stopLabelNumbered(stop) + ' reached');
         $('arrivalNumber').textContent = mode === 'am' ? stop.number : (stop.letter + (stop.amNumber ? ' (' + stop.amNumber + ')' : ''));
-        if (mode === 'am' ? stop.number === 13 : stop.letter === 'L') {
+        if (stop.number === stops.length) {
           $('arrivalText').textContent = 'You have reached the final stop.';
         } else {
           var next = stops[stop.number];
