@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.9 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.0 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -725,9 +725,7 @@
         stops.forEach(function (stop, i) {
           var li = document.createElement('li');
           var skipped = !!stop.skipped;
-          var navHtml = isConfigured(stop)
-            ? '<a class="stop-action" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=' + stop.lat + ',' + stop.lng + '">Navigate</a>'
-            : '';
+          var navHtml = ''; // Navigate link removed per Domi (2026-10-16)
           li.className = 'route-item' + (isConfigured(stop) ? ' configured' : '') + (stop.reached && !skipped ? ' reached' : '') + (skipped ? ' skipped' : '') + (tracking && !stop.reached && i === nextIdx ? ' next' : '');
           li.innerHTML = '<span class="dot">' + (skipped ? '–' : (stop.reached ? '✓' : stop.letter)) + '</span>' +
             '<span class="stop-main"><div class="stop-name">' + escapeHtml(stopLabelNumbered(stop)) + '</div><div class="stop-meta">' + (stop.time ? escapeHtml(stop.time) + ' · ' : '') + (skipped ? 'Skipped' : (isConfigured(stop) ? stop.radius + ' m radius · GPS ≤' + accLimit(stop) + ' m' : 'Location not saved')) + '</div></span>' +
