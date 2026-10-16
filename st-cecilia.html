@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.5 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.6 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -312,7 +312,7 @@
         <div class="panel-head compact-mobile">
           <div class="panel-head-row">
             <div>
-              <h2>Your 7 stops</h2>
+              <h2 id="stopsHeading">Your 9 stops</h2>
               <p class="sub"><span id="configuredCount">0</span> saved · <span id="reachedCount">0</span> reached</p>
             </div>
             <span class="badge" id="routeBadge">Setup</span>
@@ -580,8 +580,8 @@
         } catch (e) { return 'am'; }
       }
       function createDefaultStops() {
-        // Always start in AM order (7 stops); setDirection handles PM transformation
-        var labels = ['1','2','3','4','5'];
+        // Always start in AM order; setDirection handles PM transformation
+        var labels = ['1','2','3','4','5','6','7','8','9'];
         return DEFAULT_STOPS.map(function (stop, i) {
           return { number: i + 1, letter: labels[i], time: stop.time, name: stop.name, lat: stop.lat, lng: stop.lng, radius: 30, acc: null, reached: false };
         });
@@ -725,6 +725,8 @@
           routeList.appendChild(li);
         });
         $('configuredCount').textContent = configuredCount();
+        var sh = $('stopsHeading');
+        if (sh) sh.textContent = 'Your ' + DEFAULT_STOPS.length + ' stops';
         $('reachedCount').textContent = reachedCount();
         $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === DEFAULT_STOPS.length ? 'Ready' : 'Setup');
         var next = stops[nextIdx];
@@ -1117,8 +1119,8 @@
           // Build the other tab's stops from DEFAULT_STOPS
           var base = createDefaultStops();
           if (targetTab === 'pm') {
-            // PM: reverse AM order, assign letters A-G
-            var labels = ['A','B','C','D','E'];
+            // PM: reverse AM order, assign letters A-I
+            var labels = ['A','B','C','D','E','F','G','H','I'];
             tabStops = base.slice().reverse().map(function (s, i) {
               return { number: i + 1, letter: labels[i], amNumber: s.number,
                        time: s.time, name: s.name, lat: s.lat, lng: s.lng,
