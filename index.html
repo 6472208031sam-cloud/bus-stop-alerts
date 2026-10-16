@@ -288,7 +288,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.5 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.6 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -400,15 +400,6 @@
             <span>Stop locations remain in this open session. Download the route file when setup is done, then import it before your next ride.</span>
           </div>
 
-          <div class="follower-card" id="myStopCard">
-            <div class="follower-head">
-              <h3>My Stop</h3>
-            </div>
-            <p class="sub">Pick the stop you wait at. Arrival messages will say &ldquo;waiting at&rdquo; / &ldquo;got off at&rdquo; for this stop on the follower page. Set once &mdash; change it here anytime.</p>
-            <div class="channel-row">
-              <select id="myStopSelect" aria-label="My stop" style="flex:1;min-width:0;background:#0f2a1e;color:#eafff3;border:1px solid #1f5c40;border-radius:10px;padding:10px 12px;font-size:1rem;"></select>
-            </div>
-          </div>
           <div class="secondary-tools">
             <button class="small-btn" type="button" id="downloadBtn">Download route</button>
             <button class="small-btn" type="button" id="importBtn">Import route</button>
@@ -441,6 +432,13 @@
             <button class="btn" type="button" id="navNextBtn">Navigate to next stop</button>
             <button class="btn" type="button" id="markReachedBtn">✓ Mark reached</button>
             <button class="btn" type="button" id="soundBtn">🔊 Sound on</button>
+          </div>
+          <div class="field">
+            <label for="myStopSelect">My Stop <span class="sub-inline">(one-time setting)</span></label>
+            <select id="myStopSelect" class="btn" style="width:100%;text-align:left;">
+              <option value="auto">Auto detect via GPS</option>
+            </select>
+            <p class="sub">Pick the stop the kid waits at. The app sends &ldquo;waiting&rdquo; / &ldquo;got off&rdquo; for this stop instead of a bus arrival.</p>
           </div>
           <div class="notice">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
