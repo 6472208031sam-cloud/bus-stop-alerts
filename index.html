@@ -278,12 +278,17 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
-  </style>
+    .mystop-modal { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .mystop-modal[hidden] { display: none; }
+  .mystop-box { background: #123524; border: 1px solid #1f5c40; border-radius: 16px; padding: 22px; max-width: 420px; width: 100%; }
+  .mystop-box h3 { margin: 0 0 8px; color: #eafff3; }
+  .mystop-box .sub { color: #9fd3b4; font-size: .95rem; margin: 0 0 6px; }
+</style>
   <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.1 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.2 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -395,6 +400,15 @@
             <span>Stop locations remain in this open session. Download the route file when setup is done, then import it before your next ride.</span>
           </div>
 
+          <div class="follower-card" id="myStopCard">
+            <div class="follower-head">
+              <h3>My Stop</h3>
+            </div>
+            <p class="sub">Pick the stop you wait at. Arrival messages will say &ldquo;waiting at&rdquo; / &ldquo;got off at&rdquo; for this stop on the follower page. Set once &mdash; change it here anytime.</p>
+            <div class="channel-row">
+              <select id="myStopSelect" aria-label="My stop" style="flex:1;min-width:0;background:#0f2a1e;color:#eafff3;border:1px solid #1f5c40;border-radius:10px;padding:10px 12px;font-size:1rem;"></select>
+            </div>
+          </div>
           <div class="secondary-tools">
             <button class="small-btn" type="button" id="downloadBtn">Download route</button>
             <button class="small-btn" type="button" id="importBtn">Import route</button>
@@ -504,6 +518,14 @@
     </section>
   </main>
 
+  <div class="mystop-modal" id="myStopModal" hidden>
+    <div class="mystop-box">
+      <h3>Which stop do you wait at?</h3>
+      <p class="sub">Pick once &mdash; the follower page will show &ldquo;waiting at&rdquo; / &ldquo;got off at&rdquo; for this stop. You can change it later in settings.</p>
+      <select id="myStopModalSelect" aria-label="My stop" style="width:100%;background:#0f2a1e;color:#eafff3;border:1px solid #1f5c40;border-radius:10px;padding:12px;font-size:1rem;margin:8px 0 14px;"></select>
+      <button class="btn" type="button" id="myStopModalSave" style="width:100%;">Save my stop</button>
+    </div>
+  </div>
   <div class="toast" id="toast" role="status"></div>
   <div class="alert-sheet" id="alertSheet" role="dialog" aria-modal="true" aria-labelledby="arrivalTitle">
     <div class="alert-card">
@@ -1104,6 +1126,7 @@
         return {
           page: targetTab,
           deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
+          myStop: myStopLabels(),
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
@@ -1420,6 +1443,30 @@
 
       function soundOn() { return localStorage.getItem('bsa_sound') === '1'; }
 
+      // "My Stop": the stop the rider waits at (one-time setting).
+      // Stored as the AM stop number string ("1".."13") or "auto"/null.
+      // AM->PM letter map: 1->F, 2->G, 3->H, 4->I, 5->J, 6->K, 7->L,
+      // 8->B, 9->A, 10->C, 11->D, 12->E, 13->S. Waypoints 0/01/02 excluded.
+      var AM_TO_PM_LABEL = { "1": "F", "2": "G", "3": "H", "4": "I", "5": "J", "6": "K", "7": "L", "8": "B", "9": "A", "10": "C", "11": "D", "12": "E", "13": "S" };
+      function myStopLabels() {
+        var v = null;
+        try { v = localStorage.getItem('bsa_mystop'); } catch (e) {}
+        if (!v || v === 'auto') return null;
+        if (!AM_TO_PM_LABEL[v]) return null;
+        return { am: v, pm: AM_TO_PM_LABEL[v] };
+      }
+      function stopMatchesMyStop(stop) {
+        var ms = myStopLabels();
+        if (!ms) return false;
+        if (mode === 'am') return String(stop.number) === ms.am;
+        return String(stop.letter || '') === ms.pm;
+      }
+      function shortStopRef(stop) {
+        // "Stop 1" (AM) / "Stop F (1)" (PM)
+        if (mode === 'am') return 'Stop ' + stop.number;
+        return 'Stop ' + (stop.letter || stop.number) + (stop.amNumber ? ' (' + stop.amNumber + ')' : '');
+      }
+
       function followerAlertsOn() {
         return localStorage.getItem('bsa_follower') !== '0';
       }
@@ -1480,12 +1527,29 @@
 
       function sendStopPush(stop) {
         if (!followerAlertsOn()) return;
+        var dev = (typeof DEVICE_ID !== 'undefined' && DEVICE_ID) ? DEVICE_ID : '';
         var isFinal = mode === 'am' ? stop.number === 13 : stop.letter === 'L';
-        var msg = isFinal
-          ? '🚌 Final stop reached (' + mode.toUpperCase() + '): ' + stopLabel(stop) + '.'
-          : '🚌 ' + stopLabelNumbered(stop) + ' reached.';
+        var ref = shortStopRef(stop);
+        var ms = myStopLabels();
+        var msg;
+        if (!ms) {
+          // Auto mode: reworded arrival format
+          msg = isFinal
+            ? '📱 [' + dev + '] arrived at final stop (' + mode.toUpperCase() + ').'
+            : '📱 [' + dev + '] arrived at ' + ref + '.';
+        } else if (stopMatchesMyStop(stop)) {
+          // Rider's own stop: waiting (AM) / got off (PM)
+          msg = mode === 'am'
+            ? '📱 [' + dev + '] waiting at ' + ref + '.'
+            : '📱 [' + dev + '] got off at ' + ref + '.';
+          if (isFinal) msg += ' Route complete.';
+        } else {
+          msg = isFinal
+            ? '🚌 [' + dev + '] at final stop (' + mode.toUpperCase() + ').'
+            : '🚌 [' + dev + '] at ' + ref + '.';
+        }
         try {
-          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg + ' [' + DEVICE_ID + ']', keepalive: true }).catch(function () {});
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
         } catch (e) {}
       }
 
@@ -1494,7 +1558,10 @@
           playAlert();
           if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
         }
-        $('arrivalTitle').textContent = stopLabelNumbered(stop) + ' reached';
+        var atMyStop = stopMatchesMyStop(stop);
+        $('arrivalTitle').textContent = atMyStop
+          ? (mode === 'am' ? 'Waiting at ' + stopLabelNumbered(stop) : 'Got off at ' + stopLabelNumbered(stop))
+          : (stopLabelNumbered(stop) + ' reached');
         $('arrivalNumber').textContent = mode === 'am' ? stop.number : (stop.letter + (stop.amNumber ? ' (' + stop.amNumber + ')' : ''));
         if (mode === 'am' ? stop.number === 13 : stop.letter === 'L') {
           $('arrivalText').textContent = 'You have reached the final stop.';
@@ -1649,6 +1716,50 @@
       $('soundBtn').addEventListener('click', function () {
         localStorage.setItem('bsa_sound', soundOn() ? '0' : '1');
         renderSoundBtn();
+      // ---- "My Stop" setting: dropdown + first-run prompt ----
+      function myStopOptions() {
+        var opts = [{ v: 'auto', t: 'Auto detect via GPS' }];
+        AM_DEFAULT_STOPS.forEach(function (st) {
+          var nm = (st.name || '').trim();
+          opts.push({ v: String(st.number), t: nm ? ('Stop ' + st.number + ': ' + nm) : ('Stop ' + st.number) });
+        });
+        return opts;
+      }
+      function currentMyStopValue() {
+        var v = null;
+        try { v = localStorage.getItem('bsa_mystop'); } catch (e) {}
+        return (v === null || v === undefined) ? null : v; // null = never set
+      }
+      function fillMyStopSelect(sel) {
+        if (!sel) return;
+        sel.innerHTML = '';
+        myStopOptions().forEach(function (o) {
+          var opt = document.createElement('option');
+          opt.value = o.v; opt.textContent = o.t;
+          sel.appendChild(opt);
+        });
+        var cur = currentMyStopValue();
+        sel.value = (cur === null) ? 'auto' : cur;
+      }
+      function saveMyStop(v, silent) {
+        try { localStorage.setItem('bsa_mystop', v); } catch (e) {}
+        var a = $('myStopSelect'); if (a) a.value = v;
+        var b = $('myStopModalSelect'); if (b) b.value = v;
+        pushConfigToNative();
+        if (!silent) showToast(v === 'auto' ? 'My Stop: auto-detect.' : 'My Stop set to Stop ' + v + '.');
+      }
+      fillMyStopSelect($('myStopSelect'));
+      fillMyStopSelect($('myStopModalSelect'));
+      $('myStopSelect').addEventListener('change', function () { saveMyStop(this.value); });
+      $('myStopModalSave').addEventListener('click', function () {
+        saveMyStop($('myStopModalSelect').value, true);
+        $('myStopModal').hidden = true;
+        showToast('My Stop saved.');
+      });
+      // First run: ask once (only when never set before)
+      if (currentMyStopValue() === null) {
+        setTimeout(function () { $('myStopModal').hidden = false; }, 600);
+      }
         pushConfigToNative();
         showToast(soundOn() ? 'Arrival sound on.' : 'Arrival sound muted (vibration still on).');
       });
