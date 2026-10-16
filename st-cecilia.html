@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.8 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.9 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -631,7 +631,12 @@
         return stop.acc || 50;
       }
 
-      function dirRange() { return mode === 'am' ? '1 through 5' : 'A through E'; }
+      function dirRange() {
+        var n = DEFAULT_STOPS.length;
+        if (mode === 'am') return '1 through ' + n;
+        var lastLetter = String.fromCharCode(64 + n); // A=1, B=2, ...
+        return 'A through ' + lastLetter;
+      }
       function currentPath() { if (mode === 'am') return ROUTE_PATH; return ROUTE_PATH.slice().reverse(); }
       function setupHeroText() {
         $('heroTitle').textContent = 'Ready to map your route?';
@@ -1627,7 +1632,7 @@
           var ride = btn.dataset.mode === 'ride';
           $('rideMode').style.display = ride ? 'grid' : 'none';
           $('followMode').classList.toggle('active', !ride);
-          var expectedCount = 5;
+          var expectedCount = DEFAULT_STOPS.length;
           $('heroTitle').textContent = ride ? (configuredCount() === expectedCount ? 'Your route is ready.' : 'Ready to map your route?') : 'Keep an eye on the ride.';
           $('heroText').textContent = ride ? (configuredCount() === expectedCount ? 'Start the ride and keep this page open. Alerts will arrive in order as this phone enters each stop’s radius.' : 'Save each stop while you ride the route once. On future rides, keep this page open and it will sound and vibrate as you reach stops ' + dirRange() + '.') : 'Location sharing lets you follow the phone riding on the bus from your own phone.';
         });
