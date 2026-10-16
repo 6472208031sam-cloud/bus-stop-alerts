@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v3.9 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.0 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -312,7 +312,7 @@
         <div class="panel-head compact-mobile">
           <div class="panel-head-row">
             <div>
-              <h2>Your 4 stops</h2>
+              <h2>Your 7 stops</h2>
               <p class="sub"><span id="configuredCount">0</span> saved · <span id="reachedCount">0</span> reached</p>
             </div>
             <span class="badge" id="routeBadge">Setup</span>
@@ -350,7 +350,7 @@
               <h2 id="setupHeading">Set stop 1</h2>
               <p class="sub">Stand at the stop and use your current location, or enter coordinates manually.</p>
             </div>
-            <span class="badge" id="selectedBadge">A / 4</span>
+            <span class="badge" id="selectedBadge">A / G</span>
           </div>
 
           <div class="setup-grid" style="margin-top:20px">
@@ -717,7 +717,7 @@
         });
         $('configuredCount').textContent = configuredCount();
         $('reachedCount').textContent = reachedCount();
-        $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === 5 ? 'Ready' : 'Setup');
+        $('routeBadge').textContent = tracking ? 'Live' : (configuredCount() === DEFAULT_STOPS.length ? 'Ready' : 'Setup');
         var next = stops[nextIdx];
         $('nextMetric').textContent = reachedCount() === stops.length ? 'Complete' : stopLabelNumbered(next);
         $('progressText').textContent = reachedCount() + ' of ' + stops.length + ' stops';
@@ -734,7 +734,7 @@
       function loadStopForm() {
         var stop = stops[selected];
         $('setupHeading').textContent = 'Set stop ' + stop.letter;
-        $('selectedBadge').textContent = stop.letter + ' / 4';
+        $('selectedBadge').textContent = stop.letter + ' / ' + String.fromCharCode(64 + DEFAULT_STOPS.length);
         $('stopName').value = stop.name;
         $('latitude').value = isConfigured(stop) ? stop.lat : '';
         $('longitude').value = isConfigured(stop) ? stop.lng : '';
@@ -774,7 +774,7 @@
       }
 
       function updateViewForCompleteness() {
-        if (configuredCount() === 5 && !tracking) {
+        if (configuredCount() === DEFAULT_STOPS.length && !tracking) {
           setupView.classList.remove('active');
           tripView.classList.add('active');
           $('heroTitle').textContent = 'Your route is ready.';
@@ -831,7 +831,7 @@
             locationPermissionState = result.state;
             if (result.state !== 'denied') clearGpsProblem();
           };
-          if (result.state === 'denied') showGpsProblem({ code: 1, type: 'site-denied' }, configuredCount() === 5 ? 'trip' : 'setup');
+          if (result.state === 'denied') showGpsProblem({ code: 1, type: 'site-denied' }, configuredCount() === DEFAULT_STOPS.length ? 'trip' : 'setup');
         }).catch(function () { locationPermissionState = 'unknown'; });
       }
 
