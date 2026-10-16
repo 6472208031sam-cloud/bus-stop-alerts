@@ -547,7 +547,7 @@
       'use strict';
       var DEFAULT_STOPS = [
         { number: 1, letter: '1', time: '', name: "Mia", lat: 43.498334, lng: -79.720660, radius: 30, acc: null },
-        { number: 2, letter: '2', time: '', name: "En Route", lat: 43.498164, lng: -79.720464, radius: 30, acc: null },
+        { number: 2, letter: '2', time: '', name: "Walking", lat: 43.498164, lng: -79.720464, radius: 30, acc: null },
         { number: 3, letter: '3', time: '', name: "En Route 2", lat: 43.497586, lng: -79.719657, radius: 30, acc: null },
         { number: 4, letter: '4', time: '', name: "Emma", lat: 43.497004, lng: -79.718877, radius: 30, acc: null },
         { number: 5, letter: '5', time: '', name: "Natalia", lat: 43.496826, lng: -79.718729, radius: 30, acc: null },
@@ -648,7 +648,7 @@
         if (tracking) stopTracking();
         mode = dir;
         // AM: 7 stops 1-7 (Mia->St. Cecilia). PM: reverse of the AM route.
-        // PM: A=StCecilia(7), B=Buttonbush(6), C=ThreshingMills(5), D=Natalia(4), E=Emma(3), F=EnRoute(2), G=Mia(1)
+        // PM: A=StCecilia(7), B=Buttonbush(6), C=ThreshingMills(5), D=Natalia(4), E=Emma(3), F=Walking(2), G=Mia(1)
         if (mode === 'pm') {
           // PM: all 5 AM stops reversed
           var pmStops = stops.slice(0, 8).reverse().map(function (s) {
