@@ -284,7 +284,7 @@
   </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.4 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v4.5 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -428,6 +428,13 @@
             <button class="btn" type="button" id="navNextBtn">Navigate to next stop</button>
             <button class="btn" type="button" id="markReachedBtn">✓ Mark reached</button>
             <button class="btn" type="button" id="soundBtn">🔊 Sound on</button>
+          </div>
+          <div class="field">
+            <label for="myStopSelect">My Stop <span class="sub-inline">(one-time setting)</span></label>
+            <select id="myStopSelect" class="btn" style="width:100%;text-align:left;">
+              <option value="auto">Auto detect via GPS</option>
+            </select>
+            <p class="sub">Pick the stop the kid waits at. The app sends "waiting" / "got off" for this stop instead of a bus arrival.</p>
           </div>
           <div class="notice">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
@@ -1129,6 +1136,7 @@
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
+          myStop: myStopLabels(),
           snapDistance: getSnapDistance(),
           schedEnabled: sched.enabled,
           schedOn1: sched.on1,
@@ -1180,6 +1188,40 @@
 
       function soundOn() { return localStorage.getItem('stcecilia_sound') === '1'; }
 
+      // ---- "My Stop" one-time setting: which stop the kid waits at. ----
+      // Stored as the stop NAME (e.g. "Mia") or "auto". The app derives the
+      // AM number / PM letter from the stop's position in DEFAULT_STOPS.
+      var MYSTOP_KEY = 'stcecilia_mystop';
+      function getMyStop() {
+        try {
+          var v = localStorage.getItem(MYSTOP_KEY);
+          return (v === null || v === '') ? 'auto' : v;
+        } catch (e) { return 'auto'; }
+      }
+      function setMyStop(name) {
+        try { localStorage.setItem(MYSTOP_KEY, name); } catch (e) {}
+      }
+      // Returns {am: "1", pm: "I"} for the stored stop name, or null for "auto".
+      function myStopLabels() {
+        var name = getMyStop();
+        if (!name || name === 'auto') return null;
+        for (var i = 0; i < DEFAULT_STOPS.length; i++) {
+          if (DEFAULT_STOPS[i].name === name) {
+            var n = DEFAULT_STOPS.length;
+            return { am: String(i + 1), pm: String.fromCharCode(64 + n - i) };
+          }
+        }
+        return null;
+      }
+      // True when the given stop (live stops array entry) is the user's My Stop
+      // for the current tab.
+      function isMyStop(stop) {
+        var ms = myStopLabels();
+        if (!ms) return false;
+        var want = (mode === 'am') ? ms.am : ms.pm;
+        return stop.letter === want;
+      }
+
       function buildRideConfig() {
         var sched = getSchedSettings();
         return {
@@ -1189,6 +1231,7 @@
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
+          myStop: myStopLabels(),
           snapDistance: getSnapDistance(),
           schedEnabled: sched.enabled,
           schedOn1: sched.on1,
@@ -1516,11 +1559,29 @@
 
       function sendStopPush(stop) {
         if (!followerAlertsOn()) return;
-        var msg = stop.number === stops.length
-          ? '🚌 Final stop reached (' + mode.toUpperCase() + '): ' + stopLabel(stop) + '.'
-          : '🚌 ' + stopLabelNumbered(stop) + ' reached.';
+        var devTag = ' [' + DEVICE_ID + ']';
+        var ms = myStopLabels();
+        var mine = isMyStop(stop);
+        var isFinal = stop.number === stops.length;
+        var msg;
+        if (ms && mine) {
+          // Arriving at the user's own stop: waiting (AM) / got off (PM).
+          msg = mode === 'am'
+            ? '\uD83D\uDCF1' + devTag + ' waiting at ' + stopLabelNumbered(stop) + '.'
+            : '\uD83D\uDCF1' + devTag + ' got off at ' + stopLabelNumbered(stop) + '.';
+        } else if (ms) {
+          // "My Stop" is set but this isn't it: phone is on the bus.
+          msg = isFinal
+            ? '\uD83D\uDE8C' + devTag + ' at ' + stopLabelNumbered(stop) + '. Route complete.'
+            : '\uD83D\uDE8C' + devTag + ' at ' + stopLabelNumbered(stop) + '.';
+        } else {
+          // "Auto" mode: reworded arrival message.
+          msg = isFinal
+            ? '\uD83D\uDCF1' + devTag + ' arrived at final stop: ' + stopLabel(stop) + '.'
+            : '\uD83D\uDCF1' + devTag + ' arrived at ' + stopLabelNumbered(stop) + '.';
+        }
         try {
-          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg + ' [' + DEVICE_ID + ']', keepalive: true }).catch(function () {});
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
         } catch (e) {}
       }
 
@@ -1529,7 +1590,11 @@
           playAlert();
           if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
         }
-        $('arrivalTitle').textContent = 'Stop ' + stop.letter + ': ' + stopLabel(stop) + ' reached';
+        var msT = myStopLabels();
+        var mineT = isMyStop(stop);
+        $('arrivalTitle').textContent = (msT && mineT)
+          ? (mode === 'am' ? 'Waiting at ' : 'Got off at ') + 'Stop ' + stop.letter + ': ' + stopLabel(stop)
+          : 'At Stop ' + stop.letter + ': ' + stopLabel(stop);
         $('arrivalNumber').textContent = stop.letter;
         if (stop.number === stops.length) {
           $('arrivalText').textContent = 'You have reached the final stop.';
@@ -1619,6 +1684,45 @@
         showToast(soundOn() ? 'Arrival sound on.' : 'Arrival sound muted (vibration still on).');
       });
       renderSoundBtn();
+
+      // ---- My Stop dropdown ----
+      function renderMyStopSelect() {
+        var sel = $('myStopSelect');
+        if (!sel) return;
+        // Rebuild options: Auto + stop names from DEFAULT_STOPS
+        sel.innerHTML = '';
+        var optAuto = document.createElement('option');
+        optAuto.value = 'auto';
+        optAuto.textContent = 'Auto detect via GPS';
+        sel.appendChild(optAuto);
+        DEFAULT_STOPS.forEach(function (st) {
+          var o = document.createElement('option');
+          o.value = st.name;
+          o.textContent = st.name;
+          sel.appendChild(o);
+        });
+        sel.value = getMyStop();
+      }
+      renderMyStopSelect();
+      $('myStopSelect').addEventListener('change', function () {
+        setMyStop(this.value);
+        try { updateConfig(); } catch (e) {}
+        pushScheduleToNative();
+        showToast(this.value === 'auto' ? 'My Stop: auto detect.' : 'My Stop set to ' + this.value + '.');
+      });
+      // First-run prompt: if never set, ask once via a confirm-style toast prompt.
+      // We use a simple blocking choice: pre-select nothing and nudge with a toast.
+      (function maybePromptMyStop() {
+        var v = null;
+        try { v = localStorage.getItem(MYSTOP_KEY); } catch (e) {}
+        if (v === null) {
+          setTimeout(function () {
+            showToast('Pick your "My Stop" below (or leave on Auto).');
+            var sel = $('myStopSelect');
+            if (sel) sel.focus();
+          }, 1200);
+        }
+      })();
 
       $('gpsPulse').addEventListener('click', function () {
         if (tracking) {
