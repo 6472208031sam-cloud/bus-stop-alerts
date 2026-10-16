@@ -281,10 +281,19 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
-  </style>
+  
+      .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+      .modal[hidden] { display: none; }
+      .modal-box { background: #1a2f24; border-radius: 12px; padding: 20px; max-width: 90vw; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+      .modal-box h3 { margin: 0 0 10px 0; color: #fff; }
+      .log-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+      .chip { background: #2a4a38; color: #fff; border: none; border-radius: 16px; padding: 6px 12px; font-size: 0.8rem; cursor: pointer; }
+      .chip.active { background: #4a8a5f; }
+      .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+</style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.5 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.6 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -833,7 +842,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '5.5';
+      var APP_VERSION = '5.6';
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
       var logEntries = [];

@@ -283,12 +283,21 @@
   .mystop-box { background: #123524; border: 1px solid #1f5c40; border-radius: 16px; padding: 22px; max-width: 420px; width: 100%; }
   .mystop-box h3 { margin: 0 0 8px; color: #eafff3; }
   .mystop-box .sub { color: #9fd3b4; font-size: .95rem; margin: 0 0 6px; }
+
+      .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+      .modal[hidden] { display: none; }
+      .modal-box { background: #1a2f24; border-radius: 12px; padding: 20px; max-width: 90vw; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+      .modal-box h3 { margin: 0 0 10px 0; color: #fff; }
+      .log-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+      .chip { background: #2a4a38; color: #fff; border: none; border-radius: 16px; padding: 6px 12px; font-size: 0.8rem; cursor: pointer; }
+      .chip.active { background: #4a8a5f; }
+      .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 </style>
   <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v6.2 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v6.3 [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -843,7 +852,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '6.2';
+      var APP_VERSION = '6.3';
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
       var logEntries = [];
