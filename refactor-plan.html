@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Refactor — Detailed Plan</title>
+<style>
+body { font-family: sans-serif; max-width: 850px; margin: 20px auto; padding: 0 15px; line-height: 1.6; }
+h1 { border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }
+h2 { color: #2e7d32; margin-top: 30px; }
+h3 { color: #555; }
+table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+th { background: #e8f5e9; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; }
+.status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; background: #fff3e0; color: #e65100; }
+.note { background: #e3f2fd; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
+.warn { background: #fff8e1; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
+.ok { color: #2e7d32; font-weight: bold; }
+</style></head><body>
+
+<h1>Code Refactor — Detailed Plan <span class="status">AWAITING APPROVAL</span></h1>
+<p><em>Prepared 2026-10-17. No changes made yet.</em></p>
+
+<h2>Why Do This?</h2>
+<table>
+<tr><th>Problem (real, already happened)</th><th>Fix</th></tr>
+<tr><td><strong>Same bug fixed twice.</strong> The hardcoded version badge (<code>v6.4</code>) existed in both Bus and St Cecilia. Fixed Bus, then had to fix St Cecilia separately.</td><td>Shared core — fix once, both apps get it.</td></tr>
+<tr><td><strong>Route changes require code edits.</strong> Updating the PM route meant editing JavaScript arrays inside <code>index.html</code>, risking syntax errors in app logic.</td><td>Route data as JSON — swap a data file, code untouched.</td></tr>
+<tr><td><strong>Version lives in multiple places.</strong> <code>APP_VERSION</code> variable + hardcoded HTML badge diverged (showed 6.4 when app was 6.7).</td><td>Deploy script stamps version everywhere in one command.</td></tr>
+<tr><td><strong>88 duplicated functions.</strong> Every future feature or fix must be applied twice, with risk of divergence.</td><td>Single <code>bus-core.js</code> loaded by both apps.</td></tr>
+</table>
+
+<h2>Scope</h2>
+<table>
+<tr><th>In scope</th><th>Out of scope (untouched)</th></tr>
+<tr>
+<td>
+<ul>
+<li><code>index.html</code> (Bus app)</li>
+<li><code>st-cecilia.html</code> (St Cecilia app)</li>
+<li><code>home.html</code> (version badges only)</li>
+</ul>
+</td>
+<td>
+<ul>
+<li><code>pdm-practice.html</code> — entirely separate, not touched</li>
+<li>Native Android/iOS code</li>
+<li>Follower pages (separate repo)</li>
+<li>Checkpoint/on-bus detection (separate pending plan)</li>
+</ul>
+</td>
+</tr>
+</table>
+
+<h2>Item 1: Shared Core (<code>bus-core.js</code>)</h2>
+<h3>What</h3>
+<p>Extract the 88 identical functions (e.g. <code>distanceMeters</code>, <code>triggerArrival</code>, <code>sendNtfy</code>, <code>onPosition</code>, logging, native bridge) into a single <code>bus-core.js</code> file. Both apps load it via <code>&lt;script src="bus-core.js"&gt;</code>.</p>
+<h3>Steps</h3>
+<ol>
+<li>Diff each of the 88 function <em>bodies</em> (not just names) between the two apps to confirm they're truly identical</li>
+<li>Create <code>bus-core.js</code> with the shared functions, verbatim — zero logic changes</li>
+<li>In <code>index.html</code>: delete the 88 duplicates, add script tag. Keep 10 bus-only functions inline.</li>
+<li>In <code>st-cecilia.html</code>: delete the 88 duplicates, add script tag. Keep 8 stc-only functions inline.</li>
+<li><code>node --check</code> on all three files</li>
+<li>Deploy to a preview branch, verify both apps load and function</li>
+</ol>
+<div class="warn"><strong>Risk:</strong> A function with the same name but subtly different body would break one app. Mitigation: body-level diff before extracting (step 1).</div>
+<p><strong>Time:</strong> 3–4 hours</p>
+
+<h2>Item 2: Route Data as JSON</h2>
+<h3>What</h3>
+<p>Move route coordinates and stop definitions out of JavaScript into 6 JSON files. Apps fetch them on load.</p>
+<table>
+<tr><th>File</th><th>Content</th><th>Source</th></tr>
+<tr><td><code>bus-am-route.json</code></td><td>428 coordinate pairs</td><td><code>AM_ROUTE_PATH</code> in index.html</td></tr>
+<tr><td><code>bus-pm-route.json</code></td><td>395 coordinate pairs</td><td><code>PM_ROUTE_PATH</code> in index.html</td></tr>
+<tr><td><code>bus-am-stops.json</code></td><td>13 stop objects</td><td><code>AM_DEFAULT_STOPS</code> in index.html</td></tr>
+<tr><td><code>bus-pm-stops.json</code></td><td>16 stop objects</td><td><code>PM_DEFAULT_STOPS</code> in index.html</td></tr>
+<tr><td><code>stc-route.json</code></td><td>33 coordinate pairs</td><td><code>ROUTE_PATH</code> in st-cecilia.html</td></tr>
+<tr><td><code>stc-stops.json</code></td><td>9 stop objects</td><td><code>DEFAULT_STOPS</code> in st-cecilia.html</td></tr>
+</table>
+<h3>Steps</h3>
+<ol>
+<li>Extract each array to its JSON file (scripted, byte-exact)</li>
+<li>Replace inline arrays with <code>fetch()</code> calls</li>
+<li>Gate app initialization behind <code>Promise.all()</code> — show "Loading route..." until data arrives</li>
+<li>St Cecilia PM mode still reverses the route in code (<code>.slice().reverse()</code>) — that logic stays</li>
+<li>Verify both apps load correctly, routes render identically</li>
+</ol>
+<div class="warn"><strong>Risk:</strong> Async loading changes startup order. If map renders before data arrives → blank screen. Mitigation: <code>Promise.all()</code> gate (step 3).</div>
+<p><strong>Time:</strong> 2–3 hours</p>
+
+<h2>Item 3: Version Deploy Script</h2>
+<h3>What</h3>
+<p>A <code>deploy.sh</code> script that stamps the version in one command:</p>
+<pre>./deploy.sh 6.8
+# 1. Sets APP_VERSION='6.8' in index.html
+# 2. Sets APP_VERSION='6.8' in st-cecilia.html
+# 3. Updates version badges in home.html
+# 4. Runs node --check on all files
+# 5. Commits and pushes</pre>
+<p>This replaces manual find-and-replace, making it impossible for the badge and variable to diverge again.</p>
+<p><strong>Time:</strong> 30 minutes</p>
+
+<h2>Execution Order &amp; Safety</h2>
+<ol>
+<li><strong>Tag stable state:</strong> <code>git tag stable-2026-10-17</code> before any work</li>
+<li><strong>Item 3 first</strong> (lowest risk, immediate value)</li>
+<li><strong>Item 1</strong> on branch <code>refactor/core</code> → preview → verify → merge</li>
+<li><strong>Item 2</strong> on branch <code>refactor/routes</code> → preview → verify → merge</li>
+<li>Each item verified live before starting the next</li>
+</ol>
+<div class="note"><strong>Rollback:</strong> Every step is a separate commit. <code>git revert</code> or <code>git reset --hard stable-2026-10-17</code> restores the exact current state. The tag is never deleted.</div>
+
+<h2>Total Estimate</h2>
+<table>
+<tr><th>Item</th><th>Time</th></tr>
+<tr><td>Item 3: Deploy script</td><td>30 min</td></tr>
+<tr><td>Item 1: Shared core</td><td>3–4 hrs</td></tr>
+<tr><td>Item 2: Route JSON</td><td>2–3 hrs</td></tr>
+<tr><td><strong>Total (my work)</strong></td><td><strong>6–8 hrs</strong></td></tr>
+<tr><td>Your testing (both apps, AM+PM)</td><td>~1 hr</td></tr>
+</table>
+
+<div class="note"><strong>To approve:</strong> Reply "go" and I'll start with tagging the stable state, then Item 3.</div>
+
+</body></html>
