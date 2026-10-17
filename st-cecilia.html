@@ -728,6 +728,8 @@
         if (typeof NATIVE !== 'undefined' && NATIVE && !tracking) {
           setTimeout(function () { try { startTracking(); } catch (e) {} }, 800);
         }
+        // Keep the native service on the same tab the user is viewing.
+        try { pushScheduleToNative(); } catch (e) {}
       }
 
       function renderRoute() {
@@ -843,7 +845,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '5.7';
+      var APP_VERSION = '5.8';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1278,8 +1280,13 @@
         // the 3:30pm alarm needs config_pm, regardless of which tab is open.
         if (NATIVE) {
           try {
-            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab('am')));
-            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab('pm')));
+            // Send the OTHER tab first, current tab LAST.
+            // The native service uses the last-received config as its
+            // active route — this keeps it on the tab the user is viewing.
+            var otherTab = (typeof mode !== 'undefined' && mode === 'pm') ? 'am' : 'pm';
+            var curTab = (typeof mode !== 'undefined' ? mode : 'am');
+            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab(otherTab)));
+            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab(curTab)));
           } catch (e) {}
         }
       }

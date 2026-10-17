@@ -853,7 +853,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '6.7';
+      var APP_VERSION = '6.8';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1619,8 +1619,13 @@
         // the 3:30pm alarm needs config_pm, regardless of which tab is open.
         if (NATIVE) {
           try {
-            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab('am')));
-            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab('pm')));
+            // Send the OTHER tab first, current tab LAST.
+            // The native service uses the last-received config as its
+            // active route — this keeps it on the tab the user is viewing.
+            var otherTab = (typeof mode !== 'undefined' && mode === 'pm') ? 'am' : 'pm';
+            var curTab = (typeof mode !== 'undefined' ? mode : 'am');
+            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab(otherTab)));
+            window.NativeBridge.updateConfig(JSON.stringify(buildRideConfigForTab(curTab)));
           } catch (e) {}
         }
       }
