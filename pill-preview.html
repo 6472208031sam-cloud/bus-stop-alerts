@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pill Preview - Stop 5 PM</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f0f0f0; padding: 40px 20px; text-align: center; }
+  h2 { color: #333; margin-bottom: 30px; }
+  .pill-demo { margin: 30px 0; }
+  .pill-label { font-size: 12px; color: #666; margin-bottom: 8px; }
+  /* Exact styles from follower */
+  .gotofflbl { background:#475569; color:#fff; font-weight:700; font-size:12px; padding:5px 16px; border-radius:18px; text-align:center; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.35); display: inline-block; }
+  .waitlbl { background:#b45309; color:#fff; font-weight:700; font-size:12px; padding:5px 16px; border-radius:18px; text-align:center; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.35); display: inline-block; }
+  /* Old size for comparison */
+  .gotofflbl-old { background:#475569; color:#fff; font-weight:800; font-size:15px; padding:5px 16px; border-radius:18px; text-align:center; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.35); display: inline-block; }
+  .note { font-size: 13px; color: #666; margin-top: 40px; max-width: 400px; margin-left: auto; margin-right: auto; }
+</style>
+</head>
+<body>
+  <h2>Map Pill Preview — PM Stop E (AM #5: Natalia)</h2>
+
+  <div class="pill-demo">
+    <div class="pill-label">NEW — 12px font (got off)</div>
+    <div class="gotofflbl">📱 [A82] Off bus at Stop E (12)</div>
+  </div>
+
+  <div class="pill-demo">
+    <div class="pill-label">NEW — 12px font (waiting)</div>
+    <div class="waitlbl">📱 [A82] Waiting for bus at Stop E (12)</div>
+  </div>
+
+  <div class="pill-demo">
+    <div class="pill-label">OLD — 15px font (for comparison)</div>
+    <div class="gotofflbl-old">📱 [A82] Off bus at Stop E (12)</div>
+  </div>
+
+  <div class="note">
+    Greyed-out unvisited stops are also back — stops after the got-off point show grey instead of white.
+  </div>
+</body>
+</html>
