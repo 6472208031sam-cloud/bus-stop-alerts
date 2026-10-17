@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PM Route Editor - Drag to Match Blue Line</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+body { margin: 0; font-family: sans-serif; }
+#map { height: 70vh; }
+#panel { padding: 15px; background: #f0f0f0; }
+button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
+#output { width: 100%; height: 100px; font-family: monospace; font-size: 11px; margin-top: 10px; }
+.hint { background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<div id="panel">
+<h2>PM Route Editor</h2>
+<div class="hint">
+<strong>Instructions:</strong><br>
+1. <strong>Drag the blue dots</strong> to match your recorded blue route from the screenshot<br>
+2. Start at <strong>S</strong> (school) and end at <strong>J</strong> (Threshing Mill)<br>
+3. Add points: <strong>click on the blue line</strong> to add a draggable point there<br>
+4. Remove points: <strong>double-click a blue dot</strong> to delete it<br>
+5. When done, click <strong>"Export Route"</strong> and send me the text
+</div>
+<button onclick="exportRoute()">📋 Export Route</button>
+<button onclick="resetRoute()">↺ Reset</button>
+<textarea id="output" placeholder="Exported coordinates will appear here..."></textarea>
+</div>
+<div id="map"></div>
+<script>
+// PM stops (fixed, green)
+const pmStops = [
+  {letter:'S', lat:43.494805, lng:-79.692655},
+  {letter:'0', lat:43.492605, lng:-79.692526},
+  {letter:'01', lat:43.488486, lng:-79.698247},
+  {letter:'02', lat:43.485614, lng:-79.702145},
+  {letter:'A', lat:43.488259, lng:-79.707735},
+  {letter:'B', lat:43.491238, lng:-79.712185},
+  {letter:'C', lat:43.49347, lng:-79.70835},
+  {letter:'D', lat:43.49837, lng:-79.70403},
+  {letter:'E', lat:43.50118, lng:-79.70128},
+  {letter:'F', lat:43.50537, lng:-79.70545},
+  {letter:'G', lat:43.5084, lng:-79.710098},
+  {letter:'H', lat:43.50467, lng:-79.7096},
+  {letter:'I', lat:43.49945, lng:-79.712},
+  {letter:'J', lat:43.4964, lng:-79.7187},
+  {letter:'K', lat:43.492996, lng:-79.719124},
+  {letter:'L', lat:43.48828, lng:-79.71337},
+];
+
+// Initial route: straight line from S to J (user will drag to match blue line)
+let routePoints = [
+  [43.494805, -79.692655],  // S
+  [43.495, -79.70],
+  [43.495, -79.71],
+  [43.4964, -79.7187],  // J
+];
+
+const map = L.map('map').setView([43.49, -79.71], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// Fixed stops (green)
+pmStops.forEach(s => {
+  L.marker([s.lat, s.lng], {
+    icon: L.divIcon({html:`<div style="background:green;color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;border:2px solid white;">${s.letter}</div>`, iconSize:[22,22]}),
+    interactive: false
+  }).addTo(map).bindTooltip(`Stop ${s.letter}`, {permanent: false});
+});
+
+// Editable route
+let routeLine;
+let markers = [];
+
+function redraw() {
+  if (routeLine) map.removeLayer(routeLine);
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  
+  routeLine = L.polyline(routePoints, {color: '#0000ff', weight: 5, opacity: 0.8}).addTo(map);
+  
+  // Click on line to add point
+  routeLine.on('click', function(e) {
+    // Find closest segment and insert
+    let minDist = Infinity, insertIdx = 1;
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const d = distToSegment(e.latlng, routePoints[i], routePoints[i+1]);
+      if (d < minDist) { minDist = d; insertIdx = i + 1; }
+    }
+    routePoints.splice(insertIdx, 0, [e.latlng.lat, e.latlng.lng]);
+    redraw();
+  });
+  
+  routePoints.forEach((pt, idx) => {
+    const isEnd = (idx === 0 || idx === routePoints.length - 1);
+    const m = L.marker(pt, {
+      draggable: true,
+      icon: L.divIcon({
+        html: `<div style="background:${isEnd ? '#ff0000' : '#0000ff'};color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;border:2px solid white;">${idx}</div>`,
+        iconSize: [18, 18]
+      })
+    }).addTo(map);
+    
+    m.on('dragend', function() {
+      const ll = m.getLatLng();
+      routePoints[idx] = [ll.lat, ll.lng];
+      redraw();
+    });
+    
+    // Double-click to delete (not endpoints)
+    m.on('dblclick', function() {
+      if (idx > 0 && idx < routePoints.length - 1) {
+        routePoints.splice(idx, 1);
+        redraw();
+      }
+    });
+    
+    markers.push(m);
+  });
+}
+
+function distToSegment(p, v, w) {
+  const l2 = (v[0]-w[0])**2 + (v[1]-w[1])**2;
+  if (l2 === 0) return Math.hypot(p.lat-v[0], p.lng-v[1]);
+  let t = ((p.lat-v[0])*(w[0]-v[0]) + (p.lng-v[1])*(w[1]-v[1])) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.lat-(v[0]+t*(w[0]-v[0])), p.lng-(v[1]+t*(w[1]-v[1])));
+}
+
+function exportRoute() {
+  const out = document.getElementById('output');
+  out.value = JSON.stringify(routePoints);
+  out.select();
+  document.execCommand('copy');
+  alert(`Copied ${routePoints.length} points! Send me the text.`);
+}
+
+function resetRoute() {
+  if (confirm('Reset to straight S→J line?')) {
+    routePoints = [
+      [43.494805, -79.692655],
+      [43.495, -79.70],
+      [43.495, -79.71],
+      [43.4964, -79.7187],
+    ];
+    redraw();
+  }
+}
+
+redraw();
+map.fitBounds(L.polyline(routePoints).getBounds().pad(0.3));
+</script>
+</body>
+</html>
