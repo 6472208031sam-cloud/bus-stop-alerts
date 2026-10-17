@@ -845,7 +845,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '6.1';
+      var APP_VERSION = '6.2';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1898,6 +1898,16 @@
         } catch (e) {}
       })();
 
+      // iOS WebView: click on <li> is unreliable even with cursor:pointer.
+      // Add touchend as a fallback that runs the same handler.
+      routeList.addEventListener('touchend', function (e) {
+        // Only handle single-finger taps, not scrolls
+        if (e.changedTouches.length === 1) {
+          e.preventDefault();
+          var clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+          e.target.dispatchEvent(clickEvent);
+        }
+      }, { passive: false });
       routeList.addEventListener('click', function (e) {
         // Mobile: tapping the stop circle simulates arrival (buttons hidden on mobile)
         var item = e.target.closest('.route-item');
