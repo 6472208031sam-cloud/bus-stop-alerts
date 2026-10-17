@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PM Route Editor - Drag to Match Blue Line</title>
+<title>PM Route Editor - All 16 Stops</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -17,14 +17,14 @@ button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
 </head>
 <body>
 <div id="panel">
-<h2>PM Route Editor</h2>
+<h2>PM Route Editor (16 stops)</h2>
 <div class="hint">
 <strong>Instructions:</strong><br>
-1. <strong>Drag the blue dots</strong> to match your recorded blue route from the screenshot<br>
-2. Start at <strong>S</strong> (school) and end at <strong>J</strong> (Threshing Mill)<br>
-3. Add points: <strong>click on the blue line</strong> to add a draggable point there<br>
-4. Remove points: <strong>double-click a blue dot</strong> to delete it<br>
-5. When done, click <strong>"Export Route"</strong> and send me the text
+1. Green pins = all 16 PM stops (fixed, in order S → L)<br>
+2. <strong>Drag the blue dots</strong> to trace your recorded blue route<br>
+3. The blue route should go from <strong>S</strong> through to <strong>J</strong>, passing near stops 0, 01, 02, A, B, C, D, E, F, G, H, I<br>
+4. <strong>Click the blue line</strong> to add more points | <strong>Double-click a dot</strong> to remove it<br>
+5. Click <strong>"Export Route"</strong> when done and send me the text
 </div>
 <button onclick="exportRoute()">📋 Export Route</button>
 <button onclick="resetRoute()">↺ Reset</button>
@@ -32,7 +32,7 @@ button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
 </div>
 <div id="map"></div>
 <script>
-// PM stops (fixed, green)
+// All 16 PM stops (fixed)
 const pmStops = [
   {letter:'S', lat:43.494805, lng:-79.692655},
   {letter:'0', lat:43.492605, lng:-79.692526},
@@ -52,24 +52,21 @@ const pmStops = [
   {letter:'L', lat:43.48828, lng:-79.71337},
 ];
 
-// Initial route: straight line from S to J (user will drag to match blue line)
-let routePoints = [
-  [43.494805, -79.692655],  // S
-  [43.495, -79.70],
-  [43.495, -79.71],
-  [43.4964, -79.7187],  // J
-];
+// Editable route: starts as straight lines through all stops
+// User will drag to match blue line
+let routePoints = pmStops.map(s => [s.lat, s.lng]);
 
-const map = L.map('map').setView([43.49, -79.71], 12);
+const map = L.map('map').setView([43.495, -79.705], 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap'
 }).addTo(map);
 
-// Fixed stops (green)
+// Fixed stop markers (green, with letters)
 pmStops.forEach(s => {
   L.marker([s.lat, s.lng], {
-    icon: L.divIcon({html:`<div style="background:green;color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;border:2px solid white;">${s.letter}</div>`, iconSize:[22,22]}),
-    interactive: false
+    icon: L.divIcon({html:`<div style="background:green;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;border:2px solid white;">${s.letter}</div>`, iconSize:[24,24]}),
+    interactive: false,
+    zIndexOffset: 1000
   }).addTo(map).bindTooltip(`Stop ${s.letter}`, {permanent: false});
 });
 
@@ -84,9 +81,7 @@ function redraw() {
   
   routeLine = L.polyline(routePoints, {color: '#0000ff', weight: 5, opacity: 0.8}).addTo(map);
   
-  // Click on line to add point
   routeLine.on('click', function(e) {
-    // Find closest segment and insert
     let minDist = Infinity, insertIdx = 1;
     for (let i = 0; i < routePoints.length - 1; i++) {
       const d = distToSegment(e.latlng, routePoints[i], routePoints[i+1]);
@@ -97,12 +92,21 @@ function redraw() {
   });
   
   routePoints.forEach((pt, idx) => {
-    const isEnd = (idx === 0 || idx === routePoints.length - 1);
+    // Label with stop letter if it matches a stop, otherwise point number
+    let label = idx.toString();
+    let bg = '#0000ff';
+    pmStops.forEach(s => {
+      if (Math.abs(s.lat - pt[0]) < 0.0001 && Math.abs(s.lng - pt[1]) < 0.0001) {
+        label = s.letter;
+        bg = '#ff6600';  // Orange for stop points
+      }
+    });
+    
     const m = L.marker(pt, {
       draggable: true,
       icon: L.divIcon({
-        html: `<div style="background:${isEnd ? '#ff0000' : '#0000ff'};color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;border:2px solid white;">${idx}</div>`,
-        iconSize: [18, 18]
+        html: `<div style="background:${bg};color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;border:2px solid white;">${label}</div>`,
+        iconSize: [20, 20]
       })
     }).addTo(map);
     
@@ -112,9 +116,9 @@ function redraw() {
       redraw();
     });
     
-    // Double-click to delete (not endpoints)
     m.on('dblclick', function() {
-      if (idx > 0 && idx < routePoints.length - 1) {
+      // Don't delete stop points (orange), only intermediate blue points
+      if (bg === '#0000ff') {
         routePoints.splice(idx, 1);
         redraw();
       }
@@ -136,24 +140,19 @@ function exportRoute() {
   const out = document.getElementById('output');
   out.value = JSON.stringify(routePoints);
   out.select();
-  document.execCommand('copy');
+  try { document.execCommand('copy'); } catch(e) {}
   alert(`Copied ${routePoints.length} points! Send me the text.`);
 }
 
 function resetRoute() {
-  if (confirm('Reset to straight S→J line?')) {
-    routePoints = [
-      [43.494805, -79.692655],
-      [43.495, -79.70],
-      [43.495, -79.71],
-      [43.4964, -79.7187],
-    ];
+  if (confirm('Reset to straight lines through stops?')) {
+    routePoints = pmStops.map(s => [s.lat, s.lng]);
     redraw();
   }
 }
 
 redraw();
-map.fitBounds(L.polyline(routePoints).getBounds().pad(0.3));
+map.fitBounds(L.polyline(routePoints).getBounds().pad(0.1));
 </script>
 </body>
 </html>
