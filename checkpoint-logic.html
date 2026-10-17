@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint Logic - Review Only</title>
+<style>
+body { font-family: monospace; max-width: 800px; margin: 20px auto; padding: 0 15px; background: #f5f5f5; }
+h2 { font-family: sans-serif; }
+pre { background: #fff; padding: 15px; border-radius: 8px; overflow-x: auto; border: 1px solid #ddd; }
+.note { font-family: sans-serif; background: #e8f5e9; padding: 10px 15px; border-radius: 8px; margin: 15px 0; }
+</style></head><body>
+<h2>On-Bus Detection Logic (Review Only — Not in App)</h2>
+
+<div class="note">
+<strong>Concept:</strong> Invisible checkpoint 150m after each stop along the route.
+When the phone crosses it after that stop was reached → user is on the bus.
+</div>
+
+<h3>1. Checkpoint Data</h3>
+<pre>
+// One per stop (except final). 15 PM + 12 AM.
+var PM_CHECKPOINTS = [
+  { after: "S",  heading_to: "0",  lat: 43.49320, lng: -79.69245 },
+  { after: "0",  heading_to: "01", lat: 43.49136, lng: -79.69309 },
+  { after: "01", heading_to: "02", lat: 43.48738, lng: -79.69952 },
+  // ... etc for all stops
+];
+</pre>
+
+<h3>2. Detection (runs on each GPS fix)</h3>
+<pre>
+// cps = checkpoints for current mode (AM or PM)
+for (var i = 0; i < cps.length; i++) {
+  var cp = cps[i];
+  var afterStop = stops[cp.after_idx];
+
+  // Only check if that stop was already reached,
+  // and we haven't fired for it yet
+  if (afterStop.reached && !onBusState[cp.after_idx]) {
+
+    var d = distanceMeters(lat, lng, cp.lat, cp.lng);
+
+    if (d <= 50 && accuracy <= 100) {
+      onBusState[cp.after_idx] = true;
+
+      var next = stops[cp.after_idx + 1];
+      sendNtfy("📱 " + deviceId +
+        " on bus, heading to " + stopLabel(next) + ".");
+    }
+  }
+}
+</pre>
+
+<h3>3. State</h3>
+<pre>
+var onBusState = {};  // stopIdx → true once checkpoint crossed
+// Reset on ride start / reset progress
+</pre>
+
+<div class="note">
+<strong>Why 150m?</strong> Far enough that GPS drift at the stop won't
+trigger it, close enough to fire soon after the bus pulls away.<br>
+<strong>Why 50m radius?</strong> Matches existing arrival detection tolerance.
+</div>
+</body></html>
