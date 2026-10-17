@@ -293,7 +293,7 @@
 </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;">v5.7 [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;"><span id="verBadgeStc">...</span> [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -558,6 +558,8 @@
       document.addEventListener("DOMContentLoaded", function() {
         var b = document.getElementById("devIdBadge");
         if (b) b.textContent = DEVICE_ID;
+        var v = document.getElementById("verBadgeStc");
+        if (v && typeof APP_VERSION !== 'undefined') v.textContent = 'v' + APP_VERSION;
       });
 
     (function () {
