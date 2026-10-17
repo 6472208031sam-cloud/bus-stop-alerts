@@ -133,7 +133,7 @@
     .badge { flex: none; padding: 6px 9px; border-radius: 8px; background: var(--surface-2); color: var(--muted); font-size: .78rem; font-weight: 700; }
     .route-panel { position: sticky; top: 16px; }
     .route-list { list-style: none; padding: 12px 16px 16px; margin: 0; }
-    .route-item { position: relative; display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; min-height: 52px; }
+    .route-item { position: relative; display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; min-height: 52px; cursor: pointer; } /* cursor:pointer required for iOS WebView click events */
     .route-item:not(:last-child)::after { content: ""; position: absolute; left: 17px; top: 36px; bottom: -16px; width: 2px; background: var(--line); }
     .dot { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); border: 2px solid var(--line); font-family: "Archivo", sans-serif; font-size: .78rem; font-weight: 700; color: var(--muted); transition: .2s ease; }
     .route-item.configured .dot { background: var(--green-soft); border-color: var(--green); color: var(--green-strong); }
