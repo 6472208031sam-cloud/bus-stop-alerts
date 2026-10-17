@@ -845,7 +845,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '5.8';
+      var APP_VERSION = '5.9';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1727,6 +1727,15 @@
         }
         $('alertSheet').classList.add('open');
         if (!quiet) sendStopPush(stop);
+        // Auto-stop on "got off" (PM My Stop): journey done for this phone.
+        if (!quiet && msT && mineT && mode === 'pm') {
+          try {
+            var offMsg = '\uD83D\uDCF1 [' + DEVICE_ID + '] off bus. Tracking stopped.';
+            logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + offMsg);
+            fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: offMsg, keepalive: true }).catch(function () {});
+          } catch (e) {}
+          setTimeout(function () { try { stopTracking(); } catch (e) {} }, 1500);
+        }
         clearTimeout(alertDismissTimer);
         alertDismissTimer = setTimeout(function () {
           $('alertSheet').classList.remove('open');
