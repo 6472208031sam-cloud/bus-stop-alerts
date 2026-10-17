@@ -1393,6 +1393,8 @@
             if (status.completed && status.reached) {
               // Finished ride found on poll — apply it even though active is false.
               applyNativeSync(status, null);
+              // Native stopped (route complete or auto-stop): update web UI too.
+              if (tracking) { try { stopTracking(); } catch (e) {} }
               return;
             }
             if (status.active && status.page === RIDE_PAGE) applyNativeSync(status, null);
@@ -1545,11 +1547,12 @@
       }
 
       function nativeFinished() {
-        // Finished ride = all stops reached. Mark them so pins turn green.
+        // Native ride ended (route complete OR auto-stop at My Stop).
+        // Do NOT force all stops to reached — sync already has the true state.
+        // Just update the UI to show tracking stopped.
         try {
-          stops.forEach(function (s) { s.reached = true; });
           if (typeof renderRoute === 'function') renderRoute();
-          if (typeof finishRoute === 'function') finishRoute();
+          if (typeof stopTracking === 'function') stopTracking();
         } catch (e) {}
       }
 

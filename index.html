@@ -1273,6 +1273,8 @@
             var status = JSON.parse(st);
             if (status.completed && status.reached) {
               applyNativeSync(status, null);
+              // Native stopped (route complete or auto-stop): update web UI too.
+              if (tracking) { try { stopTracking(); } catch (e) {} }
               return;
             }
             if (status.active && status.page === mode) applyNativeSync(status, null);
@@ -1413,10 +1415,9 @@
       }
 
       function nativeFinished() {
-        // Finished ride = all stops reached. Mark them so pins turn green
-        // even if the final sync was lost or tracking state is out of sync.
-        stops.forEach(function (s) { s.reached = true; });
-        if (tracking) finishRoute();
+        // Native ride ended (route complete OR auto-stop at My Stop).
+        // Do NOT force all stops to reached — sync already has the true state.
+        if (tracking) stopTracking();
         else renderRoute();
       }
 
