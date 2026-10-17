@@ -457,8 +457,8 @@
           <div class="field full">
             <label for="snapDistance">Start pickup distance</label>
             <div class="radius-row">
-              <input id="snapDistance" type="range" min="100" max="1000" step="50" value="350" />
-              <output id="snapDistanceOut" for="snapDistance">350 m</output>
+              <input id="snapDistance" type="range" min="100" max="1000" step="50" value="100" />
+              <output id="snapDistanceOut" for="snapDistance">100 m</output>
             </div>
             <p class="sub">When you start a ride, the app jumps to the nearest stop within this distance. Default 350 m.</p>
           </div>
@@ -853,7 +853,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '6.8';
+      var APP_VERSION = '6.9';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1571,7 +1571,7 @@
         return localStorage.getItem('bsa_follower') !== '0';
       }
 
-      var DEFAULT_SNAP_DISTANCE = 350;
+      var DEFAULT_SNAP_DISTANCE = 100;
       function getSnapDistance() {
         var v = parseInt(localStorage.getItem('bsa_snap_distance'), 10);
         if (!isFinite(v) || v < 100 || v > 1000) v = DEFAULT_SNAP_DISTANCE;
