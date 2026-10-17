@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>On-Bus Detection — Detailed Plan</title>
+<title>On-Bus Detection — Detailed Plan v2</title>
 <style>
 body { font-family: sans-serif; max-width: 850px; margin: 20px auto; padding: 0 15px; line-height: 1.6; }
 h1 { border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }
@@ -13,106 +13,135 @@ pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; ov
 .status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; }
 .pending { background: #fff3e0; color: #e65100; }
 .note { background: #e3f2fd; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
+.warn { background: #fff8e1; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
 </style></head><body>
 
-<h1>On-Bus Detection — Detailed Plan <span class="status pending">AWAITING APPROVAL</span></h1>
+<h1>On-Bus Detection — Detailed Plan v2 <span class="status pending">AWAITING APPROVAL</span></h1>
+<p><em>Updated 2026-10-17: 3-point sequential checkpoints, AM only, 150m total.</em></p>
 
 <h2>1. Goal</h2>
 <p>Detect when a waiting rider's phone transitions to "on the bus and moving toward the next stop" on the <strong>AM route only</strong>, and notify followers via ntfy.</p>
 <div class="note"><strong>Why AM only:</strong> AM is pickup (waiting → boarding). PM is drop-off — the "got off" message already covers it.</div>
 
-<h2>2. Checkpoint Data</h2>
-<p>12 invisible checkpoints, one 150m along the route after each AM stop (except the final stop 13).</p>
+<h2>2. Checkpoint Design (v2)</h2>
+<p><strong>Three sequential sub-checkpoints</strong> per stop at 50m, 100m, and 150m along the route. The phone must cross them <strong>in order</strong>.</p>
 <table>
-<tr><th>#</th><th>After Stop</th><th>Heading To</th><th>Distance</th><th>Purpose</th></tr>
-<tr><td>1</td><td>Stop 1</td><td>Stop 2</td><td>~150m</td><td>Detect boarding at Stop 1</td></tr>
-<tr><td>2</td><td>Stop 2</td><td>Stop 3</td><td>~150m</td><td>Detect boarding at Stop 2</td></tr>
-<tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-<tr><td>12</td><td>Stop 12</td><td>Stop 13</td><td>~150m</td><td>Detect boarding at Stop 12</td></tr>
+<tr><th>Sub-checkpoint</th><th>Distance past stop</th><th>Purpose</th></tr>
+<tr><td>A</td><td>50m</td><td>Beyond stop-zone shuffling; first proof of movement</td></tr>
+<tr><td>B</td><td>100m</td><td>Sustained movement in route direction</td></tr>
+<tr><td>C</td><td>150m</td><td>Confirmed — fires "on bus"</td></tr>
 </table>
-<p>Coordinates calculated once from AM route geometry (428 points). Stored as a static <code>AM_CHECKPOINTS</code> array in <code>index.html</code>. Never displayed as stops.</p>
+<p>12 AM stops (excluding final) × 3 = <strong>36 sub-checkpoints</strong>, stored as static data.</p>
+<div class="note"><strong>Why sequential, not single:</strong> GPS drift is random jitter — it cannot walk 50m → 100m → 150m in the route direction. A bus does exactly that. Strict ordering eliminates drift false-positives entirely.</div>
+<div class="warn"><strong>Why 150m (not 100m):</strong> Buses sometimes pull forward 20-30m within the stop zone. 50m spacing keeps the first checkpoint clear of any stop maneuver. Detection is ~6-9 seconds slower than 100m, which is negligible for followers.</div>
 
 <h2>3. Detection Logic</h2>
-<p>Runs inside <code>onPosition()</code> on every GPS fix, after the existing arrival check:</p>
 <pre>
-var cps = AM_CHECKPOINTS;  // AM only
-for (var i = 0; i &lt; cps.length; i++) {
-  var cp = cps[i];
-  var afterStop = stops[cp.after_idx];
+// Per-stop progress: 0 = waiting, 1 = hit 50m, 2 = hit 100m, 3 = ON BUS
+var checkpointProgress = {};  // stopIdx → 0..3
 
-  // Gate 1: the "after" stop must already be reached
-  // Gate 2: haven't fired for this stop yet
-  if (afterStop &amp;&amp; afterStop.reached &amp;&amp; !onBusState[cp.after_idx]) {
+var cps = AM_CHECKPOINTS;  // AM only, 36 entries
+for (var i = 0; i &lt; cps.length; i++) {
+  var cp = cps[i];           // { stop_idx, seq: 0|1|2, lat, lng }
+  var stop = stops[cp.stop_idx];
+
+  // Gate 1: stop must be reached
+  // Gate 2: this is the NEXT expected sub-checkpoint in sequence
+  if (stop &amp;&amp; stop.reached &amp;&amp;
+      (checkpointProgress[cp.stop_idx] || 0) === cp.seq) {
 
     var d = distanceMeters(lat, lng, cp.lat, cp.lng);
 
-    // Gate 3: within 50m of checkpoint
-    // Gate 4: GPS accuracy ≤ 100m (no drift false-positives)
+    // Gate 3: within 50m of this sub-checkpoint
+    // Gate 4: GPS accuracy ≤ 100m
     if (d &lt;= 50 &amp;&amp; accuracy &lt;= 100) {
-      onBusState[cp.after_idx] = true;
+      checkpointProgress[cp.stop_idx] = cp.seq + 1;
 
-      var next = stops[cp.after_idx + 1];
-      var msg = "📱 " + deviceId +
-        " on bus, heading to Stop " + next.number +
-        ": " + next.name + ".";
-      sendNtfy(msg);
-      logEvent('STOP', 'On-bus: ' + msg);
+      // All three hit in order → ON BUS
+      if (cp.seq === 2) {
+        var next = stops[cp.stop_idx + 1];
+        var msg = "📱 " + deviceId + " on bus, heading to Stop " +
+                  next.number + ": " + next.name + ".";
+        sendNtfy(msg);
+        logEvent('STOP', 'On-bus: ' + msg);
+      }
     }
   }
 }
 </pre>
 
-<h2>4. State Management</h2>
+<h2>4. State Machine</h2>
+<pre>
+  waiting (0)
+    │ phone within 50m of 50m-checkpoint
+    ▼
+  stage 1 ─── phone within 50m of 100m-checkpoint
+    │              (must be AFTER stage 1, strict order)
+    ▼
+  stage 2 ─── phone within 50m of 150m-checkpoint
+    │              (must be AFTER stage 2, strict order)
+    ▼
+  ON BUS → ntfy sent, no repeat
+</pre>
+<p>Out-of-order hits are ignored (e.g., phone near 100m point without hitting 50m first does nothing).</p>
+
+<h2>5. State Management</h2>
 <table>
 <tr><th>Event</th><th>Action</th></tr>
-<tr><td>Ride starts (<code>startRide</code>)</td><td><code>onBusState = {}</code> — all checkpoints re-armed</td></tr>
-<tr><td>Reset progress</td><td><code>onBusState = {}</code> — all checkpoints re-armed</td></tr>
-<tr><td>Checkpoint crossed</td><td><code>onBusState[idx] = true</code> — fires once per stop</td></tr>
-<tr><td>Mode switch (AM↔PM)</td><td>Checkpoints only apply in AM mode; PM ignores them</td></tr>
+<tr><td>Ride starts</td><td><code>checkpointProgress = {}</code> — all re-armed</td></tr>
+<tr><td>Reset progress</td><td><code>checkpointProgress = {}</code> — all re-armed</td></tr>
+<tr><td>Sub-checkpoint hit</td><td>Advance that stop's progress by 1</td></tr>
+<tr><td>All 3 hit in order</td><td>Send ntfy, lock (no repeat for that stop)</td></tr>
+<tr><td>Mode = PM</td><td>Loop skipped entirely</td></tr>
 </table>
 
-<h2>5. ntfy Message Format</h2>
+<h2>6. ntfy Message</h2>
 <p><code>📱 [A82] on bus, heading to Stop 6: Crimson Oak.</code></p>
-<p>Follows existing device-ID convention. Follower already parses <code>📱 [X##]</code> prefix — no follower changes needed for basic display.</p>
+<p>Existing <code>📱 [X##]</code> prefix — follower displays it with no changes needed.</p>
 
-<h2>6. Edge Cases</h2>
+<h2>7. Edge Cases</h2>
 <table>
 <tr><th>Scenario</th><th>Behavior</th></tr>
-<tr><td>User doesn't board</td><td>Phone never crosses checkpoint → no false "on bus"</td></tr>
-<tr><td>Bus skips the stop</td><td>Stop never marked reached → checkpoint never checked</td></tr>
-<tr><td>GPS drift at stop</td><td>150m distance + 100m accuracy gate prevents false trigger</td></tr>
-<tr><td>User walks 150m along route</td><td>Would trigger — acceptable (they're heading the right way)</td></tr>
-<tr><td>Mid-route ride start</td><td>Snap-forward marks earlier stops reached; checkpoints for those stops are skipped (already past them)</td></tr>
-<tr><td>Test button tapped</td><td>Simulates arrival but phone doesn't move → checkpoint won't fire (correct)</td></tr>
+<tr><td>User doesn't board</td><td>Phone never leaves stop → no triggers</td></tr>
+<tr><td>Bus skips stop</td><td>Stop not reached → checkpoints not checked</td></tr>
+<tr><td>GPS drift at stop</td><td>Cannot fake 3-point sequence → no false positive</td></tr>
+<tr><td>GPS drops mid-sequence</td><td>Progress held; resumes when signal returns. Strict mode may miss if a point is skipped during outage.</td></tr>
+<tr><td>Bus pulls forward at stop</td><td>50m first checkpoint is beyond stop-zone shuffling</td></tr>
+<tr><td>Test button</td><td>Simulates arrival only; real GPS needed for checkpoints (correct)</td></tr>
+<tr><td>Mid-route start</td><td>Earlier stops snap-reached; their checkpoints are behind → never trigger (correct)</td></tr>
 </table>
 
-<h2>7. Implementation Steps</h2>
+<h2>8. Tuning Option (Post-Launch)</h2>
+<p>Start with <strong>strict 3-of-3</strong>. If real-world tests show misses (e.g., GPS gap skips the 50m point), relax to <strong>2-of-3</strong> (allow skipping one). This is a one-line change.</p>
+
+<h2>9. Implementation Steps</h2>
 <ol>
-<li>Calculate 12 AM checkpoint coordinates from route geometry (150m after each stop)</li>
-<li>Add <code>AM_CHECKPOINTS</code> array to <code>index.html</code> (after <code>AM_ROUTE_PATH</code>)</li>
-<li>Add <code>onBusState = {}</code> initialization</li>
-<li>Add detection loop in <code>onPosition()</code> after arrival check</li>
+<li>Calculate 36 AM sub-checkpoint coordinates (50/100/150m after each of 12 stops)</li>
+<li>Add <code>AM_CHECKPOINTS</code> array to <code>index.html</code></li>
+<li>Add <code>checkpointProgress = {}</code> initialization</li>
+<li>Add detection loop in <code>onPosition()</code> after arrival check (AM mode only)</li>
 <li>Add reset in <code>startRide()</code> and <code>resetProgress()</code></li>
-<li>Run <code>node --check</code></li>
-<li>Bump version 6.6 → 6.7, update home page badge</li>
+<li><code>node --check</code></li>
+<li>Bump 6.6 → 6.7, update home page badge</li>
 <li>Push, verify live</li>
 </ol>
 
-<h2>8. Testing</h2>
+<h2>10. Testing</h2>
 <ol>
-<li>Start AM ride, tap stop to simulate arrival</li>
-<li>Walk/drive 150m past the stop along the route</li>
-<li>Verify ntfy fires once: <code>📱 [X##] on bus, heading to Stop N.</code></li>
-<li>Verify it doesn't fire twice for the same stop</li>
-<li>Verify no fire when staying at the stop</li>
+<li>Go to AM Stop 5 (43.49640, -79.71870)</li>
+<li>Start ride, let GPS trigger arrival (or tap Test)</li>
+<li>Walk/drive along route past 50m, 100m, 150m points</li>
+<li>Verify ntfy fires once after 150m point: <code>📱 [X##] on bus, heading to Stop 6.</code></li>
+<li>Verify no fire when staying at stop</li>
+<li>Verify no double-fire</li>
 </ol>
 
-<h2>9. Out of Scope</h2>
+<h2>11. Out of Scope</h2>
 <ul>
-<li>PM route (drop-offs don't need this)</li>
+<li>PM route</li>
 <li>Map display of checkpoints (invisible by design)</li>
-<li>Follower UI changes (message displays with existing 📱 parsing)</li>
-<li>Native (Android/iOS) changes — web-only, WebView inherits it</li>
+<li>Follower UI changes</li>
+<li>Native (Android/iOS) changes — web-only</li>
 </ul>
 
 </body></html>
