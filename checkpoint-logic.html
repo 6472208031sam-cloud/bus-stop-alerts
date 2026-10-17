@@ -10,24 +10,24 @@ pre { background: #fff; padding: 15px; border-radius: 8px; overflow-x: auto; bor
 <h2>On-Bus Detection Logic (Review Only — Not in App)</h2>
 
 <div class="note">
-<strong>Concept:</strong> Invisible checkpoint 150m after each stop along the route.
+<strong>Concept:</strong> Invisible checkpoint 150m after each <strong>AM</strong> stop along the route.
 When the phone crosses it after that stop was reached → user is on the bus.
+<br><strong>AM only</strong> — PM drop-offs don't need this.
 </div>
 
 <h3>1. Checkpoint Data</h3>
 <pre>
-// One per stop (except final). 15 PM + 12 AM.
-var PM_CHECKPOINTS = [
-  { after: "S",  heading_to: "0",  lat: 43.49320, lng: -79.69245 },
-  { after: "0",  heading_to: "01", lat: 43.49136, lng: -79.69309 },
-  { after: "01", heading_to: "02", lat: 43.48738, lng: -79.69952 },
-  // ... etc for all stops
+// One per AM stop (except final). 12 checkpoints. AM only.
+var AM_CHECKPOINTS = [
+  { after: 0, heading_to: 1, lat: ..., lng: ... },
+  { after: 1, heading_to: 2, lat: ..., lng: ... },
+  // ... 12 total, one per AM stop except final
 ];
 </pre>
 
 <h3>2. Detection (runs on each GPS fix)</h3>
 <pre>
-// cps = checkpoints for current mode (AM or PM)
+// cps = AM_CHECKPOINTS (AM route only)
 for (var i = 0; i < cps.length; i++) {
   var cp = cps[i];
   var afterStop = stops[cp.after_idx];
