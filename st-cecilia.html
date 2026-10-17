@@ -558,8 +558,7 @@
       document.addEventListener("DOMContentLoaded", function() {
         var b = document.getElementById("devIdBadge");
         if (b) b.textContent = DEVICE_ID;
-        var v = document.getElementById("verBadgeStc");
-        if (v && typeof APP_VERSION !== 'undefined') v.textContent = 'v' + APP_VERSION;
+        
       });
 
     (function () {
@@ -845,6 +844,7 @@
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
       var APP_VERSION = '5.7';
+      try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
       var logEntries = [];
