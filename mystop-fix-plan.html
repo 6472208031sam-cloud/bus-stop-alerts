@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Stop "Got Off" Fix + Auto-Stop — Plan</title>
+<style>
+body { font-family: sans-serif; max-width: 850px; margin: 20px auto; padding: 0 15px; line-height: 1.6; }
+h1 { border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }
+h2 { color: #2e7d32; margin-top: 30px; }
+table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+th { background: #e8f5e9; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; }
+.status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; background: #fff3e0; color: #e65100; }
+.note { background: #e3f2fd; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
+.warn { background: #fff8e1; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
+</style></head><body>
+
+<h1>My Stop "Got Off" Fix + Auto-Stop <span class="status">AWAITING APPROVAL</span></h1>
+<p><em>Prepared 2026-10-17. No changes made.</em></p>
+
+<h2>Bug 1: ntfy Missing "Got Off" on St Cecilia PM</h2>
+
+<h3>What Domi saw</h3>
+<p>PM route, My Stop set. On-screen alert correctly showed "Got off at Stop I: Mia." But the ntfy message sent was the generic <code>🚌 [X##] at Stop I (1): Mia.</code> instead of <code>📱 [X##] got off at Stop I (1): Mia.</code></p>
+
+<h3>Root cause</h3>
+<p>The <strong>native</strong> background service (not the web page) sent the ntfy. It detects My Stop by parsing the label string:</p>
+<pre>stop.label = "Stop I (1): Mia"
+  → strip "Stop " → "I (1): Mia"
+  → strip after ":" → "I (1)"
+  → compare to myStopPm = "I"
+  → "I" ≠ "I (1)" → NOT detected as My Stop ✗</pre>
+<p>The web page uses structured fields (<code>stop.letter === "I"</code>) so it displayed correctly on-screen. Only the native service got it wrong.</p>
+<p>The <strong>Bus app already has this fix</strong> (strips the <code>(N)</code> suffix). St Cecilia is missing it in both Android and iOS.</p>
+
+<h3>Fix</h3>
+<table>
+<tr><th>File</th><th>Change</th><th>New version</th></tr>
+<tr><td><code>stcecilia-android/.../TrackingService.java</code></td><td>Add 2 lines: strip <code>(N)</code> from label before comparing (copy from Bus)</td><td>Android v43</td></tr>
+<tr><td><code>stcecilia-ios/.../LocationTracker.swift</code></td><td>Add 1 line: strip <code>(N)</code> from label (copy from Bus)</td><td>iOS v21</td></tr>
+</table>
+<div class="note"><strong>Bus app:</strong> Already fixed — no changes needed for Bug 1.</div>
+
+<h2>Feature 2: Auto-Stop Ride on "Got Off" (PM only)</h2>
+
+<h3>What Domi asked</h3>
+<p>When My Stop is reached on PM ("got off"), that phone's journey is done → stop tracking automatically.</p>
+
+<h3>Why PM only</h3>
+<p>On AM, "waiting at" means the kid is at the stop about to board — the journey continues. Stopping there would kill tracking before the bus arrives. On PM, "got off" means the kid left the bus — journey over.</p>
+
+<h3>Implementation</h3>
+<table>
+<tr><th>Layer</th><th>Change</th><th>Applies to</th></tr>
+<tr><td>Web app</td><td>In <code>triggerArrival()</code>, after sending "got off" ntfy → call <code>stopTracking()</code> (this also stops the native service via <code>NativeBridge.stopRide()</code>)</td><td>Bus + StC</td></tr>
+<tr><td>Android native</td><td>In <code>onArrival()</code>, after sending "got off" ntfy → stop the foreground service</td><td>Bus + StC</td></tr>
+<tr><td>iOS native</td><td>In <code>LocationTracker</code>, after sending "got off" ntfy → stop location updates</td><td>Bus + StC</td></tr>
+</table>
+
+<h3>Edge cases</h3>
+<table>
+<tr><th>Scenario</th><th>Behavior</th></tr>
+<tr><td>My Stop is mid-route (not final)</td><td>Stops tracking for this phone; bus continues for others. Correct — this phone's rider got off.</td></tr>
+<tr><td>User taps Test button on My Stop</td><td>Would also auto-stop. Acceptable for test fidelity.</td></tr>
+<tr><td>User wants to continue after getting off</td><td>Tap Start to resume tracking manually.</td></tr>
+<tr><td>AM "waiting at"</td><td>No auto-stop (journey continues).</td></tr>
+<tr><td>My Stop = "auto" (not set)</td><td>No change — normal arrival flow.</td></tr>
+</table>
+
+<h2>Does Bus App Need This?</h2>
+<p><strong>Bug 1:</strong> No — Bus native already strips <code>(N)</code>.<br>
+<strong>Feature 2:</strong> Yes — Bus has the same "got off" PM flow. For consistency, both apps should auto-stop.</p>
+
+<h2>Version Bumps</h2>
+<table>
+<tr><th>App</th><th>Web</th><th>Android</th><th>iPhone</th></tr>
+<tr><td>Bus</td><td>v6.9 → <strong>v7.0</strong></td><td>v49 → <strong>v50</strong></td><td>v21 → <strong>v22</strong></td></tr>
+<tr><td>St Cecilia</td><td>v5.8 → <strong>v5.9</strong></td><td>v42 → <strong>v43</strong></td><td>v20 → <strong>v21</strong></td></tr>
+</table>
+
+<h2>Testing</h2>
+<ol>
+<li>Set My Stop, start PM ride</li>
+<li>Reach My Stop → verify ntfy: <code>📱 [X##] got off at Stop I (1): Mia.</code></li>
+<li>Verify tracking stopped (GPS button red, "Tracking paused")</li>
+<li>Verify no duplicate ntfy from native service</li>
+<li>Repeat on AM → verify "waiting at" does NOT stop tracking</li>
+</ol>
+
+<div class="note"><strong>To approve:</strong> Reply "go" and I'll implement.</div>
+
+</body></html>
