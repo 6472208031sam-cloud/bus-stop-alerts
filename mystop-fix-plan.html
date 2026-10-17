@@ -52,15 +52,16 @@ pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; ov
 <h3>Implementation</h3>
 <table>
 <tr><th>Layer</th><th>Change</th><th>Applies to</th></tr>
-<tr><td>Web app</td><td>In <code>triggerArrival()</code>, after sending "got off" ntfy → call <code>stopTracking()</code> (this also stops the native service via <code>NativeBridge.stopRide()</code>)</td><td>Bus + StC</td></tr>
-<tr><td>Android native</td><td>In <code>onArrival()</code>, after sending "got off" ntfy → stop the foreground service</td><td>Bus + StC</td></tr>
-<tr><td>iOS native</td><td>In <code>LocationTracker</code>, after sending "got off" ntfy → stop location updates</td><td>Bus + StC</td></tr>
+<tr><td>Web app</td><td>In <code>triggerArrival()</code>, after sending "got off" ntfy → send <code>📱 [X##] off bus. Tracking stopped.</code> → call <code>stopTracking()</code> (this also stops the native service via <code>NativeBridge.stopRide()</code>)</td><td>Bus + StC</td></tr>
+<tr><td>Android native</td><td>In <code>onArrival()</code>, after sending "got off" ntfy → send <code>📱 [X##] off bus. Tracking stopped.</code> → stop the foreground service</td><td>Bus + StC</td></tr>
+<tr><td>iOS native</td><td>In <code>LocationTracker</code>, after sending "got off" ntfy → send <code>📱 [X##] off bus. Tracking stopped.</code> → stop location updates</td><td>Bus + StC</td></tr>
 </table>
 
 <h3>Edge cases</h3>
 <table>
 <tr><th>Scenario</th><th>Behavior</th></tr>
 <tr><td>My Stop is mid-route (not final)</td><td>Stops tracking for this phone; bus continues for others. Correct — this phone's rider got off.</td></tr>
+<tr><td><strong>Only phone on bus gets off early</strong></td><td><strong>Critical:</strong> follower must know tracking ended. After "got off" ntfy, send <code>📱 [X##] off bus. Tracking stopped.</code> so the follower doesn't just go silent.</td></tr>
 <tr><td>User taps Test button on My Stop</td><td>Would also auto-stop. Acceptable for test fidelity.</td></tr>
 <tr><td>User wants to continue after getting off</td><td>Tap Start to resume tracking manually.</td></tr>
 <tr><td>AM "waiting at"</td><td>No auto-stop (journey continues).</td></tr>
@@ -83,6 +84,7 @@ pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; ov
 <li>Set My Stop, start PM ride</li>
 <li>Reach My Stop → verify ntfy: <code>📱 [X##] got off at Stop I (1): Mia.</code></li>
 <li>Verify tracking stopped (GPS button red, "Tracking paused")</li>
+<li>Verify second ntfy received: <code>📱 [X##] off bus. Tracking stopped.</code></li>
 <li>Verify no duplicate ntfy from native service</li>
 <li>Repeat on AM → verify "waiting at" does NOT stop tracking</li>
 </ol>
