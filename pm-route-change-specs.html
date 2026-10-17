@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PM Route Change — Specs for Approval</title>
+<style>
+body { font-family: sans-serif; max-width: 850px; margin: 20px auto; padding: 0 15px; line-height: 1.6; }
+h1 { border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }
+h2 { color: #2e7d32; margin-top: 30px; }
+table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+th { background: #e8f5e9; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; }
+.status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; background: #fff3e0; color: #e65100; }
+.note { background: #e3f2fd; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
+.ok { color: #2e7d32; font-weight: bold; }
+</style></head><body>
+
+<h1>PM Route Change — Specs <span class="status">AWAITING APPROVAL</span></h1>
+<p><em>Prepared 2026-10-17 for Domi's review. No changes made to the app.</em></p>
+
+<h2>1. Summary</h2>
+<p>Replace the PM route's <strong>F → H segment</strong> (28 points) with the <strong>AM route's 1 → 3 geometry</strong> (30 points). These are the same physical stops — PM F = AM 1 (William Cutmore), PM H = AM 3 (Meadowridge).</p>
+
+<h2>2. What Changes</h2>
+<table>
+<tr><th>Item</th><th>Before</th><th>After</th></tr>
+<tr><td>PM route points</td><td>394</td><td>395</td></tr>
+<tr><td>F → H segment</td><td>28 pts (PM geometry)</td><td>30 pts (AM 1→3 geometry)</td></tr>
+<tr><td>Max deviation old vs new</td><td colspan="2">14m (same street: Ford Strathy Cres)</td></tr>
+<tr><td>App version</td><td>6.6</td><td>6.7</td></tr>
+</table>
+
+<h2>3. What Stays the Same</h2>
+<ul>
+<li><span class="ok">✓</span> All 16 PM stop coordinates — untouched</li>
+<li><span class="ok">✓</span> All 16 PM stop labels, names, radii — untouched</li>
+<li><span class="ok">✓</span> AM route (428 pts) — untouched</li>
+<li><span class="ok">✓</span> All other PM segments (S→F, H→L) — untouched</li>
+<li><span class="ok">✓</span> My Stop, follower, ntfy, native bridge logic — untouched</li>
+<li><span class="ok">✓</span> No APK/IPA rebuild needed (web-only)</li>
+</ul>
+
+<h2>4. Why This Change</h2>
+<p>PM F→H and AM 1→3 cover the same road (Ford Strathy Cres) but were drawn from different sources, causing a up-to-14m visual mismatch on the map. Aligning them to a single geometry keeps both routes consistent.</p>
+
+<h2>5. Files Changed</h2>
+<table>
+<tr><th>File</th><th>Change</th></tr>
+<tr><td><code>index.html</code></td><td><code>PM_ROUTE_PATH</code>: swap 28-pt F→H segment for 30-pt AM 1→3 segment; bump <code>APP_VERSION</code> 6.6 → 6.7</td></tr>
+<tr><td><code>home.html</code></td><td>Bus badge v6.6 → v6.7</td></tr>
+</table>
+
+<h2>6. Verification Steps (After Implementation)</h2>
+<ol>
+<li><code>node --check</code> on inline script — must pass</li>
+<li>Confirm live page serves <code>APP_VERSION = '6.7'</code></li>
+<li>Confirm PM route has 395 points, starts at S, ends at L</li>
+<li>Visual check: PM map shows smooth F→H line on Ford Strathy Cres</li>
+<li>Stops F, G, H pins in correct positions</li>
+</ol>
+
+<h2>7. Rollback</h2>
+<p>Single <code>git revert</code> restores the 394-pt route and version 6.6. No data loss — stops and settings are separate.</p>
+
+<h2>8. Previews</h2>
+<ul>
+<li><a href="fh-comparison.html">F→H comparison map</a> (blue = current, red dashed = proposed)</li>
+<li><a href="pm-route-full-proposed.html">Full PM route with change applied</a> (395 pts)</li>
+</ul>
+
+<div class="note"><strong>To approve:</strong> Reply "go" and I'll implement steps 5–6 above.</div>
+
+</body></html>
