@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On-Bus Detection — Detailed Plan</title>
+<style>
+body { font-family: sans-serif; max-width: 850px; margin: 20px auto; padding: 0 15px; line-height: 1.6; }
+h1 { border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }
+h2 { color: #2e7d32; margin-top: 30px; }
+table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+th { background: #e8f5e9; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; }
+pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; overflow-x: auto; }
+.status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; }
+.pending { background: #fff3e0; color: #e65100; }
+.note { background: #e3f2fd; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
+</style></head><body>
+
+<h1>On-Bus Detection — Detailed Plan <span class="status pending">AWAITING APPROVAL</span></h1>
+
+<h2>1. Goal</h2>
+<p>Detect when a waiting rider's phone transitions to "on the bus and moving toward the next stop" on the <strong>AM route only</strong>, and notify followers via ntfy.</p>
+<div class="note"><strong>Why AM only:</strong> AM is pickup (waiting → boarding). PM is drop-off — the "got off" message already covers it.</div>
+
+<h2>2. Checkpoint Data</h2>
+<p>12 invisible checkpoints, one 150m along the route after each AM stop (except the final stop 13).</p>
+<table>
+<tr><th>#</th><th>After Stop</th><th>Heading To</th><th>Distance</th><th>Purpose</th></tr>
+<tr><td>1</td><td>Stop 1</td><td>Stop 2</td><td>~150m</td><td>Detect boarding at Stop 1</td></tr>
+<tr><td>2</td><td>Stop 2</td><td>Stop 3</td><td>~150m</td><td>Detect boarding at Stop 2</td></tr>
+<tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+<tr><td>12</td><td>Stop 12</td><td>Stop 13</td><td>~150m</td><td>Detect boarding at Stop 12</td></tr>
+</table>
+<p>Coordinates calculated once from AM route geometry (428 points). Stored as a static <code>AM_CHECKPOINTS</code> array in <code>index.html</code>. Never displayed as stops.</p>
+
+<h2>3. Detection Logic</h2>
+<p>Runs inside <code>onPosition()</code> on every GPS fix, after the existing arrival check:</p>
+<pre>
+var cps = AM_CHECKPOINTS;  // AM only
+for (var i = 0; i &lt; cps.length; i++) {
+  var cp = cps[i];
+  var afterStop = stops[cp.after_idx];
+
+  // Gate 1: the "after" stop must already be reached
+  // Gate 2: haven't fired for this stop yet
+  if (afterStop &amp;&amp; afterStop.reached &amp;&amp; !onBusState[cp.after_idx]) {
+
+    var d = distanceMeters(lat, lng, cp.lat, cp.lng);
+
+    // Gate 3: within 50m of checkpoint
+    // Gate 4: GPS accuracy ≤ 100m (no drift false-positives)
+    if (d &lt;= 50 &amp;&amp; accuracy &lt;= 100) {
+      onBusState[cp.after_idx] = true;
+
+      var next = stops[cp.after_idx + 1];
+      var msg = "📱 " + deviceId +
+        " on bus, heading to Stop " + next.number +
+        ": " + next.name + ".";
+      sendNtfy(msg);
+      logEvent('STOP', 'On-bus: ' + msg);
+    }
+  }
+}
+</pre>
+
+<h2>4. State Management</h2>
+<table>
+<tr><th>Event</th><th>Action</th></tr>
+<tr><td>Ride starts (<code>startRide</code>)</td><td><code>onBusState = {}</code> — all checkpoints re-armed</td></tr>
+<tr><td>Reset progress</td><td><code>onBusState = {}</code> — all checkpoints re-armed</td></tr>
+<tr><td>Checkpoint crossed</td><td><code>onBusState[idx] = true</code> — fires once per stop</td></tr>
+<tr><td>Mode switch (AM↔PM)</td><td>Checkpoints only apply in AM mode; PM ignores them</td></tr>
+</table>
+
+<h2>5. ntfy Message Format</h2>
+<p><code>📱 [A82] on bus, heading to Stop 6: Crimson Oak.</code></p>
+<p>Follows existing device-ID convention. Follower already parses <code>📱 [X##]</code> prefix — no follower changes needed for basic display.</p>
+
+<h2>6. Edge Cases</h2>
+<table>
+<tr><th>Scenario</th><th>Behavior</th></tr>
+<tr><td>User doesn't board</td><td>Phone never crosses checkpoint → no false "on bus"</td></tr>
+<tr><td>Bus skips the stop</td><td>Stop never marked reached → checkpoint never checked</td></tr>
+<tr><td>GPS drift at stop</td><td>150m distance + 100m accuracy gate prevents false trigger</td></tr>
+<tr><td>User walks 150m along route</td><td>Would trigger — acceptable (they're heading the right way)</td></tr>
+<tr><td>Mid-route ride start</td><td>Snap-forward marks earlier stops reached; checkpoints for those stops are skipped (already past them)</td></tr>
+<tr><td>Test button tapped</td><td>Simulates arrival but phone doesn't move → checkpoint won't fire (correct)</td></tr>
+</table>
+
+<h2>7. Implementation Steps</h2>
+<ol>
+<li>Calculate 12 AM checkpoint coordinates from route geometry (150m after each stop)</li>
+<li>Add <code>AM_CHECKPOINTS</code> array to <code>index.html</code> (after <code>AM_ROUTE_PATH</code>)</li>
+<li>Add <code>onBusState = {}</code> initialization</li>
+<li>Add detection loop in <code>onPosition()</code> after arrival check</li>
+<li>Add reset in <code>startRide()</code> and <code>resetProgress()</code></li>
+<li>Run <code>node --check</code></li>
+<li>Bump version 6.6 → 6.7, update home page badge</li>
+<li>Push, verify live</li>
+</ol>
+
+<h2>8. Testing</h2>
+<ol>
+<li>Start AM ride, tap stop to simulate arrival</li>
+<li>Walk/drive 150m past the stop along the route</li>
+<li>Verify ntfy fires once: <code>📱 [X##] on bus, heading to Stop N.</code></li>
+<li>Verify it doesn't fire twice for the same stop</li>
+<li>Verify no fire when staying at the stop</li>
+</ol>
+
+<h2>9. Out of Scope</h2>
+<ul>
+<li>PM route (drop-offs don't need this)</li>
+<li>Map display of checkpoints (invisible by design)</li>
+<li>Follower UI changes (message displays with existing 📱 parsing)</li>
+<li>Native (Android/iOS) changes — web-only, WebView inherits it</li>
+</ul>
+
+</body></html>
