@@ -853,7 +853,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '7.0';
+      var APP_VERSION = '7.1';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1086,11 +1086,14 @@
             d = distanceMeters(lat, lng, stops[i].lat, stops[i].lng);
             if (d < bestDist) { bestDist = d; best = i; }
           }
-          // Safeguard: never snap more than 3 stops ahead on startup.
-          // On compact routes a cold-GPS fix can appear "nearest" to a far stop.
+          // Safeguard: never snap more than 3 stops ahead on startup,
+          // UNLESS the fix is high-accuracy (<=30m). A precise GPS fix near a
+          // far stop is trustworthy (user boarding mid-route); a coarse fix
+          // jumping far is almost certainly a cold-GPS glitch.
           var maxSkip = 3;
-          if (best > idx && (best - idx) > maxSkip) {
-            best = -1;
+          var highAccuracy = accuracy <= 30;
+          if (!highAccuracy && best > idx && (best - idx) > maxSkip) {
+            best = -1; // too far ahead on a coarse fix, don't snap
           }
           if (best > idx && bestDist <= getSnapDistance()) {
             for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
