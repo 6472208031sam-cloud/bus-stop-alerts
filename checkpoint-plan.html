@@ -20,7 +20,7 @@ pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; ov
 <p><em>Updated 2026-10-17 (v3): Revised for stable-2026-10-17-final (Bus web v7.4). 3-point sequential checkpoints, AM only, 150m total.</em></p>
 
 <h2>1. Goal</h2>
-<p>Detect when a waiting rider's phone transitions to "on the bus and moving toward the next stop" on the <strong>AM route only</strong>, and notify followers via ntfy.</p>
+<p>Detect when a waiting rider's phone transitions to "on the bus and moving toward the next stop" on the <strong>AM route only</strong> (Bus and St Cecilia), and notify followers via ntfy.</p>
 <div class="note"><strong>Why AM only:</strong> AM is pickup (waiting → boarding). PM is drop-off — the "got off" message already covers it.</div>
 
 <h2>2. Checkpoint Design (v2)</h2>
@@ -31,7 +31,9 @@ pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; ov
 <tr><td>B</td><td>100m</td><td>Sustained movement in route direction</td></tr>
 <tr><td>C</td><td>150m</td><td>Confirmed — fires "on bus"</td></tr>
 </table>
-<p>12 AM stops (excluding final) × 3 = <strong>36 sub-checkpoints</strong>, stored as static data.</p>
+<p><strong>Bus:</strong> 12 AM stops (excluding final) × 3 = <strong>36 sub-checkpoints</strong>.<br>
+<strong>St Cecilia:</strong> 8 AM stops (excluding final) × 3 = <strong>24 sub-checkpoints</strong>.<br>
+Total: <strong>60 sub-checkpoints</strong>, stored as static data per app.</p>
 <div class="note"><strong>Why sequential, not single:</strong> GPS drift is random jitter — it cannot walk 50m → 100m → 150m in the route direction. A bus does exactly that. Strict ordering eliminates drift false-positives entirely.</div>
 <div class="warn"><strong>Why 150m (not 100m):</strong> Buses sometimes pull forward 20-30m within the stop zone. 50m spacing keeps the first checkpoint clear of any stop maneuver. Detection is ~6-9 seconds slower than 100m, which is negligible for followers.</div>
 
@@ -117,28 +119,31 @@ for (var i = 0; i &lt; cps.length; i++) {
 
 <h2>9. Implementation Steps</h2>
 <ol>
-<li>Calculate 36 AM sub-checkpoint coordinates (50/100/150m after each of 12 stops)</li>
-<li>Add <code>AM_CHECKPOINTS</code> array to <code>index.html</code></li>
-<li>Add <code>checkpointProgress = {}</code> initialization</li>
-<li>Add detection loop in <code>onPosition()</code> after arrival check (AM mode only)</li>
-<li>Add reset in <code>startRide()</code> and <code>resetProgress()</code></li>
-<li><code>node --check</code></li>
-<li>Bump version (Bus web v7.4 → v7.5), update home page badge</li>
+<li>Calculate 36 Bus AM sub-checkpoint coordinates (50/100/150m after each of 12 stops)</li>
+<li>Calculate 24 St Cecilia AM sub-checkpoint coordinates (50/100/150m after each of 8 stops)</li>
+<li>Add <code>AM_CHECKPOINTS</code> array to <code>index.html</code> (Bus) and <code>st-cecilia.html</code></li>
+<li>Add <code>checkpointProgress = {}</code> initialization (both)</li>
+<li>Add detection loop in <code>onPosition()</code> after arrival check (AM mode only, both)</li>
+<li>Add reset in <code>startRide()</code> and <code>resetProgress()</code> (both)</li>
+<li>Add "on bus" message parser to both follower pages (Bus v4.6, StC v3.8)</li>
+<li><code>node --check</code> (both)</li>
+<li>Bump versions (Bus web v7.4 → v7.5, StC web v6.3 → v6.4), update home page badges</li>
 <li>Push, verify live</li>
 </ol>
 
 <h2>10. Testing</h2>
 <ol>
-<li>Go to AM Stop 5 (43.49640, -79.71870)</li>
+<li><strong>Bus:</strong> Go to AM Stop 5 (43.49640, -79.71870). <strong>St Cecilia:</strong> Go to AM Stop 5 (Natalia)</li>
 <li>Start ride, let GPS trigger arrival (or tap Test)</li>
 <li>Walk/drive along route past 50m, 100m, 150m points</li>
 <li>Verify ntfy fires once after 150m point: <code>📱 [X##] on bus, heading to Stop 6.</code></li>
 <li>Verify no fire when staying at stop</li>
 <li>Verify no double-fire</li>
+<li>Repeat for the other app</li>
 </ol>
 
-<h2>11. Scope Question (for Domi)</h2>
-<div class="warn"><strong>Bus only, or St Cecilia too?</strong> This plan targets Bus <code>index.html</code> AM route. St Cecilia AM has the same "waiting → boarding" pattern. Apply to both apps, or Bus only?</div>
+<h2>11. Scope (confirmed by Domi 2026-10-17)</h2>
+<div class="note"><strong>Both apps.</strong> Bus AM (<code>index.html</code>) and St Cecilia AM (<code>st-cecilia.html</code>) — both have the same "waiting → boarding" pattern.</div>
 
 <h2>12. Out of Scope</h2>
 <ul>
