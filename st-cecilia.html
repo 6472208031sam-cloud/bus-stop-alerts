@@ -882,7 +882,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '6.9';
+      var APP_VERSION = '7.0';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1675,9 +1675,9 @@ var AM_CHECKPOINTS = [
         if (status.onBus) {
           try { logEvent('SYS', 'nativeSync: onBus=' + status.onBus); } catch (e) {}
           try { showOnBusPill(status.onBus); } catch (e) {}
-        } else {
-          try { hideOnBusPill(); } catch (e) {}
         }
+        // Note: do NOT hide pill here - only triggerArrival (on dest arrival) or stopTracking hides it.
+        // Hiding on every sync without onBus would kill the pill immediately.
         if (status.next >= 0 && status.next < stops.length) {
           $('nextStopDisplay').textContent = stopLabelNumbered(stops[status.next]);
         }
