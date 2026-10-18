@@ -102,7 +102,17 @@ for (var i = 0; i &lt; cps.length; i++) {
 <p>Existing <code>📱 [X##]</code> prefix.</p>
 <div class="warn"><strong>Follower parser required (new):</strong> The follower does NOT currently parse "on bus" messages — it would show as "Unrecognized message." Must add a regex pattern for <code>📱 [X##] on bus, heading to Stop N: Name.</code> to both follower pages (Bus and St Cecilia) before this ships. See v4.5 "off bus. Tracking stopped." parser as template.</div>
 
-<h2>7. Edge Cases</h2>
+<h2>7. Follower Behavior on "On Bus"</h2>
+<p>When the follower receives <code>📱 [X##] on bus, heading to Stop N: Name</code>:</p>
+<ol>
+<li><strong>Parse it</strong> — new regex pattern (see §6 warning). Extract device ID and target stop.</li>
+<li><strong>Clear the waiting banner</strong> for that device — they boarded, so the "Waiting for bus at Stop X" pill must go away. Otherwise it sits stale on the map.</li>
+<li><strong>Log it</strong> in the event log like other messages.</li>
+<li><strong>Do NOT move the bus marker</strong> — the marker position comes from "at Stop X" arrival messages. The on-bus message is informational only.</li>
+</ol>
+<div class="note"><strong>Why not move the marker:</strong> "Heading to Stop 6" tells us direction, not position. The next "at Stop 6" arrival will place the marker accurately. Moving it speculatively would be wrong.</div>
+
+<h2>8. Edge Cases</h2>
 <table>
 <tr><th>Scenario</th><th>Behavior</th></tr>
 <tr><td>User doesn't board</td><td>Phone never leaves stop → no triggers</td></tr>
@@ -114,10 +124,10 @@ for (var i = 0; i &lt; cps.length; i++) {
 <tr><td>Mid-route start</td><td>Earlier stops snap-reached (including high-accuracy bypass to any stop); their checkpoints are behind → never trigger (correct)</td></tr>
 </table>
 
-<h2>8. Tuning Option (Post-Launch)</h2>
+<h2>9. Tuning Option (Post-Launch)</h2>
 <p>Start with <strong>strict 3-of-3</strong>. If real-world tests show misses (e.g., GPS gap skips the 50m point), relax to <strong>2-of-3</strong> (allow skipping one). This is a one-line change.</p>
 
-<h2>9. Implementation Steps</h2>
+<h2>10. Implementation Steps</h2>
 <ol>
 <li>Calculate 36 Bus AM sub-checkpoint coordinates (50/100/150m after each of 12 stops)</li>
 <li>Calculate 24 St Cecilia AM sub-checkpoint coordinates (50/100/150m after each of 8 stops)</li>
@@ -131,7 +141,7 @@ for (var i = 0; i &lt; cps.length; i++) {
 <li>Push, verify live</li>
 </ol>
 
-<h2>10. Testing</h2>
+<h2>11. Testing</h2>
 <ol>
 <li><strong>Bus:</strong> Go to AM Stop 5 (43.49640, -79.71870). <strong>St Cecilia:</strong> Go to AM Stop 5 (Natalia)</li>
 <li>Start ride, let GPS trigger arrival (or tap Test)</li>
@@ -142,10 +152,10 @@ for (var i = 0; i &lt; cps.length; i++) {
 <li>Repeat for the other app</li>
 </ol>
 
-<h2>11. Scope (confirmed by Domi 2026-10-17)</h2>
+<h2>12. Scope (confirmed by Domi 2026-10-17)</h2>
 <div class="note"><strong>Both apps.</strong> Bus AM (<code>index.html</code>) and St Cecilia AM (<code>st-cecilia.html</code>) — both have the same "waiting → boarding" pattern.</div>
 
-<h2>12. Out of Scope</h2>
+<h2>13. Out of Scope</h2>
 <ul>
 <li>PM route</li>
 <li>Map display of checkpoints (invisible by design)</li>
