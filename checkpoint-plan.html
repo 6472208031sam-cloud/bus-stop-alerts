@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>On-Bus Detection — Detailed Plan v2</title>
+<title>On-Bus Detection — Detailed Plan v3</title>
 <style>
 body { font-family: sans-serif; max-width: 850px; margin: 20px auto; padding: 0 15px; line-height: 1.6; }
 h1 { border-bottom: 2px solid #2e7d32; padding-bottom: 10px; }
@@ -16,7 +16,7 @@ pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; ov
 .warn { background: #fff8e1; padding: 12px 15px; border-radius: 8px; margin: 15px 0; }
 </style></head><body>
 
-<h1>On-Bus Detection — Detailed Plan v2 <span class="status pending">AWAITING APPROVAL</span></h1>
+<h1>On-Bus Detection — Detailed Plan v3 <span class="status pending">AWAITING APPROVAL</span></h1>
 <p><em>Updated 2026-10-17 (v3): Revised for stable-2026-10-17-final (Bus web v7.4). 3-point sequential checkpoints, AM only, 150m total.</em></p>
 
 <h2>1. Goal</h2>
@@ -42,7 +42,7 @@ Total: <strong>60 sub-checkpoints</strong>, stored as static data per app.</p>
 // Per-stop progress: 0 = waiting, 1 = hit 50m, 2 = hit 100m, 3 = ON BUS
 var checkpointProgress = {};  // stopIdx → 0..3
 
-var cps = AM_CHECKPOINTS;  // AM only, 36 entries
+var cps = AM_CHECKPOINTS;  // AM only (Bus: 36, StC: 24)
 for (var i = 0; i &lt; cps.length; i++) {
   var cp = cps[i];           // { stop_idx, seq: 0|1|2, lat, lng }
   var stop = stops[cp.stop_idx];
@@ -63,7 +63,7 @@ for (var i = 0; i &lt; cps.length; i++) {
       if (cp.seq === 2) {
         var next = stops[cp.stop_idx + 1];
         var msg = "📱 " + deviceId + " on bus, heading to Stop " +
-                  next.number + ": " + next.name + ".";
+                  next.number + ": " + next.name + ".";  // e.g. "📱 [A82] on bus, heading to Stop 6: ON WHEAT BOOM DR..."
         sendNtfy(msg);
         logEvent('STOP', 'On-bus: ' + msg);
       }
@@ -98,7 +98,7 @@ for (var i = 0; i &lt; cps.length; i++) {
 </table>
 
 <h2>6. ntfy Message</h2>
-<p><code>📱 [A82] on bus, heading to Stop 6: Crimson Oak.</code></p>
+<p><code>📱 [A82] on bus, heading to Stop 6: ON WHEAT BOOM DR - OPPOSITE 434 WHEAT BOOM DR AT PARK.</code></p>
 <p>Existing <code>📱 [X##]</code> prefix.</p>
 <div class="warn"><strong>Follower parser required (new):</strong> The follower does NOT currently parse "on bus" messages — it would show as "Unrecognized message." Must add a regex pattern for <code>📱 [X##] on bus, heading to Stop N: Name.</code> to both follower pages (Bus and St Cecilia) before this ships. See v4.5 "off bus. Tracking stopped." parser as template.</div>
 
@@ -159,7 +159,7 @@ for (var i = 0; i &lt; cps.length; i++) {
 <li><strong>Bus:</strong> Go to AM Stop 5 (43.49640, -79.71870). <strong>St Cecilia:</strong> Go to AM Stop 5 (Natalia)</li>
 <li>Start ride, let GPS trigger arrival (or tap Test)</li>
 <li>Walk/drive along route past 50m, 100m, 150m points</li>
-<li>Verify ntfy fires once after 150m point: <code>📱 [X##] on bus, heading to Stop 6.</code></li>
+<li>Verify ntfy fires once after 150m point: <code>📱 [X##] on bus, heading to Stop 6: ON WHEAT BOOM DR...</code></li>
 <li>Verify no fire when staying at stop</li>
 <li>Verify no double-fire</li>
 <li>Repeat for the other app</li>
@@ -172,7 +172,6 @@ for (var i = 0; i &lt; cps.length; i++) {
 <ul>
 <li>PM route</li>
 <li>Map display of checkpoints (invisible by design)</li>
-<li>Follower UI changes</li>
 <li>Native service changes — web JS only (works in WebView when app is open; native background service does not run this logic)</li>
 </ul>
 
