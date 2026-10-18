@@ -127,7 +127,19 @@ for (var i = 0; i &lt; cps.length; i++) {
 <h2>9. Tuning Option (Post-Launch)</h2>
 <p>Start with <strong>strict 3-of-3</strong>. If real-world tests show misses (e.g., GPS gap skips the 50m point), relax to <strong>2-of-3</strong> (allow skipping one). This is a one-line change.</p>
 
-<h2>10. Implementation Steps</h2>
+<h2>10. "Bus Detection" Settings Section (GUI)</h2>
+<p>A new collapsible settings section called <strong>Bus Detection</strong> with sliders for tuning. All values have sensible defaults — most users never touch these.</p>
+<table>
+<tr><th>Slider</th><th>Range</th><th>Default</th><th>What it does</th></tr>
+<tr><td>Checkpoint 1 distance</td><td>20 – 100m</td><td>50m</td><td>How far past the stop the first checkpoint sits</td></tr>
+<tr><td>Checkpoint 2 distance</td><td>50 – 200m</td><td>100m</td><td>Second checkpoint distance</td></tr>
+<tr><td>Checkpoint 3 distance</td><td>100 – 300m</td><td>150m</td><td>Third checkpoint — fires "on bus" when crossed</td></tr>
+<tr><td>Checkpoint radius</td><td>20 – 100m</td><td>50m</td><td>Detection zone around each checkpoint (must be ≥ half the spacing to avoid gaps)</td></tr>
+</table>
+<div class="warn"><strong>Constraint:</strong> Checkpoint radius must be ≥ half the distance between checkpoints. If the user sets radius smaller than the gap, show a warning: "Radius too small — checkpoints may be missed."</div>
+<p>Values persist in <code>localStorage</code> per app. Changing them recalculates checkpoint coordinates on next ride start.</p>
+
+<h2>11. Implementation Steps</h2>
 <ol>
 <li>Calculate 36 Bus AM sub-checkpoint coordinates (50/100/150m after each of 12 stops)</li>
 <li>Calculate 24 St Cecilia AM sub-checkpoint coordinates (50/100/150m after each of 8 stops)</li>
@@ -137,11 +149,12 @@ for (var i = 0; i &lt; cps.length; i++) {
 <li>Add reset in <code>startRide()</code> and <code>resetProgress()</code> (both)</li>
 <li>Add "on bus" message parser to both follower pages (Bus v4.6, StC v3.8)</li>
 <li><code>node --check</code> (both)</li>
+<li>Add "Bus Detection" settings section with 4 sliders (both apps)</li>
 <li>Bump versions (Bus web v7.4 → v7.5, StC web v6.3 → v6.4), update home page badges</li>
 <li>Push, verify live</li>
 </ol>
 
-<h2>11. Testing</h2>
+<h2>12. Testing</h2>
 <ol>
 <li><strong>Bus:</strong> Go to AM Stop 5 (43.49640, -79.71870). <strong>St Cecilia:</strong> Go to AM Stop 5 (Natalia)</li>
 <li>Start ride, let GPS trigger arrival (or tap Test)</li>
@@ -152,10 +165,10 @@ for (var i = 0; i &lt; cps.length; i++) {
 <li>Repeat for the other app</li>
 </ol>
 
-<h2>12. Scope (confirmed by Domi 2026-10-17)</h2>
+<h2>13. Scope (confirmed by Domi 2026-10-17)</h2>
 <div class="note"><strong>Both apps.</strong> Bus AM (<code>index.html</code>) and St Cecilia AM (<code>st-cecilia.html</code>) — both have the same "waiting → boarding" pattern.</div>
 
-<h2>13. Out of Scope</h2>
+<h2>14. Out of Scope</h2>
 <ul>
 <li>PM route</li>
 <li>Map display of checkpoints (invisible by design)</li>
