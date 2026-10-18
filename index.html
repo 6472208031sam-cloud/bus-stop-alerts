@@ -165,6 +165,14 @@
     .back-row[hidden] { display: none; }
     .back-row .sub { margin: 0; }
     .map-wrap { margin: 2px 0 18px; }
+    .onbus-pill {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 1000; background: #0b6e4f; color: #fff; font-weight: bold;
+      font-size: 13px; padding: 8px 16px; border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3); white-space: nowrap;
+      pointer-events: none;
+    }
+    .map-wrap { position: relative; }
     #routeMap { height: 300px; border-radius: 14px; border: 1px solid var(--line); z-index: 0; background: var(--surface-2); }
     .stop-pin { width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 2px solid var(--green); color: var(--green-strong); display: grid; place-items: center; font-family: "Archivo", sans-serif; font-weight: 800; font-size: .82rem; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
     .stop-pin.done { background: var(--green); border-color: var(--green); color: #fff; }
@@ -433,6 +441,7 @@
           </div>
           <div class="map-wrap">
             <div id="routeMap" aria-label="Route map"></div>
+            <div id="onBusPill" class="onbus-pill" hidden></div>
           </div>
           <div class="action-row">
             <button class="btn primary" type="button" id="startBtn">Start ride</button>
@@ -864,13 +873,23 @@
         ensureMap();
       }
 
+      function showOnBusPill(stopLabel) {
+        var pill = $('onBusPill');
+        if (!pill) return;
+        pill.textContent = '\uD83D\uDCF1 On bus \u2014 heading to ' + stopLabel;
+        pill.hidden = false;
+      }
+      function hideOnBusPill() {
+        var pill = $('onBusPill');
+        if (pill) pill.hidden = true;
+      }
       function showToast(message) {
         $('toast').textContent = message;
         $('toast').classList.add('show');
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '7.9';
+      var APP_VERSION = '8.0';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1179,6 +1198,7 @@
                   fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
                 } catch (e) {}
                 logEvent('STOP', 'On-bus: ' + msg);
+                try { showOnBusPill('Stop ' + next.number + ': ' + next.name); } catch (e) {}
               }
             }
           }
@@ -1540,6 +1560,11 @@ var AM_CHECKPOINTS = [
           if (!stops[i].reached) { allDone = false; break; }
         }
         if (allDone) { finishRoute(); return; }
+        if (status.onBus) {
+          try { showOnBusPill(status.onBus); } catch (e) {}
+        } else {
+          try { hideOnBusPill(); } catch (e) {}
+        }
         if (status.next >= 0 && status.next < stops.length) {
           $('nextStopDisplay').textContent = stopLabelNumbered(stops[status.next]);
         }
@@ -1802,6 +1827,7 @@ var AM_CHECKPOINTS = [
       }
 
       function triggerArrival(stop, quiet) {
+        try { hideOnBusPill(); } catch (e) {}
         logEvent('STOP', 'Arrival triggered: ' + stopLabelNumbered(stop));
         if (!quiet) {
           playAlert();
