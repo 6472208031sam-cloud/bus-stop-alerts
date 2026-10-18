@@ -17,7 +17,7 @@ pre { background: #263238; color: #aed581; padding: 15px; border-radius: 8px; ov
 </style></head><body>
 
 <h1>On-Bus Detection — Detailed Plan v2 <span class="status pending">AWAITING APPROVAL</span></h1>
-<p><em>Updated 2026-10-17: 3-point sequential checkpoints, AM only, 150m total.</em></p>
+<p><em>Updated 2026-10-17 (v3): Revised for stable-2026-10-17-final (Bus web v7.4). 3-point sequential checkpoints, AM only, 150m total.</em></p>
 
 <h2>1. Goal</h2>
 <p>Detect when a waiting rider's phone transitions to "on the bus and moving toward the next stop" on the <strong>AM route only</strong>, and notify followers via ntfy.</p>
@@ -97,7 +97,8 @@ for (var i = 0; i &lt; cps.length; i++) {
 
 <h2>6. ntfy Message</h2>
 <p><code>📱 [A82] on bus, heading to Stop 6: Crimson Oak.</code></p>
-<p>Existing <code>📱 [X##]</code> prefix — follower displays it with no changes needed.</p>
+<p>Existing <code>📱 [X##]</code> prefix.</p>
+<div class="warn"><strong>Follower parser required (new):</strong> The follower does NOT currently parse "on bus" messages — it would show as "Unrecognized message." Must add a regex pattern for <code>📱 [X##] on bus, heading to Stop N: Name.</code> to both follower pages (Bus and St Cecilia) before this ships. See v4.5 "off bus. Tracking stopped." parser as template.</div>
 
 <h2>7. Edge Cases</h2>
 <table>
@@ -108,7 +109,7 @@ for (var i = 0; i &lt; cps.length; i++) {
 <tr><td>GPS drops mid-sequence</td><td>Progress held; resumes when signal returns. Strict mode may miss if a point is skipped during outage.</td></tr>
 <tr><td>Bus pulls forward at stop</td><td>50m first checkpoint is beyond stop-zone shuffling</td></tr>
 <tr><td>Test button</td><td>Simulates arrival only; real GPS needed for checkpoints (correct)</td></tr>
-<tr><td>Mid-route start</td><td>Earlier stops snap-reached; their checkpoints are behind → never trigger (correct)</td></tr>
+<tr><td>Mid-route start</td><td>Earlier stops snap-reached (including high-accuracy bypass to any stop); their checkpoints are behind → never trigger (correct)</td></tr>
 </table>
 
 <h2>8. Tuning Option (Post-Launch)</h2>
@@ -122,7 +123,7 @@ for (var i = 0; i &lt; cps.length; i++) {
 <li>Add detection loop in <code>onPosition()</code> after arrival check (AM mode only)</li>
 <li>Add reset in <code>startRide()</code> and <code>resetProgress()</code></li>
 <li><code>node --check</code></li>
-<li>Bump 6.6 → 6.7, update home page badge</li>
+<li>Bump version (Bus web v7.4 → v7.5), update home page badge</li>
 <li>Push, verify live</li>
 </ol>
 
@@ -136,12 +137,15 @@ for (var i = 0; i &lt; cps.length; i++) {
 <li>Verify no double-fire</li>
 </ol>
 
-<h2>11. Out of Scope</h2>
+<h2>11. Scope Question (for Domi)</h2>
+<div class="warn"><strong>Bus only, or St Cecilia too?</strong> This plan targets Bus <code>index.html</code> AM route. St Cecilia AM has the same "waiting → boarding" pattern. Apply to both apps, or Bus only?</div>
+
+<h2>12. Out of Scope</h2>
 <ul>
 <li>PM route</li>
 <li>Map display of checkpoints (invisible by design)</li>
 <li>Follower UI changes</li>
-<li>Native (Android/iOS) changes — web-only</li>
+<li>Native service changes — web JS only (works in WebView when app is open; native background service does not run this logic)</li>
 </ul>
 
 </body></html>
