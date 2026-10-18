@@ -862,7 +862,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '6.4';
+      var APP_VERSION = '6.5';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1133,22 +1133,32 @@
       }
 
       // On-bus detection: 3 sequential checkpoints per AM stop
+      var _cpLogThrottle = 0;
       function checkOnBusCheckpoints(lat, lng, accuracy) {
-        if (mode !== 'am') return;  // AM only
+        if (mode !== 'am') return;
         var cps = (typeof AM_CHECKPOINTS !== 'undefined') ? AM_CHECKPOINTS : [];
+        if (!cps.length) { logEvent('BUS-DETECT', 'No checkpoints loaded!'); return; }
         var cpRadius = 50;
         try {
           var v = localStorage.getItem('busDetectRadius');
           if (v) cpRadius = parseInt(v, 10) || 50;
         } catch (e) {}
+        var now = Date.now();
+        var shouldLog = (now - _cpLogThrottle) > 10000;
         for (var i = 0; i < cps.length; i++) {
           var cp = cps[i];
           var stop = stops[cp.stop_idx];
           if (!stop || !stop.reached) continue;
-          if ((checkpointProgress[cp.stop_idx] || 0) !== cp.seq) continue;
+          var prog = checkpointProgress[cp.stop_idx] || 0;
+          if (prog !== cp.seq) continue;
           var d = distanceMeters(lat, lng, cp.lat, cp.lng);
+          if (shouldLog) {
+            logEvent('BUS-DETECT', 'Stop ' + stop.number + ' cp' + (cp.seq+1) + '/3: ' +
+                     Math.round(d) + 'm away (need <=' + cpRadius + 'm), acc=' + accuracy + 'm');
+          }
           if (d <= cpRadius && accuracy <= 100) {
             checkpointProgress[cp.stop_idx] = cp.seq + 1;
+            logEvent('BUS-DETECT', 'Stop ' + stop.number + ' checkpoint ' + (cp.seq+1) + '/3 HIT (' + Math.round(d) + 'm)');
             if (cp.seq === 2) {
               var next = stops[cp.stop_idx + 1];
               if (next) {
@@ -1163,6 +1173,7 @@
             }
           }
         }
+        if (shouldLog) _cpLogThrottle = now;
       }
 
       // Bus Detection sliders: load saved values, wire up changes
