@@ -882,7 +882,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '7.0';
+      var APP_VERSION = '7.1';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1665,7 +1665,11 @@ var AM_CHECKPOINTS = [
         }
         renderRoute();
         for (j = 0; j < newly.length; j++) {
-          triggerArrival(stops[newly[j]], true); // quiet: native already alerted
+          // Skipped stops (snap-forward) get the grey pin via renderRoute()
+          // above — no arrival popup for stops never actually visited.
+          if (!stops[newly[j]].skipped) {
+            triggerArrival(stops[newly[j]], true); // quiet: native already alerted
+          }
         }
         var allDone = true;
         for (i = 0; i < stops.length; i++) {
