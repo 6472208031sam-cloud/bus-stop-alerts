@@ -486,6 +486,23 @@
             <button class="small-btn" type="button" id="importBtn2">Import route</button>
             <button class="small-btn" type="button" id="testAlertBtn2">Test alert sound</button>
           </div>
+          <div class="setting-group" style="margin-top:15px;">
+            <h3>Bus Detection <span style="font-weight:normal;font-size:12px;">(AM only)</span></h3>
+            <p class="sub">Detects when you've boarded the bus. Checkpoints at set distances past each stop must be crossed in order.</p>
+            <div style="margin:8px 0;">
+              <label>Checkpoint 1: <span id="cp1Val">50</span>m <input type="range" id="cp1Dist" min="20" max="100" value="50" style="width:120px;"></label>
+            </div>
+            <div style="margin:8px 0;">
+              <label>Checkpoint 2: <span id="cp2Val">100</span>m <input type="range" id="cp2Dist" min="50" max="200" value="100" style="width:120px;"></label>
+            </div>
+            <div style="margin:8px 0;">
+              <label>Checkpoint 3: <span id="cp3Val">150</span>m <input type="range" id="cp3Dist" min="100" max="300" value="150" style="width:120px;"></label>
+            </div>
+            <div style="margin:8px 0;">
+              <label>Detection radius: <span id="cpRadVal">50</span>m <input type="range" id="cpRadius" min="20" max="100" value="50" style="width:120px;"></label>
+            </div>
+            <p class="sub" id="cpWarn" style="color:#c62828;display:none;">Warning: Radius too small — checkpoints may be missed.</p>
+          </div>
         </div>
       </section>
     </section>
@@ -845,7 +862,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '6.3';
+      var APP_VERSION = '6.4';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1111,7 +1128,80 @@
           if (reachedCount() === stops.length) finishRoute();
           else $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
         }
+        // On-bus detection (AM only): check sequential checkpoints
+        checkOnBusCheckpoints(lat, lng, accuracy);
       }
+
+      // On-bus detection: 3 sequential checkpoints per AM stop
+      function checkOnBusCheckpoints(lat, lng, accuracy) {
+        if (mode !== 'am') return;  // AM only
+        var cps = (typeof AM_CHECKPOINTS !== 'undefined') ? AM_CHECKPOINTS : [];
+        var cpRadius = 50;
+        try {
+          var v = localStorage.getItem('busDetectRadius');
+          if (v) cpRadius = parseInt(v, 10) || 50;
+        } catch (e) {}
+        for (var i = 0; i < cps.length; i++) {
+          var cp = cps[i];
+          var stop = stops[cp.stop_idx];
+          if (!stop || !stop.reached) continue;
+          if ((checkpointProgress[cp.stop_idx] || 0) !== cp.seq) continue;
+          var d = distanceMeters(lat, lng, cp.lat, cp.lng);
+          if (d <= cpRadius && accuracy <= 100) {
+            checkpointProgress[cp.stop_idx] = cp.seq + 1;
+            if (cp.seq === 2) {
+              var next = stops[cp.stop_idx + 1];
+              if (next) {
+                var msg = "\uD83D\uDCF1 [" + getDeviceId() + "] on bus, heading to Stop " +
+                          next.number + ": " + next.name + ".";
+                try {
+                  logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + msg);
+                  fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
+                } catch (e) {}
+                logEvent('STOP', 'On-bus: ' + msg);
+              }
+            }
+          }
+        }
+      }
+
+      // Bus Detection sliders: load saved values, wire up changes
+      (function initBusDetectSliders() {
+        var defs = [
+          ['cp1Dist', 'cp1Val', 'busDetectCp1', 50],
+          ['cp2Dist', 'cp2Val', 'busDetectCp2', 100],
+          ['cp3Dist', 'cp3Val', 'busDetectCp3', 150],
+          ['cpRadius', 'cpRadVal', 'busDetectRadius', 50]
+        ];
+        defs.forEach(function(d) {
+          var slider = document.getElementById(d[0]);
+          var label = document.getElementById(d[1]);
+          if (!slider || !label) return;
+          try {
+            var saved = localStorage.getItem(d[2]);
+            if (saved) { slider.value = saved; label.textContent = saved; }
+          } catch (e) {}
+          slider.addEventListener('input', function() {
+            label.textContent = slider.value;
+            try { localStorage.setItem(d[2], slider.value); } catch (e) {}
+            checkCpWarning();
+          });
+        });
+        function checkCpWarning() {
+          var r = parseInt(document.getElementById('cpRadius').value, 10) || 50;
+          var c1 = parseInt(document.getElementById('cp1Dist').value, 10) || 50;
+          var c2 = parseInt(document.getElementById('cp2Dist').value, 10) || 100;
+          var minGap = Math.min(c2 - c1, 50);
+          var warn = document.getElementById('cpWarn');
+          if (warn) warn.style.display = (r < minGap / 2) ? 'block' : 'none';
+        }
+        // Run after DOM ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', checkCpWarning);
+        } else {
+          checkCpWarning();
+        }
+      })();
 
       function onLocationError(error) {
         $('gpsPulse').classList.remove('live');
@@ -1120,6 +1210,34 @@
       }
 
       var ROUTE_PATH = [[43.498309, -79.720694], [43.498236, -79.720593], [43.498154, -79.720477], [43.497581, -79.719664], [43.497063, -79.71893], [43.497013, -79.71887], [43.497009, -79.718866], [43.496962, -79.718828], [43.496909, -79.718787], [43.496851, -79.718754], [43.496823, -79.718744], [43.496783, -79.71873], [43.496722, -79.718718], [43.496505, -79.718692], [43.496481, -79.718689], [43.496398, -79.718679], [43.496392, -79.718768], [43.496392, -79.718774], [43.496343, -79.719625], [43.496341, -79.719659], [43.496335, -79.719754], [43.496354, -79.719756], [43.496335, -79.719754], [43.496329, -79.719847], [43.496327, -79.71988], [43.49631, -79.720158], [43.496307, -79.720209], [43.496303, -79.720251], [43.496295, -79.720295], [43.496287, -79.72034], [43.496275, -79.720382], [43.496237, -79.720459], [43.495124, -79.721188]];
+
+var checkpointProgress = {};  // stopIdx -> 0..3 for on-bus detection
+var AM_CHECKPOINTS = [
+  { stop_idx: 0, seq: 0, lat: 43.497995, lng: -79.720251 },
+  { stop_idx: 0, seq: 1, lat: 43.497681, lng: -79.719806 },
+  { stop_idx: 0, seq: 2, lat: 43.497368, lng: -79.719362 },
+  { stop_idx: 1, seq: 0, lat: 43.497841, lng: -79.720032 },
+  { stop_idx: 1, seq: 1, lat: 43.497527, lng: -79.719588 },
+  { stop_idx: 1, seq: 2, lat: 43.497214, lng: -79.719144 },
+  { stop_idx: 2, seq: 0, lat: 43.497267, lng: -79.71922 },
+  { stop_idx: 2, seq: 1, lat: 43.496935, lng: -79.718807 },
+  { stop_idx: 2, seq: 2, lat: 43.496498, lng: -79.718691 },
+  { stop_idx: 3, seq: 0, lat: 43.496583, lng: -79.718701 },
+  { stop_idx: 3, seq: 1, lat: 43.496377, lng: -79.719042 },
+  { stop_idx: 3, seq: 2, lat: 43.496341, lng: -79.71966 },
+  { stop_idx: 4, seq: 0, lat: 43.496396, lng: -79.718709 },
+  { stop_idx: 4, seq: 1, lat: 43.49636, lng: -79.719326 },
+  { stop_idx: 4, seq: 2, lat: 43.496326, lng: -79.719892 },
+  { stop_idx: 5, seq: 0, lat: 43.496357, lng: -79.719386 },
+  { stop_idx: 5, seq: 1, lat: 43.496323, lng: -79.719951 },
+  { stop_idx: 5, seq: 2, lat: 43.496179, lng: -79.720497 },
+  { stop_idx: 6, seq: 0, lat: 43.496286, lng: -79.720343 },
+  { stop_idx: 6, seq: 1, lat: 43.49592, lng: -79.720667 },
+  { stop_idx: 6, seq: 2, lat: 43.495513, lng: -79.720933 },
+  { stop_idx: 7, seq: 0, lat: 43.495831, lng: -79.720725 },
+  { stop_idx: 7, seq: 1, lat: 43.495425, lng: -79.720991 },
+  { stop_idx: 7, seq: 2, lat: 43.495124, lng: -79.721188 },
+];
       var map = null, stopLayer = null, routeLine = null, userMarker = null, didZoomToUser = false;
 
       function stopPinIcon(stop, isNext) {
@@ -1635,6 +1753,7 @@
       }
 
       function resetProgress() {
+        checkpointProgress = {};  // re-arm on-bus detection
         stops.forEach(function (s) { s.reached = false; s.skipped = false; });
         $('tripKicker').textContent = 'Ready to begin';
         $('nextStopDisplay').textContent = stopLabelNumbered(stops[0]);
