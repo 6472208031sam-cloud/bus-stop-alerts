@@ -301,7 +301,7 @@
 </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;"><span id="verBadgeStc">...</span> [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;"><span id="verBadge">...</span> [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -886,8 +886,8 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.0';
-      try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
+      var APP_VERSION = '8.1';
+      try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
       var logEntries = [];
@@ -1490,7 +1490,7 @@ var AM_CHECKPOINTS = [
       }
       // True when the given stop (live stops array entry) is the user's My Stop
       // for the current tab.
-      function isMyStop(stop) {
+      function stopMatchesMyStop(stop) {
         var ms = myStopLabels();
         if (!ms) return false;
         var want = (mode === 'am') ? ms.am : ms.pm;
@@ -1852,7 +1852,7 @@ var AM_CHECKPOINTS = [
         if (!followerAlertsOn()) return;
         var devTag = ' [' + DEVICE_ID + ']';
         var ms = myStopLabels();
-        var mine = isMyStop(stop);
+        var mine = stopMatchesMyStop(stop);
         var isFinal = stop.number === stops.length;
         var msg;
         if (ms && mine) {
@@ -1885,7 +1885,7 @@ var AM_CHECKPOINTS = [
           if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
         }
         var msT = myStopLabels();
-        var mineT = isMyStop(stop);
+        var mineT = stopMatchesMyStop(stop);
         $('arrivalTitle').textContent = (msT && mineT)
           ? (mode === 'am' ? 'Waiting at ' : 'Got off at ') + 'Stop ' + stop.letter + ': ' + stopLabel(stop)
           : 'At Stop ' + stop.letter + ': ' + stopLabel(stop);
@@ -1950,7 +1950,7 @@ var AM_CHECKPOINTS = [
         var startIdx = 0;
         if (mode === 'am') {
           for (var s = 0; s < stops.length; s++) {
-            if (typeof isMyStop === 'function' ? isMyStop(stops[s]) : false) { startIdx = s; break; }
+            if (stopMatchesMyStop(stops[s])) { startIdx = s; break; }
           }
           // Mark stops before My Stop as skipped (not part of this ride)
           for (var k = 0; k < startIdx; k++) {
@@ -1972,7 +1972,7 @@ var AM_CHECKPOINTS = [
         }
         var stop = stops[testAllIdx];
         if (stop && isConfigured(stop)) {
-          var isPmMyStop = (mode === 'pm' && typeof isMyStop === 'function' && isMyStop(stop));
+          var isPmMyStop = (mode === 'pm' && stopMatchesMyStop(stop));
           triggerArrival(stop, false);
           if (isPmMyStop) {
             // PM got-off: stop simulation after the messages send
