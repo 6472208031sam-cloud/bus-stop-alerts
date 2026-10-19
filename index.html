@@ -926,7 +926,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.2';
+      var APP_VERSION = '9.3';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1850,18 +1850,18 @@ var AM_CHECKPOINTS = [
         if (!ms) {
           // Auto mode: reworded arrival format
           msg = isFinal
-            ? '📱 [' + dev + '] arrived at final stop (' + mode.toUpperCase() + ').'
-            : '📱 [' + dev + '] arrived at ' + ref + '.';
+            ? '📱 ' + devTag() + ' arrived at final stop (' + mode.toUpperCase() + ').'
+            : '📱 ' + devTag() + ' arrived at ' + ref + '.';
         } else if (stopMatchesMyStop(stop)) {
           // Rider's own stop: waiting (AM) / got off (PM)
           msg = mode === 'am'
-            ? '📱 [' + dev + '] waiting at ' + ref + '.'
-            : '📱 [' + dev + '] got off at ' + ref + '.';
+            ? '📱 ' + devTag() + ' waiting at ' + ref + '.'
+            : '📱 ' + devTag() + ' got off at ' + ref + '.';
           if (isFinal) msg += ' Route complete.';
         } else {
           msg = isFinal
-            ? '🚌 [' + dev + '] at final stop (' + mode.toUpperCase() + ').'
-            : '🚌 [' + dev + '] at ' + ref + '.';
+            ? '🚌 ' + devTag() + ' at final stop (' + mode.toUpperCase() + ').'
+            : '🚌 ' + devTag() + ' at ' + ref + '.';
         }
         try {
           logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + msg);
@@ -1892,7 +1892,7 @@ var AM_CHECKPOINTS = [
         // Auto-stop on "got off" (PM My Stop): journey done for this phone.
         if (!quiet && atMyStop && mode === 'pm') {
           try {
-            var offMsg = '\uD83D\uDCF1 [' + DEVICE_ID + '] off bus. Tracking stopped.';
+            var offMsg = '\uD83D\uDCF1 ' + devTag() + ' off bus. Tracking stopped.';
             logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + offMsg);
             fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: offMsg, keepalive: true }).catch(function () {});
           } catch (e) {}
@@ -1977,7 +1977,7 @@ var AM_CHECKPOINTS = [
             testAllTimer = setTimeout(function() {
               if (!testAllActive) return;
               var nextStop = stops[nextIdx];
-              var onBusMsg = '\uD83D\uDCF1 [' + DEVICE_ID + '] on bus, heading to ' + stopLabelNumbered(nextStop) + '.';
+              var onBusMsg = '\uD83D\uDCF1 ' + devTag() + ' on bus, heading to ' + stopLabelNumbered(nextStop) + '.';
               logEvent('NTFY', 'Test All sending: ' + onBusMsg);
               try {
                 fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: onBusMsg, keepalive: true }).catch(function(){});
