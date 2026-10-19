@@ -301,7 +301,7 @@
 </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;"><span id="verBadgeStc">...</span> <button id="devIdBadge" type="button" title="Tap to rename this device" style="background:none;border:1px solid currentColor;border-radius:6px;color:inherit;font:inherit;padding:0 4px;cursor:pointer;">...</button></div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;"><span id="verBadgeStc">...</span> [<span id="devIdBadge">...</span>]</div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -578,38 +578,17 @@
         var type = getDeviceType();
         var stored = null;
         try { stored = localStorage.getItem('device_id'); } catch (e) {}
-        // Accept custom IDs (user-renamed); fall back to generated X## if empty/invalid
-        if (stored && typeof stored === 'string' && stored.trim() && stored.indexOf(']') < 0 && stored.length <= 20) return stored.trim();
+        if (stored && stored.charAt(0) === type && /^.[0-9]{2}$/.test(stored)) return stored;
         var num = String(Math.floor(Math.random() * 99) + 1).padStart(2, '0');
         var id = type + num;
         try { localStorage.setItem('device_id', id); } catch (e) {}
         return id;
       }
-      function renameDeviceId() {
-        var cur = (typeof DEVICE_ID !== 'undefined' && DEVICE_ID) ? DEVICE_ID : '';
-        // prompt() works on iOS (WKWebView intercepts it); confirm()/alert() do not.
-        var v = null;
-        try { v = window.prompt('Device name for alerts (shown as [name] in notifications):', cur); } catch (e) {}
-        if (v === null) return; // cancelled
-        v = String(v).trim().replace(/\]/g, '').replace(/[\r\n]/g, '');
-        if (!v) { try { showToast('Name cannot be empty.'); } catch (e) {} return; }
-        if (v.length > 20) v = v.slice(0, 20);
-        try { localStorage.setItem('device_id', v); } catch (e) {}
-        DEVICE_ID = v;
-        var b = document.getElementById('devIdBadge');
-        if (b) b.textContent = v;
-        try { logEvent('SYS', 'Device renamed to [' + v + ']'); } catch (e) {}
-        try { showToast('Device name set to [' + v + ']'); } catch (e) {}
-      }
       var DEVICE_ID = getDeviceId();
       document.addEventListener("DOMContentLoaded", function() {
         var b = document.getElementById("devIdBadge");
-        if (b) {
-          b.textContent = (typeof DEVICE_ID !== 'undefined' && DEVICE_ID) ? DEVICE_ID : '...';
-          b.addEventListener('click', function() {
-            try { renameDeviceId(); } catch (e) {}
-          });
-        }
+        if (b) b.textContent = DEVICE_ID;
+
       });
 
     (function () {
@@ -907,7 +886,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '7.9';
+      var APP_VERSION = '8.0';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
