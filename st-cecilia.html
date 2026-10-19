@@ -918,7 +918,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.3';
+      var APP_VERSION = '8.4';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1892,18 +1892,18 @@ var AM_CHECKPOINTS = [
         if (ms && mine) {
           // Arriving at the user's own stop: waiting (AM) / got off (PM).
           msg = mode === 'am'
-            ? '\uD83D\uDCF1' + devTag + ' waiting at ' + stopLabelNumbered(stop) + '.'
-            : '\uD83D\uDCF1' + devTag + ' got off at ' + stopLabelNumbered(stop) + '.';
+            ? '\uD83D\uDCF1 ' + devTagStr + ' waiting at ' + stopLabelNumbered(stop) + '.'
+            : '\uD83D\uDCF1 ' + devTagStr + ' got off at ' + stopLabelNumbered(stop) + '.';
         } else if (ms) {
           // "My Stop" is set but this isn't it: phone is on the bus.
           msg = isFinal
-            ? '\uD83D\uDE8C' + devTag + ' at ' + stopLabelNumbered(stop) + '. Route complete.'
-            : '\uD83D\uDE8C' + devTag + ' at ' + stopLabelNumbered(stop) + '.';
+            ? '\uD83D\uDE8C ' + devTagStr + ' at ' + stopLabelNumbered(stop) + '. Route complete.'
+            : '\uD83D\uDE8C ' + devTagStr + ' at ' + stopLabelNumbered(stop) + '.';
         } else {
           // "Auto" mode: reworded arrival message.
           msg = isFinal
-            ? '\uD83D\uDCF1' + devTag + ' arrived at final stop: ' + stopLabel(stop) + '.'
-            : '\uD83D\uDCF1' + devTag + ' arrived at ' + stopLabelNumbered(stop) + '.';
+            ? '\uD83D\uDCF1 ' + devTagStr + ' arrived at final stop: ' + stopLabel(stop) + '.'
+            : '\uD83D\uDCF1 ' + devTagStr + ' arrived at ' + stopLabelNumbered(stop) + '.';
         }
         try {
           logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + msg);
