@@ -305,7 +305,7 @@
 <meta name="theme-color" content="#0b6e4f">
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;"><span id="verBadge" style="pointer-events:none;">...</span> <span id="devIdBadge" style="pointer-events:none;">...</span> <button id="devLabelBadge" type="button" title="Tap to set device label" style="background:none;border:1px solid currentColor;border-radius:6px;color:inherit;font:inherit;padding:0 4px;cursor:pointer;">Name</button></div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;"><span id="verBadge" style="pointer-events:none;">...</span> <span id="devIdBadge" style="pointer-events:none;">...</span> <button id="devLabelBadge" type="button" title="Tap to set device label" style="background:none;border:1px solid currentColor;border-radius:8px;color:inherit;font-size:0.85rem;padding:6px 12px;cursor:pointer;min-height:32px;">Name</button></div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -926,7 +926,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.4';
+      var APP_VERSION = '9.5';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
