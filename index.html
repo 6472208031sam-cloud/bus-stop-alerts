@@ -894,7 +894,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.6';
+      var APP_VERSION = '8.7';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1903,9 +1903,22 @@ var AM_CHECKPOINTS = [
         }
         try { renderRoute(); } catch (e) {}
         testAllActive = true;
-        testAllIdx = 0;
+        // AM: start at My Stop (if set), else from the beginning
+        // PM: always from the beginning (stops at My Stop via got-off)
+        var startIdx = 0;
+        if (mode === 'am') {
+          for (var s = 0; s < stops.length; s++) {
+            if (stopMatchesMyStop(stops[s])) { startIdx = s; break; }
+          }
+          // Mark stops before My Stop as skipped (not part of this ride)
+          for (var k = 0; k < startIdx; k++) {
+            stops[k].skipped = true;
+          }
+          try { renderRoute(); } catch (e) {}
+        }
+        testAllIdx = startIdx;
         updateTestAllBtn();
-        logEvent('SYS', 'Test All started (' + mode.toUpperCase() + ', ' + stops.length + ' stops)');
+        logEvent('SYS', 'Test All started (' + mode.toUpperCase() + ', from stop index ' + startIdx + ')');
         runTestAllStep();
       }
 
