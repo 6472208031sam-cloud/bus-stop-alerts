@@ -488,7 +488,7 @@
             </div>
             <p class="sub">When on, every stop reached also sends a push notification to your private channel. The other person installs the free <strong>ntfy</strong> app and subscribes to the channel below.</p>
             <div class="channel-row">
-              <input id="followerChannel" readonly value="stcecilia-alerts-05-hdke67hang" aria-label="Notification channel" onclick="this.select()" />
+              <input id="followerChannel" readonly value="stcecilia-alerts-06-hdke67hang" aria-label="Notification channel" onclick="this.select()" />
               <button class="small-btn" type="button" id="copyChannelBtn">Copy</button>
               <button class="small-btn" type="button" id="testPushBtn">Send test</button>
             </div>
@@ -907,7 +907,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '7.8';
+      var APP_VERSION = '7.9';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1863,7 +1863,7 @@ var AM_CHECKPOINTS = [
         });
       }
 
-      var NTFY_TOPIC = 'stcecilia-alerts-05-hdke67hang';
+      var NTFY_TOPIC = 'stcecilia-alerts-06-hdke67hang';
 
       function followerAlertsOn() {
         return localStorage.getItem('bsa_follower_stcecilia') !== '0';
