@@ -886,7 +886,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '7.5';
+      var APP_VERSION = '7.6';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1950,7 +1950,7 @@ var AM_CHECKPOINTS = [
         var startIdx = 0;
         if (mode === 'am') {
           for (var s = 0; s < stops.length; s++) {
-            if (stopMatchesMyStop(stops[s])) { startIdx = s; break; }
+            if (typeof isMyStop === 'function' ? isMyStop(stops[s]) : false) { startIdx = s; break; }
           }
           // Mark stops before My Stop as skipped (not part of this ride)
           for (var k = 0; k < startIdx; k++) {
@@ -1972,7 +1972,7 @@ var AM_CHECKPOINTS = [
         }
         var stop = stops[testAllIdx];
         if (stop && isConfigured(stop)) {
-          var isPmMyStop = (mode === 'pm' && stopMatchesMyStop(stop));
+          var isPmMyStop = (mode === 'pm' && typeof isMyStop === 'function' && isMyStop(stop));
           triggerArrival(stop, false);
           if (isPmMyStop) {
             // PM got-off: stop simulation after the messages send
