@@ -894,7 +894,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.5';
+      var APP_VERSION = '8.6';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1917,14 +1917,29 @@ var AM_CHECKPOINTS = [
         }
         var stop = stops[testAllIdx];
         if (stop && isConfigured(stop)) {
-          // Use quiet=false so ntfy sends (like real arrival)
-          // But suppress the PM auto-stopTracking - we handle it manually
           var isPmMyStop = (mode === 'pm' && stopMatchesMyStop(stop));
           triggerArrival(stop, false);
           if (isPmMyStop) {
             // PM got-off: stop simulation after the messages send
             logEvent('SYS', 'Test All: My Stop reached on PM - stopping simulation (got off)');
             setTimeout(function() { stopTestAll(); }, 2000);
+            return;
+          }
+          // Simulate "on bus" for the next stop (if there is one)
+          var nextIdx = testAllIdx + 1;
+          if (nextIdx < stops.length && stops[nextIdx] && isConfigured(stops[nextIdx])) {
+            testAllTimer = setTimeout(function() {
+              if (!testAllActive) return;
+              var nextStop = stops[nextIdx];
+              var onBusMsg = '\uD83D\uDCF1 [' + DEVICE_ID + '] on bus, heading to ' + stopLabelNumbered(nextStop) + '.';
+              logEvent('NTFY', 'Test All sending: ' + onBusMsg);
+              try {
+                fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: onBusMsg, keepalive: true }).catch(function(){});
+              } catch (e) {}
+              try { showOnBusPill(stopLabelNumbered(nextStop)); } catch (e) {}
+              testAllIdx++;
+              testAllTimer = setTimeout(runTestAllStep, 3000);
+            }, 3000);
             return;
           }
         }
