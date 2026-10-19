@@ -332,6 +332,10 @@
               <h2 id="stopsHeading">Your 9 stops</h2>
               <p class="sub"><span id="configuredCount">0</span> saved · <span id="reachedCount">0</span> reached</p>
             </div>
+            <div style="margin-top:8px;display:flex;gap:8px;">
+              <button class="btn" type="button" id="testAllBtn" style="flex:1;">▶ Test All Stops</button>
+              <button class="btn" type="button" id="stopTestAllBtn" style="flex:1;display:none;">■ Stop Test</button>
+            </div>
             <span class="badge" id="routeBadge">Setup</span>
           </div>
         </div>
@@ -882,7 +886,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '7.2';
+      var APP_VERSION = '7.3';
       try { var _vb = document.getElementById("verBadgeStc"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1909,6 +1913,74 @@ var AM_CHECKPOINTS = [
         }, 8000);
       }
 
+      // ---- Test All Stops simulation ----
+      var testAllTimer = null;
+      var testAllIdx = 0;
+      var testAllActive = false;
+
+      function updateTestAllBtn() {
+        var btn = $('testAllBtn');
+        var stopBtn = $('stopTestAllBtn');
+        if (!btn) return;
+        if (testAllActive) {
+          btn.style.display = 'none';
+          if (stopBtn) stopBtn.style.display = '';
+        } else {
+          btn.style.display = '';
+          if (stopBtn) stopBtn.style.display = 'none';
+          // Disable during real tracking
+          var canTest = !tracking;
+          btn.disabled = !canTest;
+          btn.textContent = '▶ Test All ' + (mode === 'am' ? 'AM' : 'PM') + ' Stops';
+          btn.title = canTest ? '' : 'Stop tracking first to run the test';
+        }
+      }
+
+      function startTestAll() {
+        if (tracking || testAllActive) return;
+        // Reset all stops
+        for (var i = 0; i < stops.length; i++) {
+          stops[i].reached = false;
+          stops[i].skipped = false;
+        }
+        try { renderRoute(); } catch (e) {}
+        testAllActive = true;
+        testAllIdx = 0;
+        updateTestAllBtn();
+        logEvent('SYS', 'Test All started (' + mode.toUpperCase() + ', ' + stops.length + ' stops)');
+        runTestAllStep();
+      }
+
+      function runTestAllStep() {
+        if (!testAllActive) return;
+        if (testAllIdx >= stops.length) {
+          stopTestAll();
+          return;
+        }
+        var stop = stops[testAllIdx];
+        if (stop && isConfigured(stop)) {
+          // Use quiet=false so ntfy sends (like real arrival)
+          // But suppress the PM auto-stopTracking - we handle it manually
+          var isPmMyStop = (mode === 'pm' && stopMatchesMyStop(stop));
+          triggerArrival(stop, false);
+          if (isPmMyStop) {
+            // PM got-off: stop simulation after the messages send
+            logEvent('SYS', 'Test All: My Stop reached on PM - stopping simulation (got off)');
+            setTimeout(function() { stopTestAll(); }, 2000);
+            return;
+          }
+        }
+        testAllIdx++;
+        testAllTimer = setTimeout(runTestAllStep, 3000);
+      }
+
+      function stopTestAll() {
+        testAllActive = false;
+        clearTimeout(testAllTimer);
+        updateTestAllBtn();
+        logEvent('SYS', 'Test All stopped');
+      }
+
       function testAlert() {
         playAlert();
         if (navigator.vibrate) navigator.vibrate([180, 80, 180]);
@@ -2043,6 +2115,13 @@ var AM_CHECKPOINTS = [
         });
       });
 
+      var _tab = $('testAllBtn');
+      if (_tab) _tab.addEventListener('click', startTestAll);
+      var _stb = $('stopTestAllBtn');
+      if (_stb) _stb.addEventListener('click', stopTestAll);
+      // Update button label/state periodically (tab switches, tracking changes)
+      setInterval(updateTestAllBtn, 1000);
+      updateTestAllBtn();
       $('routeSwitchBtn').addEventListener('click', function () {
         setDirection(mode === 'am' ? 'pm' : 'am');
       });
