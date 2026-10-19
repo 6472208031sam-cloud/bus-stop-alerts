@@ -301,7 +301,7 @@
 </style>
 </head>
 <body>
-<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;pointer-events:none;"><span id="verBadge">...</span> [<span id="devIdBadge">...</span>]</div>
+<div style="position:fixed;top:4px;right:8px;z-index:9999;font-size:0.7rem;opacity:0.5;"><span id="verBadge" style="pointer-events:none;">...</span> <span id="devIdBadge" style="pointer-events:none;">...</span> <button id="devLabelBadge" type="button" title="Tap to set device label" style="background:none;border:1px solid currentColor;border-radius:6px;color:inherit;font:inherit;padding:0 4px;cursor:pointer;">Name</button></div>
   <main class="shell">
     <section class="hero">
       <div>
@@ -585,10 +585,42 @@
         return id;
       }
       var DEVICE_ID = getDeviceId();
+      function getDeviceLabel() {
+        try {
+          var l = localStorage.getItem('device_label');
+          if (l && typeof l === 'string') {
+            l = l.trim().replace(/[\r\n]/g, '').replace(/[()]/g, '');
+            if (l && l.length <= 20) return l;
+          }
+        } catch (e) {}
+        return '';
+      }
+      function devTag() {
+        var id = (typeof DEVICE_ID !== 'undefined' && DEVICE_ID) ? DEVICE_ID : '';
+        var label = getDeviceLabel();
+        return '[' + id + ']' + (label ? ' (' + label + ')' : '');
+      }
+      function renameDeviceLabel() {
+        var cur = getDeviceLabel();
+        var v = null;
+        try { v = window.prompt('Device label (shown after device ID, e.g. Luca). Empty to clear:', cur); } catch (e) {}
+        if (v === null) return;
+        v = String(v).trim().replace(/[\r\n]/g, '').replace(/[()]/g, '').slice(0, 20);
+        try { localStorage.setItem('device_label', v); } catch (e) {}
+        var b = document.getElementById('devLabelBadge');
+        if (b) b.textContent = v || 'Name';
+        try { showToast(v ? 'Label set to (' + v + ')' : 'Label cleared'); } catch (e) {}
+      }
       document.addEventListener("DOMContentLoaded", function() {
         var b = document.getElementById("devIdBadge");
-        if (b) b.textContent = DEVICE_ID;
-
+        if (b) b.textContent = '[' + DEVICE_ID + ']';
+        var lb = document.getElementById("devLabelBadge");
+        if (lb) {
+          var _lbl = '';
+          try { _lbl = getDeviceLabel(); } catch (e) {}
+          lb.textContent = _lbl || 'Name';
+          lb.addEventListener('click', function() { try { renameDeviceLabel(); } catch (e) {} });
+        }
       });
 
     (function () {
@@ -886,7 +918,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.1';
+      var APP_VERSION = '8.2';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1403,6 +1435,7 @@ var AM_CHECKPOINTS = [
           page: RIDE_PAGE,
           tab: targetTab,
           deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
+          deviceLabel: (typeof getDeviceLabel === 'function' ? getDeviceLabel() : ''),
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
@@ -1503,6 +1536,7 @@ var AM_CHECKPOINTS = [
           page: RIDE_PAGE,
           tab: mode,
           deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
+          deviceLabel: (typeof getDeviceLabel === 'function' ? getDeviceLabel() : ''),
           topic: NTFY_TOPIC,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
@@ -2319,7 +2353,7 @@ var AM_CHECKPOINTS = [
       });
       $('testPushBtn').addEventListener('click', function () {
         try {
-          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: '🔔 Test: St Cecilia notifications are working. [' + DEVICE_ID + ']', keepalive: true })
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: '🔔 Test: St Cecilia notifications are working. ' + devTag(), keepalive: true })
             .then(function () { showToast('Test sent — check the other phone.'); })
             .catch(function () { showToast('Could not send test. Check your connection.'); });
         } catch (e) { showToast('Could not send test. Check your connection.'); }
