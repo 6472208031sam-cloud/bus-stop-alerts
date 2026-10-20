@@ -901,14 +901,27 @@
         ensureMap();
       }
 
+      // On-bus log dedup: the native status poll calls showOnBusPill()
+      // every ~3s while onBus is set; logging every call wrote 2 lines
+      // per poll and flushed the 500-line log buffer in ~17 min
+      // (2026-10-20: a full day's earlier ride logs were lost this way).
+      // Only log when the value actually changes.
+      var _lastOnBusLabel = null;
+      var _lastSyncOnBus = null;
       function showOnBusPill(stopLabel) {
-        try { logEvent('SYS', 'showOnBusPill: ' + stopLabel); } catch (e) {}
+        var _obChanged = stopLabel !== _lastOnBusLabel;
+        if (_obChanged) {
+          _lastOnBusLabel = stopLabel;
+          try { logEvent('SYS', 'showOnBusPill: ' + stopLabel); } catch (e) {}
+        }
         var pill = $('onBusPill');
-        if (!pill) { try { logEvent('SYS', 'showOnBusPill: pill div NOT FOUND'); } catch (e) {} return; }
+        if (!pill) { if (_obChanged) { try { logEvent('SYS', 'showOnBusPill: pill div NOT FOUND'); } catch (e) {} } return; }
         pill.textContent = '\uD83D\uDCF1 On bus \u2014 heading to ' + stopLabel;
         pill.hidden = false;
       }
       function hideOnBusPill() {
+        _lastOnBusLabel = null;
+        _lastSyncOnBus = null;
         var pill = $('onBusPill');
         if (pill) pill.hidden = true;
       }
@@ -918,7 +931,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.7';
+      var APP_VERSION = '8.8';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1715,7 +1728,10 @@ var AM_CHECKPOINTS = [
         }
         if (allDone) { finishRoute(); return; }
         if (status.onBus) {
-          try { logEvent('SYS', 'nativeSync: onBus=' + status.onBus); } catch (e) {}
+          if (status.onBus !== _lastSyncOnBus) {
+            _lastSyncOnBus = status.onBus;
+            try { logEvent('SYS', 'nativeSync: onBus=' + status.onBus); } catch (e) {}
+          }
           try { showOnBusPill(status.onBus); } catch (e) {}
         }
         // Note: do NOT hide pill here - only triggerArrival (on dest arrival) or stopTracking hides it.
