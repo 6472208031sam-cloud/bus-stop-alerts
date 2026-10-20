@@ -175,6 +175,13 @@
       box-shadow: 0 2px 8px rgba(0,0,0,.3); white-space: nowrap;
       pointer-events: none;
     }
+    .mode-warn {
+      position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
+      z-index: 1000; background: #b45309; color: #fff; font-weight: bold;
+      font-size: 13px; padding: 8px 16px; border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3); white-space: nowrap;
+      pointer-events: none;
+    }
     .map-wrap { position: relative; }
     #routeMap { height: 300px; border-radius: 14px; border: 1px solid var(--line); z-index: 0; background: var(--surface-2); }
     .stop-pin { width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 2px solid var(--green); color: var(--green-strong); display: grid; place-items: center; font-family: "Archivo", sans-serif; font-weight: 800; font-size: .82rem; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
@@ -442,6 +449,7 @@
           <div class="map-wrap">
             <div id="routeMap" aria-label="Route map"></div>
             <div id="onBusPill" class="onbus-pill" hidden></div>
+            <div id="modeWarnBanner" class="mode-warn" hidden></div>
           </div>
           <div class="action-row">
             <button class="btn primary" type="button" id="startBtn">Start ride</button>
@@ -783,6 +791,7 @@
           try {
             localStorage.setItem('stcecilia_dir', dir);
             localStorage.setItem('stcecilia_dir_day', torontoDateStr());
+            localStorage.setItem('stcecilia_dir_half', defaultModeByTime());
           } catch (e) {}
           showToast(dir === 'to' ? 'Direction set: To (A \u2192 D).' : 'Direction set: From (D \u2192 A).');
         }
@@ -925,13 +934,40 @@
         var pill = $('onBusPill');
         if (pill) pill.hidden = true;
       }
+      // Wrong-mode banner (2026-10-20, Domi option A): when a ride runs
+      // in the mode that doesn't match the Toronto time window (AM route
+      // in PM hours or vice versa), show a persistent banner for the
+      // whole ride and write ONE log line. Blocks nothing — intentional
+      // wrong-time test rides still work — but a wrong-mode ride can no
+      // longer run silently (2026-10-19: a PM ride ran in AM mode all
+      // afternoon with no indication anywhere).
+      var _modeWarnShown = false;
+      function showModeWarnIfMismatch() {
+        try {
+          var expected = defaultModeByTime();
+          if (mode === expected) { hideModeWarn(); return; }
+          var b = $('modeWarnBanner');
+          if (b) {
+            b.textContent = '⚠️ ' + mode.toUpperCase() + ' route — ' + expected.toUpperCase() + ' hours';
+            b.hidden = false;
+          }
+          if (!_modeWarnShown) {
+            _modeWarnShown = true;
+            logEvent('SYS', 'Mode/time mismatch: ride running in ' + mode.toUpperCase() + ' mode during ' + expected.toUpperCase() + ' hours');
+          }
+        } catch (e) {}
+      }
+      function hideModeWarn() {
+        _modeWarnShown = false;
+        try { var b = $('modeWarnBanner'); if (b) b.hidden = true; } catch (e) {}
+      }
       function showToast(message) {
         $('toast').textContent = message;
         $('toast').classList.add('show');
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.8';
+      var APP_VERSION = '8.9';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1659,6 +1695,7 @@ var AM_CHECKPOINTS = [
         showTrip(); // make sure the ride view (not the editor) is visible
         startDotWatch();
         startSyncPoll();
+        try { showModeWarnIfMismatch(); } catch (e) {}
       }
 
       function startNativeTracking() {
@@ -1812,6 +1849,7 @@ var AM_CHECKPOINTS = [
           tracking = true;
           $('stopBtn').disabled = false;
           onPosition(position);
+          try { showModeWarnIfMismatch(); } catch (e) {}
           watchId = navigator.geolocation.watchPosition(onPosition, onLocationError, { enableHighAccuracy: false, maximumAge: 10000, timeout: 20000 });
           requestWakeLock();
           ensureMap();
@@ -1829,6 +1867,7 @@ var AM_CHECKPOINTS = [
 
       function stopTracking(preserveGpsStatus) {
         logEvent('SYS', 'stopTracking() called');
+        try { hideModeWarn(); } catch (e) {}
         if (NATIVE && tracking) { try { window.NativeBridge.stopRide(); } catch (e) {} }
         stopDotWatch();
         stopSyncPoll();
@@ -2211,7 +2250,14 @@ var AM_CHECKPOINTS = [
           var today = torontoDateStr();
           var savedDay = localStorage.getItem('stcecilia_dir_day');
           var savedDir = localStorage.getItem('stcecilia_dir');
-          var initial = (savedDay === today && (savedDir === 'am' || savedDir === 'pm'))
+          var savedHalf = localStorage.getItem('stcecilia_dir_half');
+          // Noon expiry (2026-10-20, Domi option A): a manual tab pick
+          // is honored only within the half-day it was made — a morning
+          // pick dies at noon, an afternoon pick dies at midnight (the
+          // day check above). Picks saved before the half key existed
+          // (savedHalf null) are ignored once: a one-time reset to the
+          // time-based default.
+          var initial = (savedDay === today && savedHalf === defaultModeByTime() && (savedDir === 'am' || savedDir === 'pm'))
             ? savedDir : defaultModeByTime();
           if (initial !== mode) setDirection(initial, true);
         } catch (e) {}
