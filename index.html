@@ -703,7 +703,7 @@
       function defaultModeByTime() { return torontoHour() >= 12 ? 'pm' : 'am'; }
       function setDirection(dir, quiet) {
         if (dir === mode) return;
-        if (tracking) stopTracking();
+        if (tracking && !_switchingForNativeRide) stopTracking();
         mode = dir;
         // Rebuild stops for the selected tab
         var fresh = createDefaultStops();
@@ -727,7 +727,8 @@
         loadStopForm();
         renderRoute();
         // Push both configs so scheduled alarms work for either tab
-        pushScheduleToNative();
+        // (skipped during ride adoption — the native ride already has them)
+        if (!_switchingForNativeRide) pushScheduleToNative();
         if (!quiet) {
           try {
             localStorage.setItem('bus_dir', dir);
@@ -737,9 +738,26 @@
           showToast(dir === 'am' ? 'AM route selected.' : 'PM route selected.');
         }
         // Auto-start tracking on tab switch if not already on (Android).
-        if (typeof NATIVE !== 'undefined' && NATIVE && !tracking) {
+        // (Skipped during ride adoption — the native ride is already running.)
+        if (typeof NATIVE !== 'undefined' && NATIVE && !tracking && !_switchingForNativeRide) {
           setTimeout(function () { try { startTracking(); } catch (e) {} }, 800);
         }
+      }
+      // Adopt the tab of a ride the native service is already running
+      // (scheduled start, or a ride running since before this page load).
+      // Returns true when the page now matches the ride's route. With
+      // allowCompleted, a just-finished ride's tab is adopted for display
+      // only (no lock — it must not steer future tab choices).
+      function adoptNativeRideTab(status, allowCompleted) {
+        if (!status || (!status.active && !allowCompleted)) return false;
+        var p = status.page;
+        if (p !== 'am' && p !== 'pm') return false;
+        if (status.active) nativeRideTabLock = p;
+        if (p === mode) return true;
+        _switchingForNativeRide = true;
+        try { setDirection(p, true); } catch (e) {}
+        _switchingForNativeRide = false;
+        return mode === p;
       }
       function createDefaultStops() {
         var src = mode === 'am' ? AM_DEFAULT_STOPS : PM_DEFAULT_STOPS;
@@ -767,6 +785,15 @@
       var dotWatchId = null; // visual-only position watch for the blue dot
       var syncPollId = null; // fallback poll: guarantees UI converges with service
       // RIDE_PAGE removed: use `mode` ('am'/'pm') directly
+      // Native-ride tab adoption (v9.9): when the native service is already
+      // running a ride, its route is the authority for which tab the page
+      // shows — the page adopts the ride's tab instead of stopping or
+      // ignoring the ride. nativeRideTabLock outranks the time/manual tab
+      // default at startup; _switchingForNativeRide makes setDirection()
+      // safe to call for adoption (no stop of the ride being adopted, no
+      // auto-start, no schedule push mid-switch).
+      var nativeRideTabLock = null; // 'am'/'pm' of the active native ride
+      var _switchingForNativeRide = false;
 
       var $ = function (id) { return document.getElementById(id); };
       var routeList = $('routeList');
@@ -975,7 +1002,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.8';
+      var APP_VERSION = '9.9';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1519,12 +1546,19 @@ var AM_CHECKPOINTS = [
             if (!st) return;
             var status = JSON.parse(st);
             if (status.completed && status.reached) {
+              // Show the finished ride on its own tab before applying it.
+              adoptNativeRideTab(status, true);
               applyNativeSync(status, null);
               // Native stopped (route complete or auto-stop): update web UI too.
               if (tracking) { try { stopTracking(); } catch (e) {} }
               return;
             }
-            if (status.active && status.page === mode) applyNativeSync(status, null);
+            if (status.active) {
+              // Adopt the ride's tab first (scheduled/background rides are
+              // authoritative), then sync progress onto the right stops.
+              adoptNativeRideTab(status);
+              applyNativeSync(status, null);
+            }
           } catch (e) {}
         }, 3000);
       }
@@ -1670,7 +1704,11 @@ var AM_CHECKPOINTS = [
       function nativeSync(b64, toast) {
         try {
           var status = JSON.parse(atob(b64));
-          if (!tracking && status.active && status.page === mode) enterNativeTrackingUI();
+          // Adopt the ride's tab before anything else — a ride that started
+          // natively (schedule/alarm) owns the display, whatever tab the
+          // page happened to be showing.
+          if (status.active) adoptNativeRideTab(status);
+          if (!tracking && status.active) enterNativeTrackingUI();
           if (tracking) applyNativeSync(status, toast);
         } catch (e) {}
       }
@@ -1883,6 +1921,19 @@ var AM_CHECKPOINTS = [
         // Both tabs are sent because the 8am alarm needs config_am and
         // the 3:30pm alarm needs config_pm, regardless of which tab is open.
         if (NATIVE) {
+          // Ride-adoption guard (v9.9): while a native ride is active, do
+          // NOT push configs — a config update is applied to the live ride,
+          // so pushing the other tab (or even this tab's fresh defaults)
+          // could replace the running route or wipe its progress. The
+          // stored configs the schedule needs were saved on earlier loads.
+          // Instead, make sure the page shows the ride's tab.
+          try {
+            var _ast = window.NativeBridge.getStatus();
+            if (_ast) {
+              var _as = JSON.parse(_ast);
+              if (_as && _as.active) { adoptNativeRideTab(_as); return; }
+            }
+          } catch (e) {}
           try {
             // Send the OTHER tab first, current tab LAST.
             // The native service uses the last-received config as its
@@ -2359,13 +2410,13 @@ var AM_CHECKPOINTS = [
           var _nst = window.NativeBridge.getStatus();
           if (_nst) {
             var _nstatus = JSON.parse(_nst);
-            if (_nstatus.active && _nstatus.page === mode) {
+            if (_nstatus.active) {
+              // A native ride is already running (e.g. started by the
+              // schedule) — adopt ITS tab and sync to it. Never stop it:
+              // the ride is the authority, the tab follows (v9.9).
+              adoptNativeRideTab(_nstatus);
               enterNativeTrackingUI();
               applyNativeSync(_nstatus, null);
-            } else if (_nstatus.active) {
-              // Native ride is for the other route (AM vs PM) — stop it so
-              // switching pages doesn't leave the wrong route tracking.
-              try { window.NativeBridge.stopRide(); } catch (e) {}
             }
           }
         } catch (e) {}
@@ -2391,6 +2442,10 @@ var AM_CHECKPOINTS = [
       // time, PM after), unless the user manually picked a tab today.
       (function initDefaultTab() {
         try {
+          // An active native ride owns the tab (v9.9) — the startup sync /
+          // schedule push above already adopted its route. The time/manual
+          // default must not switch away from a running ride.
+          if (nativeRideTabLock) return;
           var today = torontoDateStr();
           var savedDay = localStorage.getItem('bus_dir_day');
           var savedDir = localStorage.getItem('bus_dir');
