@@ -962,6 +962,10 @@
         if (!pill) { if (_obChanged) { try { logEvent('SYS', 'showOnBusPill: pill div NOT FOUND'); } catch (e) {} } return; }
         pill.textContent = '\uD83D\uDCF1 On bus \u2014 heading to ' + stopLabel;
         pill.hidden = false;
+        // Toast once per on-bus segment (2026-10-22, Domi): only on the
+        // change edge, so the ~3s native sync polls can't re-toast. Local
+        // UI like the pill \u2014 independent of the follower-alerts toggle.
+        if (_obChanged) { try { showToast(pill.textContent); } catch (e) {} }
       }
       function hideOnBusPill() {
         _lastOnBusLabel = null;
@@ -1002,7 +1006,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.11';
+      var APP_VERSION = '9.12';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
