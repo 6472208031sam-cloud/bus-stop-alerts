@@ -1002,7 +1002,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.10';
+      var APP_VERSION = '9.11';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1306,7 +1306,9 @@
               if (next) {
                 var msg = "\uD83D\uDCF1 " + devTag() + " on bus, heading to Stop " +
                           next.number + ": " + next.name + ".";
-                try {
+                if (!followerAlertsOn()) {
+                  logEvent('NTFY', 'Suppressed (follower alerts off): ' + msg);
+                } else try {
                   logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + msg);
                   fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
                 } catch (e) {}
@@ -1997,8 +1999,10 @@ var AM_CHECKPOINTS = [
         if (!quiet) sendStopPush(stop);
         // Auto-stop on "got off" (PM My Stop): journey done for this phone.
         if (!quiet && atMyStop && mode === 'pm') {
-          try {
-            var offMsg = '\uD83D\uDCF1 ' + devTag() + ' off bus. Tracking stopped.';
+          var offMsg = '\uD83D\uDCF1 ' + devTag() + ' off bus. Tracking stopped.';
+          if (!followerAlertsOn()) {
+            logEvent('NTFY', 'Suppressed (follower alerts off): ' + offMsg);
+          } else try {
             logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + offMsg);
             fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: offMsg, keepalive: true }).catch(function () {});
           } catch (e) {}
@@ -2084,10 +2088,14 @@ var AM_CHECKPOINTS = [
               if (!testAllActive) return;
               var nextStop = stops[nextIdx];
               var onBusMsg = '\uD83D\uDCF1 ' + devTag() + ' on bus, heading to ' + stopLabelNumbered(nextStop) + '.';
-              logEvent('NTFY', 'Test All sending: ' + onBusMsg);
-              try {
-                fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: onBusMsg, keepalive: true }).catch(function(){});
-              } catch (e) {}
+              if (!followerAlertsOn()) {
+                logEvent('NTFY', 'Test All suppressed (follower alerts off): ' + onBusMsg);
+              } else {
+                logEvent('NTFY', 'Test All sending: ' + onBusMsg);
+                try {
+                  fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: onBusMsg, keepalive: true }).catch(function(){});
+                } catch (e) {}
+              }
               try { showOnBusPill(stopLabelNumbered(nextStop)); } catch (e) {}
               testAllIdx++;
               testAllTimer = setTimeout(runTestAllStep, 3000);
