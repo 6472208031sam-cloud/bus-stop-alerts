@@ -500,7 +500,7 @@
             </div>
             <p class="sub">When on, every stop reached also sends a push notification to your private channel. The other person installs the free <strong>ntfy</strong> app and subscribes to the channel below.</p>
             <div class="channel-row">
-              <input id="followerChannel" readonly value="bus-alerts-01-hdkdhsjbd" aria-label="Notification channel" onclick="this.select()" />
+              <input id="followerChannel" readonly value="00-Bus-107-135-gh45lt" aria-label="Notification channel" onclick="this.select()" />
               <button class="small-btn" type="button" id="copyChannelBtn">Copy</button>
               <button class="small-btn" type="button" id="testPushBtn">Send test</button>
             </div>
@@ -1006,7 +1006,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.12';
+      var APP_VERSION = '9.13';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1848,7 +1848,7 @@ var AM_CHECKPOINTS = [
         });
       }
 
-      var NTFY_TOPIC = 'bus-alerts-01-hdkdhsjbd';
+      var NTFY_TOPIC = '00-Bus-107-135-gh45lt';
 
       function soundOn() { return localStorage.getItem('bsa_sound') === '1'; }
 
