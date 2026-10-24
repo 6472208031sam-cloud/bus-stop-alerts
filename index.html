@@ -461,6 +461,7 @@
             <button class="btn" type="button" id="resetTripBtn">Reset progress</button>
             <button class="btn" type="button" id="navNextBtn">Navigate to next stop</button>
             <button class="btn" type="button" id="markReachedBtn">✓ Mark reached</button>
+            <button class="btn" type="button" id="skipNextBtn" hidden>Skip next stop</button>
             <button class="btn" type="button" id="soundBtn">🔊 Sound on</button>
             <button class="btn" type="button" id="logsBtn">📋 Logs</button>
           </div>
@@ -1006,7 +1007,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.13';
+      var APP_VERSION = '9.14';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -2286,6 +2287,20 @@ var AM_CHECKPOINTS = [
           showToast('Marked as reached.');
         }
       });
+      // Skip next stop (Phase 2, D7): a native-only command — the native
+      // tracker owns ride state and pushes a sync back, so the page does
+      // NOT mark anything locally. The button is revealed only when the
+      // native bridge actually implements skipNext (Android v61 / iOS v38+).
+      (function () {
+        var b = $('skipNextBtn');
+        if (!b) return;
+        if (NATIVE && window.NativeBridge && window.NativeBridge.skipNext) b.hidden = false;
+        b.addEventListener('click', function () {
+          if (NATIVE && window.NativeBridge && window.NativeBridge.skipNext) {
+            try { window.NativeBridge.skipNext(); } catch (e) {}
+          }
+        });
+      })();
       function renderSoundBtn() {
         $('soundBtn').textContent = soundOn() ? '🔊 Sound on' : '🔇 Sound off';
       }
