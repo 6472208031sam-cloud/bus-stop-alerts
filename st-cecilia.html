@@ -182,6 +182,7 @@
       box-shadow: 0 2px 8px rgba(0,0,0,.3); white-space: nowrap;
       pointer-events: none;
     }
+    .completed-banner { background:#14532d; border-color:#22c55e; color:#dcfce7; }
     .map-wrap { position: relative; }
     #routeMap { height: 300px; border-radius: 14px; border: 1px solid var(--line); z-index: 0; background: var(--surface-2); }
     .stop-pin { width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 2px solid var(--green); color: var(--green-strong); display: grid; place-items: center; font-family: "Archivo", sans-serif; font-weight: 800; font-size: .82rem; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
@@ -450,6 +451,7 @@
             <div id="routeMap" aria-label="Route map"></div>
             <div id="onBusPill" class="onbus-pill" hidden></div>
             <div id="modeWarnBanner" class="mode-warn" hidden></div>
+            <div id="completedBanner" class="mode-warn completed-banner" hidden></div>
           </div>
           <div class="action-row">
             <button class="btn primary" type="button" id="startBtn">Start ride</button>
@@ -685,6 +687,9 @@
       var dotWatchId = null; // visual-only position watch for the blue dot
       var syncPollId = null; // fallback poll: guarantees UI converges with service
       var RIDE_PAGE = 'stcecilia';
+      var lastSettingsRevApplied = -1;
+      var snapshotOwnsTab = false;
+      var _switchingForNativeRide = false;
 
       var $ = function (id) { return document.getElementById(id); };
       var routeList = $('routeList');
@@ -796,12 +801,14 @@
           } catch (e) {}
           showToast(dir === 'to' ? 'Direction set: To (A \u2192 D).' : 'Direction set: From (D \u2192 A).');
         }
-        // Auto-start tracking on tab switch if not already on (Android).
-        if (typeof NATIVE !== 'undefined' && NATIVE && !tracking) {
-          setTimeout(function () { try { startTracking(); } catch (e) {} }, 800);
+        if (!_switchingForNativeRide) {
+          // Auto-start tracking on tab switch if not already on (Android).
+          if (typeof NATIVE !== 'undefined' && NATIVE && !tracking) {
+            setTimeout(function () { try { startTracking(); } catch (e) {} }, 800);
+          }
+          // Keep the native service on the same tab the user is viewing.
+          try { pushScheduleToNative(); } catch (e) {}
         }
-        // Keep the native service on the same tab the user is viewing.
-        try { pushScheduleToNative(); } catch (e) {}
       }
 
       function renderRoute() {
@@ -972,7 +979,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.14';
+      var APP_VERSION = '8.15';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1631,20 +1638,9 @@ var AM_CHECKPOINTS = [
         // always converges to the true ride progress.
         stopSyncPoll();
         syncPollId = setInterval(function () {
-          if (!tracking || !NATIVE) return;
-          try {
-            var st = window.NativeBridge.getStatus();
-            if (!st) return;
-            var status = JSON.parse(st);
-            if (status.completed && status.reached) {
-              // Finished ride found on poll — apply it even though active is false.
-              applyNativeSync(status, null);
-              // Native stopped (route complete or auto-stop): update web UI too.
-              if (tracking) { try { stopTracking(); } catch (e) {} }
-              return;
-            }
-            if (status.active && status.page === RIDE_PAGE) applyNativeSync(status, null);
-          } catch (e) {}
+          if ((!tracking && !testAllActive) || !NATIVE) return;
+          var status = fetchNativeStatus();
+          if (status) renderSnapshot(status, null);
         }, 3000);
       }
 
@@ -1712,10 +1708,8 @@ var AM_CHECKPOINTS = [
         catch (e) { res = 'error'; }
         if (res === 'started') {
           enterNativeTrackingUI();
-          try {
-            var st = window.NativeBridge.getStatus();
-            if (st) applyNativeSync(JSON.parse(st), null);
-          } catch (e2) {}
+          var status = fetchNativeStatus();
+          if (status) renderSnapshot(status, null);
         } else if (res === 'permission_needed') {
           showToast('Choose "Allow all the time" for location, then tap Start again.');
         } else {
@@ -1750,13 +1744,99 @@ var AM_CHECKPOINTS = [
         }
       }
 
-      function applyNativeSync(status, toast) {
-        if (!status || !status.reached) return;
+      // ---- Phase 3: the GUI is a pure renderer of the native snapshot ----
+      // Native owns ride state; in native mode every status (poll, push,
+      // startup, start) flows through renderSnapshot() and nothing else
+      // mutates ride UI state. Browser mode never calls these.
+      function fetchNativeStatus() {
+        try {
+          if (!window.NativeBridge || !window.NativeBridge.getStatus) return null;
+          var st = window.NativeBridge.getStatus();
+          var s = st ? JSON.parse(st) : null;
+          if (s && s.page && s.page !== RIDE_PAGE) return null;
+          return s;
+        } catch (e) { return null; }
+      }
+
+      function snapshotRouteOf(status) {
+        if (!status) return null;
+        var snap = status.snapshot || null;
+        if (snap && snap.route && (snap.route.tab === 'am' || snap.route.tab === 'pm')) return snap.route.tab;
+        if (status.tab === 'am' || status.tab === 'pm') return status.tab;
+        return null;
+      }
+
+      // Page-load auto-start, driven by the native status rather than a
+      // blind timer: render whatever native already has, then start only
+      // when no live ride exists and no completed ride is being held (D6).
+      // Manual Start / GPS pulse call startTracking() directly — no hold.
+      function maybeAutoStartNative() {
+        if (!NATIVE) return;
+        var tries = 0;
+        function attempt() {
+          if (!window.NativeBridge) {
+            tries++;
+            if (tries <= 16) setTimeout(attempt, 250);
+            return;
+          }
+          var status = fetchNativeStatus();
+          if (status) renderSnapshot(status, null);
+          if (tracking) return;
+          var snap = status && status.snapshot;
+          if (snap && snap.state === 'active') return;
+          if (snap && snap.state === 'completed' && snapshotRouteOf(status) === mode) return; // D6 completed-hold
+          startTracking();
+        }
+        attempt();
+      }
+
+      function renderSettingsFromSnapshot(snap) {
+        if (!snap || !snap.settings || !snap.schedule) return;
+        if (snap.settings.settingsRev === lastSettingsRevApplied) return;
+        // Focus guard: never yank an input the user is editing right now.
+        // Return WITHOUT consuming the rev so a later render still applies.
+        var ae = document.activeElement;
+        if (ae && (ae === $('schedToggle') || ae === $('schedOn1') || ae === $('schedOff1') ||
+                   ae === $('schedOn2') || ae === $('schedOff2') || ae === $('schedWeekdays') ||
+                   ae === $('followerToggle'))) return;
+        lastSettingsRevApplied = snap.settings.settingsRev;
+        try { $('schedToggle').checked = !!snap.schedule.enabled; } catch (e) {}
+        try { $('schedOn1').value = minToTime(snap.schedule.on1); } catch (e) {}
+        try { $('schedOff1').value = minToTime(snap.schedule.off1); } catch (e) {}
+        try { $('schedOn2').value = minToTime(snap.schedule.on2); } catch (e) {}
+        try { $('schedOff2').value = minToTime(snap.schedule.off2); } catch (e) {}
+        try { $('schedWeekdays').checked = !!snap.schedule.weekdaysOnly; } catch (e) {}
+        try { $('followerToggle').checked = !!snap.settings.followerOn; } catch (e) {}
+        try {
+          saveSchedSettings({
+            enabled: !!snap.schedule.enabled,
+            on1: snap.schedule.on1, off1: snap.schedule.off1,
+            on2: snap.schedule.on2, off2: snap.schedule.off2,
+            weekdaysOnly: !!snap.schedule.weekdaysOnly
+          });
+          localStorage.setItem('bsa_follower_stcecilia', snap.settings.followerOn ? '1' : '0');
+          localStorage.setItem('stcecilia_sound', snap.settings.sound ? '1' : '0');
+        } catch (e) {}
+        try { renderSoundBtn(); } catch (e) {}
+      }
+
+      function applySnapshotProgress(status, snap, toast) {
+        // Per-stop flags come from the snapshot's route stops when they
+        // line up with the page's stops; otherwise the legacy arrays.
+        var useSnapStops = !!(snap && snap.route && snap.route.stops && snap.route.stops.length === stops.length);
         var newly = [], i, j;
-        for (i = 0; i < stops.length && i < status.reached.length; i++) {
-          if (status.reached[i] && !stops[i].reached) newly.push(i);
-          stops[i].reached = !!status.reached[i];
-          stops[i].skipped = !!status.skipped[i];
+        for (i = 0; i < stops.length; i++) {
+          var r, sk;
+          if (useSnapStops) {
+            r = !!snap.route.stops[i].reached;
+            sk = !!snap.route.stops[i].skipped;
+          } else {
+            r = !!(status.reached && status.reached[i]);
+            sk = !!(status.skipped && status.skipped[i]);
+          }
+          if (r && !stops[i].reached) newly.push(i);
+          stops[i].reached = r;
+          stops[i].skipped = sk;
         }
         renderRoute();
         for (j = 0; j < newly.length; j++) {
@@ -1770,39 +1850,93 @@ var AM_CHECKPOINTS = [
         for (i = 0; i < stops.length; i++) {
           if (!stops[i].reached) { allDone = false; break; }
         }
-        if (allDone) { finishRoute(); return; }
-        if (status.onBus) {
-          if (status.onBus !== _lastSyncOnBus) {
-            _lastSyncOnBus = status.onBus;
-            try { logEvent('SYS', 'nativeSync: onBus=' + status.onBus); } catch (e) {}
+        if (allDone) {
+          // Same end state as finishRoute(), but finishRoute() stops
+          // tracking first and then overwrites these texts — do the stop
+          // first here too, then set the texts, so nothing double-stops.
+          if (tracking) stopTracking();
+          $('tripKicker').textContent = 'Route complete';
+          $('nextStopDisplay').textContent = 'Final stop reached';
+          $('distanceDisplay').textContent = 'All ' + stops.length + ' stops complete';
+          $('nextMetric').textContent = 'Complete';
+          return;
+        }
+        var onBusVal = (snap && snap.onBus) || status.onBus;
+        if (onBusVal) {
+          if (onBusVal !== _lastSyncOnBus) {
+            _lastSyncOnBus = onBusVal;
+            try { logEvent('SYS', 'nativeSync: onBus=' + onBusVal); } catch (e) {}
           }
-          try { showOnBusPill(status.onBus); } catch (e) {}
+          try { showOnBusPill(onBusVal); } catch (e) {}
         }
         // Note: do NOT hide pill here - only triggerArrival (on dest arrival) or stopTracking hides it.
         // Hiding on every sync without onBus would kill the pill immediately.
-        if (status.next >= 0 && status.next < stops.length) {
-          $('nextStopDisplay').textContent = stopLabelNumbered(stops[status.next]);
+        var nextIdx = (snap && snap.progress && typeof snap.progress.nextIndex === 'number')
+          ? snap.progress.nextIndex : status.next;
+        if (nextIdx >= 0 && nextIdx < stops.length) {
+          $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextIdx]);
         }
         if (toast) showToast(toast);
       }
 
+      // THE single native-mode render path. Returns true when it rendered.
+      function renderSnapshot(status, toast) {
+        if (!status) return false;
+        var snap = status.snapshot || null;
+        var state;
+        if (snap && snap.state) state = snap.state;
+        else if (status.active) state = 'active';
+        else if (status.completed) state = 'completed';
+        else if (status.ended) state = 'ended';
+        else state = 'none';
+        // Test All is a local simulation; a live native ride wins.
+        if (testAllActive) {
+          if (state === 'active') {
+            stopTestAll();
+            try { logEvent('SYS', 'Test All aborted \u2014 native ride took over'); } catch (e) {}
+          } else {
+            return false;
+          }
+        }
+        var route = snapshotRouteOf(status);
+        var banner = $('completedBanner');
+        if (state === 'active') {
+          if (route && route !== mode && !tracking) {
+            snapshotOwnsTab = true;
+            _switchingForNativeRide = true;
+            try { setDirection(route, true); } catch (e) {}
+            _switchingForNativeRide = false;
+          }
+          if (!tracking) enterNativeTrackingUI();
+          applySnapshotProgress(status, snap, toast);
+          if (banner) banner.hidden = true;
+        } else if (state === 'completed') {
+          if (route && route !== mode && !tracking) {
+            snapshotOwnsTab = true;
+            _switchingForNativeRide = true;
+            try { setDirection(route, true); } catch (e) {}
+            _switchingForNativeRide = false;
+          }
+          applySnapshotProgress(status, snap, toast);
+          if (tracking) stopTracking();
+          if (banner) {
+            banner.textContent = '\u2713 Route complete (' + (route === 'pm' ? 'PM' : 'AM') + ') \u2014 tap Start for a new ride.';
+            banner.hidden = false;
+          }
+        } else { // 'ended' or 'none'
+          if (banner) banner.hidden = true;
+          if (tracking && state === 'ended') stopTracking();
+        }
+        if (snap) renderSettingsFromSnapshot(snap);
+        return true;
+      }
+
+      function applyNativeSync(status, toast) { renderSnapshot(status, toast); }
+
       function nativeSync(b64, toast) {
         try {
           var status = JSON.parse(atob(b64));
-          if (!tracking && status.active && status.page === RIDE_PAGE) {
-            // A scheduled (or background) ride may be on the other tab —
-            // switch to it so progress syncs onto the right stops.
-            if (status.tab && status.tab !== mode) setDirection(status.tab);
-            enterNativeTrackingUI();
-          }
-          // Always apply reached/skipped state if present — the native side
-          // is authoritative, even if our local tracking flag is out of sync.
-          if (status && status.reached) {
-            if (!tracking) enterNativeTrackingUI();
-            applyNativeSync(status, toast);
-          } else if (tracking) {
-            applyNativeSync(status, toast);
-          }
+          renderSnapshot(status, toast);
         } catch (e) {}
       }
 
@@ -2043,6 +2177,7 @@ var AM_CHECKPOINTS = [
         }
         try { renderRoute(); } catch (e) {}
         testAllActive = true;
+        if (NATIVE) startSyncPoll();
         // AM: start at My Stop (if set), else from the beginning
         // PM: always from the beginning (stops at My Stop via got-off)
         var startIdx = 0;
@@ -2107,6 +2242,7 @@ var AM_CHECKPOINTS = [
       function stopTestAll() {
         testAllActive = false;
         clearTimeout(testAllTimer);
+        if (NATIVE && !tracking) stopSyncPoll();
         updateTestAllBtn();
         logEvent('SYS', 'Test All stopped');
       }
@@ -2181,7 +2317,7 @@ var AM_CHECKPOINTS = [
       $('soundBtn').addEventListener('click', function () {
         localStorage.setItem('stcecilia_sound', soundOn() ? '0' : '1');
         renderSoundBtn();
-        updateConfig();
+        pushScheduleToNative();
         showToast(soundOn() ? 'Arrival sound on.' : 'Arrival sound muted (vibration still on).');
       });
       renderSoundBtn();
@@ -2207,7 +2343,6 @@ var AM_CHECKPOINTS = [
       renderMyStopSelect();
       $('myStopSelect').addEventListener('change', function () {
         setMyStop(this.value);
-        try { updateConfig(); } catch (e) {}
         pushScheduleToNative();
         showToast(this.value === 'auto' ? 'My Stop: auto detect.' : 'My Stop set to ' + this.value + '.');
       });
@@ -2334,16 +2469,22 @@ var AM_CHECKPOINTS = [
         window.open('https://www.google.com/maps/dir/?api=1&destination=' + s.lat + ',' + s.lng, '_blank', 'noopener');
       });
       $('markReachedBtn').addEventListener('click', function () {
-        // Always mark locally too — the native ride may have already finished
-        // (e.g. ntfy sent but UI sync lost), in which case the bridge is a no-op.
+        if (NATIVE && window.NativeBridge && window.NativeBridge.markReached) {
+          // Native mode: command only — native owns ride state, so the
+          // page mutates nothing locally; it re-renders from the status
+          // the bridge reports after the command.
+          try { window.NativeBridge.markReached(); } catch (e) {}
+          var status = fetchNativeStatus();
+          if (status) renderSnapshot(status, null);
+          showToast('Marked as reached.');
+          return;
+        }
+        // Browser mode: mark locally.
         var idx = nextStopIndex();
         var marked = false;
         if (idx >= 0 && idx < stops.length) {
           stops[idx].reached = true;
           marked = true;
-        }
-        if (NATIVE && window.NativeBridge && window.NativeBridge.markReached) {
-          try { window.NativeBridge.markReached(); } catch (e) {}
         }
         if (marked) {
           // If this completes the route, show the arrived state.
@@ -2452,14 +2593,8 @@ var AM_CHECKPOINTS = [
 
       if (NATIVE) {
         try {
-          var _nst = window.NativeBridge.getStatus();
-          if (_nst) {
-            var _nstatus = JSON.parse(_nst);
-            if (_nstatus.active && _nstatus.page === RIDE_PAGE) {
-              enterNativeTrackingUI();
-              applyNativeSync(_nstatus, null);
-            }
-          }
+          var _nstatus = fetchNativeStatus();
+          if (_nstatus) renderSnapshot(_nstatus, null);
         } catch (e) {}
       }
       loadStopForm();
@@ -2468,17 +2603,11 @@ var AM_CHECKPOINTS = [
       // Save the ride config to native storage on every page load, so
       // scheduled alarms can start tracking even if no ride was started.
       // (The native side needs the saved config for ACTION_SCHEDULE_START.)
-      try { updateConfig(); } catch (e) {}
-      // Self auto-start for native apps: if running in the Android/iOS
-      // wrapper and not already tracking, start after the page settles.
+      try { pushScheduleToNative(); } catch (e) {}
+      // Self auto-start for native apps: render the native status first,
+      // then start only if no live/completed ride is already there.
       // (Backup for the native onPageFinished timer.)
-      setTimeout(function () {
-        try {
-          if (typeof NATIVE !== 'undefined' && NATIVE && !tracking && typeof startTracking === 'function') {
-            startTracking();
-          }
-        } catch (e) {}
-      }, 2500);
+      maybeAutoStartNative();
     })();
   </script>
 
