@@ -997,7 +997,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.19';
+      var APP_VERSION = '9.20';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1528,6 +1528,14 @@ var AM_CHECKPOINTS = [
       function pushConfigToNative() {
         if (NATIVE && tracking) {
           try { window.NativeBridge.updateConfig(JSON.stringify(buildRideConfig())); } catch (e) {}
+        } else if (NATIVE) {
+          // Not tracking: still land the current settings in the native
+          // store, so a later scheduled/background start uses the values
+          // the page shows now (follower toggle, sound, My Stop, snap
+          // distance). pushScheduleToNative sends both routes' configs
+          // and carries the ride-active adoption guard if a native ride
+          // happens to be running unsynced.
+          pushScheduleToNative();
         }
       }
 
@@ -2446,6 +2454,7 @@ var AM_CHECKPOINTS = [
       $('soundBtn').addEventListener('click', function () {
         localStorage.setItem('bsa_sound', soundOn() ? '0' : '1');
         renderSoundBtn();
+        pushConfigToNative();
       });
       // ---- "My Stop" setting: dropdown + first-run prompt ----
       function myStopOptions() {

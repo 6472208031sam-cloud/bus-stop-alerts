@@ -982,7 +982,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.20';
+      var APP_VERSION = '8.21';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 500;
@@ -1632,6 +1632,13 @@ var AM_CHECKPOINTS = [
       function pushConfigToNative() {
         if (NATIVE && tracking) {
           try { window.NativeBridge.updateConfig(JSON.stringify(buildRideConfig())); } catch (e) {}
+        } else if (NATIVE) {
+          // Not tracking: still land the current settings in the native
+          // store, so a later scheduled/background start uses the values
+          // the page shows now (follower toggle, My Stop). The schedule
+          // push sends both tabs' configs and carries the ride-active
+          // adoption guard if a native ride is running unsynced.
+          pushScheduleToNative();
         }
       }
 
