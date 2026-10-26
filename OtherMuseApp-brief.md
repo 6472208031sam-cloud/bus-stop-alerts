@@ -1,21 +1,23 @@
-# Handoff — Bus Follower page v6.19, channel PRESET (for the receiving Muse)
+# Handoff — Bus Follower page v6.20, channel PRESET (for the receiving Muse)
 
 ## What you're getting
-One file: `bus-follower-index-v6.19-preset.html` — the complete, current Bus Follower
-page (single-file HTML, Leaflet map over an ntfy channel), byte-identical to the
+One file: `OtherMuseApp-v6.20.html` — the complete, current Bus Follower page
+(single-file HTML, Leaflet map over an ntfy channel), byte-identical to the
 sender's live page. Save it as `index.html` in the bus-follower repo. Nothing to merge.
+(If you deployed the v6.19 file earlier, just replace it with this one — same drill.)
 
-## The channel is already set — do not change it
-The ntfy channel in use is preset in the file (the `HARDCODED_TOPIC` value, the channel
-input, and the migration list are all in place). **Make no channel edits.** Anyone
-opening this page connects to that channel automatically, and browsers that still hold
-an older channel name from the list in the file migrate on their own.
+## The channel is already set — and now it's the only authority
+The ntfy channel in use is preset in the file as the page's built-in constant.
+**Make no channel edits.** As of v6.20 the page ignores any locally stored channel:
+the channel field on the page is a read-only display of the built-in value, every
+connect/backfill path uses the constant, and on startup the page overwrites any stale
+stored channel with it. Anyone opening the page connects to that channel automatically.
 
 ## Ship it
 Commit, push to GitHub Pages, wait ~1 minute, and confirm the live page header
-reads **v6.19**.
+reads **v6.20**.
 
-## What's new (v6.18 + v6.19, over the v6.17 you may already have)
+## What's new (v6.18 + v6.19 + v6.20, over the v6.17 you may already have)
 - **v6.18 — "School" label:** the PM route's start stop (data letter `S`) renders as
   "School" everywhere the follower prints a label — a wider map pill, "Stop School (13)"
   in status lines, popups, and log lines. Display-only helper; the data letter stays `S`.
@@ -26,6 +28,9 @@ reads **v6.19**.
 - **v6.19 — label fix:** a stop's AM-number bracket now prints only when that number is
   positive, so labels read "Stop 0", "Stop 01", "Stop 02" instead of "Stop 01 (undefined)"
   or "Stop 0 (0)". Real stops keep theirs ("Stop B (8)", "Stop School (13)").
+- **v6.20 — channel cleanup:** the old channel-migration lists are retired. The built-in
+  channel is the single source of truth (see above); future channel rotations are a
+  one-value change in the page.
 
 ## Do NOT "clean up" the underlying data
 - The letters (`S`, `0`, `01`, `02`, `A`–`L`) and the waypoint stops themselves are
@@ -38,5 +43,5 @@ reads **v6.19**.
 - School is a wide "School" pill; 0/01/02 are dots; A–L are lettered circles.
 - Tapping a dot says "Waypoint — progress point, not a stop".
 - Status/pill text shows "Stop 01" with no "(undefined)" anywhere.
-- The channel field shows the preset channel and the page connects on its own.
+- The channel field shows the preset channel, is read-only, and the page connects on its own.
 - AM tab is completely unchanged (numbered pins 1–13).
