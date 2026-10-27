@@ -195,6 +195,8 @@
     .btn.primary { background: var(--green); color: #fff; border-color: var(--green); }
     .btn.primary:hover { background: var(--green-strong); }
     .btn:disabled { opacity: .48; cursor: not-allowed; }
+    .pulse:disabled { opacity: .48; cursor: not-allowed; }
+    .switch input:disabled + .slider { opacity: .48; cursor: not-allowed; }
     .btn svg { width: 18px; height: 18px; }
     .notice { margin-top: 16px; padding: 13px 14px; border-radius: 11px; background: var(--amber-soft); color: var(--text); display: flex; gap: 10px; align-items: flex-start; font-size: .88rem; line-height: 1.45; }
     .notice svg { flex: none; margin-top: 1px; color: var(--amber); }
@@ -508,6 +510,13 @@
               <button class="small-btn" type="button" id="testPushBtn">Send test</button>
             </div>
           </div>
+          <div class="follower-card" id="controlsLockCard">
+            <div class="follower-head">
+              <h3>Controls lock</h3>
+              <label class="switch" aria-label="Unlock manual controls"><input type="checkbox" id="controlsLockToggle" /><span class="slider"></span></label>
+            </div>
+            <p class="sub">When this switch is off, the manual controls are locked: Mark reached, Skip next stop, Navigate, the GPS pin, the schedule switch and the alerts switch are all disabled. Turn it on to use them. Rides still start and stop automatically either way.</p>
+          </div>
           <div class="secondary-tools">
             <button class="small-btn" type="button" id="editRouteBtn">Edit route</button>
             <button class="small-btn" type="button" id="downloadBtn2">Download route</button>
@@ -573,6 +582,14 @@
       <p class="sub">Pick once &mdash; the follower page will show &ldquo;waiting at&rdquo; / &ldquo;got off at&rdquo; for this stop. You can change it later in settings.</p>
       <select id="myStopModalSelect" aria-label="My stop" style="width:100%;background:#0f2a1e;color:#eafff3;border:1px solid #1f5c40;border-radius:10px;padding:12px;font-size:1rem;margin:8px 0 14px;"></select>
       <button class="btn" type="button" id="myStopModalSave" style="width:100%;">Save my stop</button>
+    </div>
+  </div>
+  <div class="mystop-modal" id="confirmModal" hidden>
+    <div class="mystop-box">
+      <h3 id="confirmTitle">Are you sure?</h3>
+      <p class="sub" id="confirmText"></p>
+      <button class="btn" type="button" id="confirmYesBtn" style="width:100%;">Yes</button>
+      <button class="btn" type="button" id="confirmNoBtn" style="width:100%;margin-top:8px;">Cancel</button>
     </div>
   </div>
   <div class="toast" id="toast" role="status"></div>
@@ -997,7 +1014,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.20';
+      var APP_VERSION = '9.21';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -2020,6 +2037,39 @@ var AM_CHECKPOINTS = [
         return localStorage.getItem('bsa_follower') !== '0';
       }
 
+      // ---- Controls lock ----
+      // When locked (the default), the manual controls are disabled so
+      // stray taps can't mark stops, skip, navigate, start/stop via the
+      // pin, or flip the schedule / alerts switches. Automatic behavior
+      // (page auto-start, scheduled starts/stops, detection) never goes
+      // through these controls and is unaffected.
+      function controlsUnlocked() {
+        try { return localStorage.getItem('bsa_controls_unlocked') === '1'; } catch (e) { return false; }
+      }
+      function applyControlsLock() {
+        var un = controlsUnlocked();
+        ['markReachedBtn', 'skipNextBtn', 'navNextBtn', 'gpsPulse', 'schedToggle', 'followerToggle'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.disabled = !un;
+        });
+        var t = $('controlsLockToggle');
+        if (t) t.checked = un;
+      }
+
+      // ---- In-page confirmation pop-up ----
+      // WKWebView does not implement JS confirm(), so destructive manual
+      // actions ask through this modal instead. Only UI entry points call
+      // askConfirm — the underlying functions stay prompt-free for their
+      // automatic callers (route finish, schedule window end, got-off).
+      var _confirmCb = null;
+      function askConfirm(title, text, yesLabel, cb) {
+        $('confirmTitle').textContent = title;
+        $('confirmText').textContent = text;
+        $('confirmYesBtn').textContent = yesLabel;
+        _confirmCb = cb;
+        $('confirmModal').hidden = false;
+      }
+
       var DEFAULT_SNAP_DISTANCE = 100;
       function getSnapDistance() {
         var v = parseInt(localStorage.getItem('bsa_snap_distance'), 10);
@@ -2326,7 +2376,7 @@ var AM_CHECKPOINTS = [
 
       $('gpsPulse').addEventListener('click', function () {
         if (typeof tracking !== 'undefined' && tracking) {
-          if (typeof stopTracking === 'function') stopTracking();
+          askConfirm('Stop ride?', 'End the current ride and stop tracking?', 'Stop ride', function () { if (typeof stopTracking === 'function') stopTracking(); });
         } else {
           if (typeof startTracking === 'function') startTracking();
         }
@@ -2396,8 +2446,8 @@ var AM_CHECKPOINTS = [
         else { selected = Math.min(12, selected + 1); loadStopForm(); }
       });
       $('startBtn').addEventListener('click', startTracking);
-      $('stopBtn').addEventListener('click', stopTracking);
-      $('resetTripBtn').addEventListener('click', resetProgress);
+      $('stopBtn').addEventListener('click', function () { askConfirm('Stop ride?', 'End the current ride and stop tracking?', 'Stop ride', function () { stopTracking(); }); });
+      $('resetTripBtn').addEventListener('click', function () { askConfirm('Reset progress?', 'Mark every stop unreached again? This cannot be undone.', 'Reset progress', function () { resetProgress(); }); });
       $('navNextBtn').addEventListener('click', function () {
         if (reachedCount() === expectedCount()) { showToast('Route complete.'); return; }
         var s = stops[nextStopIndex()];
@@ -2521,6 +2571,22 @@ var AM_CHECKPOINTS = [
         showToast($('followerToggle').checked ? 'Follower alerts on.' : 'Follower alerts off.');
         pushConfigToNative();
       });
+      $('controlsLockToggle').checked = controlsUnlocked();
+      $('controlsLockToggle').addEventListener('change', function () {
+        try { localStorage.setItem('bsa_controls_unlocked', $('controlsLockToggle').checked ? '1' : '0'); } catch (e) {}
+        applyControlsLock();
+        showToast($('controlsLockToggle').checked ? 'Manual controls unlocked.' : 'Manual controls locked.');
+      });
+      $('confirmYesBtn').addEventListener('click', function () {
+        $('confirmModal').hidden = true;
+        var cb = _confirmCb; _confirmCb = null;
+        if (cb) cb();
+      });
+      $('confirmNoBtn').addEventListener('click', function () {
+        $('confirmModal').hidden = true;
+        _confirmCb = null;
+      });
+      applyControlsLock();
       $('snapDistance').value = getSnapDistance();
       $('snapDistanceOut').textContent = getSnapDistance() + ' m';
       $('snapDistance').addEventListener('input', function () {
