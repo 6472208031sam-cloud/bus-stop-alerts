@@ -495,7 +495,7 @@
             </div>
             <p class="sub">Toronto time. Turns GPS tracking on and off automatically, even with the phone locked (Android app only). The morning window runs the AM route, the afternoon window the PM route.</p>
             <div class="sched-row"><span class="sched-label">Morning on / off</span><input type="time" id="schedOn1" value="08:00" /><span class="sched-dash">–</span><input type="time" id="schedOff1" value="10:00" /></div>
-            <div class="sched-row"><span class="sched-label">Afternoon on / off</span><input type="time" id="schedOn2" value="15:30" /><span class="sched-dash">–</span><input type="time" id="schedOff2" value="18:30" /></div>
+            <div class="sched-row"><span class="sched-label">Afternoon on / off</span><input type="time" id="schedOn2" value="15:30" /><span class="sched-dash">–</span><input type="time" id="schedOff2" value="17:30" /></div>
             <label class="sched-days"><input type="checkbox" id="schedWeekdays" checked /> Weekdays only (Mon–Fri)</label>
           </div>
           <div class="follower-card" id="followerCard">
@@ -1014,7 +1014,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.21';
+      var APP_VERSION = '9.22';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -2098,7 +2098,7 @@ var AM_CHECKPOINTS = [
           on1: parseTimeToMin(localStorage.getItem('bsa_sched_on1'), 480),
           off1: parseTimeToMin(localStorage.getItem('bsa_sched_off1'), 600),
           on2: parseTimeToMin(localStorage.getItem('bsa_sched_on2'), 930),
-          off2: parseTimeToMin(localStorage.getItem('bsa_sched_off2'), 1110),
+          off2: parseTimeToMin(localStorage.getItem('bsa_sched_off2'), 1050),
           weekdaysOnly: localStorage.getItem('bsa_sched_weekdays') !== '0'
         };
       }
@@ -2609,7 +2609,7 @@ var AM_CHECKPOINTS = [
             on1: parseTimeToMin($('schedOn1').value, 480),
             off1: parseTimeToMin($('schedOff1').value, 600),
             on2: parseTimeToMin($('schedOn2').value, 930),
-            off2: parseTimeToMin($('schedOff2').value, 1110),
+            off2: parseTimeToMin($('schedOff2').value, 1050),
             weekdaysOnly: $('schedWeekdays').checked
           };
         }
