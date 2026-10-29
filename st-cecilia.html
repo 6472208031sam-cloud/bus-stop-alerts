@@ -305,7 +305,7 @@
       .log-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
       .chip { background: #2a4a38; color: #fff; border: none; border-radius: 16px; padding: 6px 12px; font-size: 0.8rem; cursor: pointer; }
       .chip.active { background: #4a8a5f; }
-      .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+      .modal-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -982,7 +982,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.23';
+      var APP_VERSION = '8.24';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 1500;
