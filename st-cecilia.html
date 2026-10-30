@@ -982,10 +982,10 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.24';
+      var APP_VERSION = '8.25';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
-      var LOG_MAX = 1500;
+      var LOG_MAX = 5000;
       var logEntries = [];
       var lastGpsLogTime = 0;
       function loadPersistedLogs() {
@@ -1087,10 +1087,13 @@
         try {
           if (window.NativeBridge && typeof window.NativeBridge.downloadLogs === 'function') {
             var status = window.NativeBridge.downloadLogs(fname, text);
-            showToast(status ? String(status) : 'Logs downloaded.');
+            // v8.25: honest result — a falsy status or a throw means
+            // the native handoff failed; say so instead of falling
+            // back to a browser download that never happened in-app.
+            showToast(status ? String(status) : 'Download failed in the app — use Copy instead.');
             return;
           }
-        } catch (e) {}
+        } catch (e) { showToast('Download failed in the app — use Copy instead.'); return; }
         try {
           var blob = new Blob([text], { type: 'text/plain' });
           var a = document.createElement('a');
@@ -1282,6 +1285,7 @@
         updateUserDot(lat, lng, accuracy);
         logGpsThrottled('fix lat=' + lat.toFixed(6) + ' lng=' + lng.toFixed(6) + ' acc=' + accuracy + 'm');
         var idx = stops.findIndex(function (s) { return !s.reached; });
+        var snappedThisFix = false;
         // Catch-up: if the phone is near a later stop than the current "next"
         // one, snap forward to it. This lets a ride start at any stop (or
         // mid-route) instead of only working from stop 1. Only moves forward,
@@ -1306,6 +1310,7 @@
             best = -1; // too far ahead on a coarse fix, don't snap
           }
           if (best > idx && bestDist <= getSnapDistance()) {
+            snappedThisFix = true;
             for (i = idx; i < best; i++) { stops[i].reached = true; stops[i].skipped = true; }
             idx = best;
             renderRoute();
@@ -1329,6 +1334,27 @@
           renderRoute();
           if (reachedCount() === stops.length) finishRoute();
           else $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
+        } else if (!snappedThisFix && idx >= 1 && idx + 1 < stops.length) {
+          // v8.25: live one-stop look-ahead — the following stop fired
+          // with the normal arrival condition while this one didn't:
+          // mark this stop reached+skipped (no arrival side effects
+          // for it), send the ⏭ notice first, then process the
+          // following stop's arrival normally. Armed only once
+          // position is established (idx >= 1); never past the final
+          // stop; a snap fix never also skips.
+          var laStop = stops[idx + 1];
+          var laDist = distanceMeters(lat, lng, laStop.lat, laStop.lng);
+          if ((laDist <= laStop.radius && accuracy <= accLimit(laStop)) ||
+              (laDist <= 15 && accuracy <= 150)) {
+            stop.reached = true; stop.skipped = true;
+            logEvent('SKIP', 'look-ahead: ' + laShortRef(stop) + ' skipped (' + laShortRef(laStop) + ' arrival, ' + Math.round(laDist) + 'm)');
+            sendSkippedNotice(stop);
+            laStop.reached = true;
+            triggerArrival(laStop);
+            renderRoute();
+            if (reachedCount() === stops.length) finishRoute();
+            else $('nextStopDisplay').textContent = stopLabelNumbered(stops[nextStopIndex()]);
+          }
         }
         // On-bus detection (AM only): check sequential checkpoints
         checkOnBusCheckpoints(lat, lng, accuracy);
@@ -2196,6 +2222,25 @@ var AM_CHECKPOINTS = [
         try {
           logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + msg);
         fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
+        } catch (e) {}
+      }
+
+      // v8.25: short stop reference for log lines.
+      function laShortRef(stop) {
+        return mode === 'am' ? ('Stop ' + stop.number) : ('Stop ' + (stop.letter || stop.number));
+      }
+
+      // v8.25: ⏭ notice for a look-ahead skip (native parity). Sent
+      // BEFORE the arrival send; snap/recovery/manual skips stay silent.
+      function sendSkippedNotice(stop) {
+        var msg = '⏭ ' + devTag() + ' skipped ' + stopLabelNumbered(stop) + '.';
+        if (!followerAlertsOn()) {
+          logEvent('NTFY', 'Suppressed (follower alerts off): ' + msg);
+          return;
+        }
+        try {
+          logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + msg);
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
         } catch (e) {}
       }
 
