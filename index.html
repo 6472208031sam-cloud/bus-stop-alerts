@@ -1014,7 +1014,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.25';
+      var APP_VERSION = '9.26';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1818,11 +1818,11 @@ var AM_CHECKPOINTS = [
         $('nextMetric').textContent = 'Complete';
       }
 
-      function adoptSnapshotTab(status) {
+      function adoptSnapshotTab(status, allowWhileTracking) {
         var route = snapshotRouteOf(status);
         if (!route) return null;
         snapshotOwnsTab = true;
-        if (route !== mode && !tracking) {
+        if (route !== mode && (allowWhileTracking || !tracking)) {
           _switchingForNativeRide = true;
           try { setDirection(route, true); } catch (e) {}
           _switchingForNativeRide = false;
@@ -1851,7 +1851,7 @@ var AM_CHECKPOINTS = [
         }
         var route = null;
         if (state === 'active') {
-          route = adoptSnapshotTab(status);
+          route = adoptSnapshotTab(status, true);
           if (!tracking) enterNativeTrackingUI();
           applySnapshotProgress(status, snap, toast, false);
           hideCompletedBanner();
@@ -1870,6 +1870,8 @@ var AM_CHECKPOINTS = [
       }
 
       function applySnapshotProgress(status, snap, toast, isCompletedState) {
+        var snapRoute = snapshotRouteOf(status);
+        if (snapRoute && snapRoute !== mode) return false;
         var useSnapStops = !!(snap && snap.route && snap.route.stops && snap.route.stops.length === stops.length);
         if (!useSnapStops && !status.reached) return false;
         var newly = [], i, j;
@@ -1902,10 +1904,11 @@ var AM_CHECKPOINTS = [
         if (allDone) {
           // Set the completed texts directly instead of finishRoute() —
           // renderSnapshot manages tracking/banner for snapshot states.
-          // For an 'active' snapshot that already shows all reached,
-          // mirror the old finishRoute path: stop tracking first, then
-          // set the texts so they stick.
-          if (!isCompletedState) stopTracking();
+          // The sync path NEVER stops tracking: completion belongs to
+          // the native tracker, whose completed/ended snapshot stops
+          // the page in renderSnapshot. (2026-10-30: a positional
+          // cross-route replay once fabricated all-reached here and
+          // this stop killed a live ride.)
           setCompletedTexts();
           return true;
         }

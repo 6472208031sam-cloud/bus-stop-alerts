@@ -982,7 +982,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.25';
+      var APP_VERSION = '8.26';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -1939,6 +1939,8 @@ var AM_CHECKPOINTS = [
       }
 
       function applySnapshotProgress(status, snap, toast) {
+        var snapRoute = snapshotRouteOf(status);
+        if (snapRoute && snapRoute !== mode) return;
         // Per-stop flags come from the snapshot's route stops when they
         // line up with the page's stops; otherwise the legacy arrays.
         var useSnapStops = !!(snap && snap.route && snap.route.stops && snap.route.stops.length === stops.length);
@@ -1969,10 +1971,10 @@ var AM_CHECKPOINTS = [
           if (!stops[i].reached) { allDone = false; break; }
         }
         if (allDone) {
-          // Same end state as finishRoute(), but finishRoute() stops
-          // tracking first and then overwrites these texts — do the stop
-          // first here too, then set the texts, so nothing double-stops.
-          if (tracking) stopTracking();
+          // Same end state as finishRoute(), minus the stop: the sync
+          // path NEVER stops tracking — completion belongs to the
+          // native tracker, whose completed/ended snapshot stops the
+          // page in renderSnapshot. (2026-10-30 fix.)
           $('tripKicker').textContent = 'Route complete';
           $('nextStopDisplay').textContent = 'Final stop reached';
           $('distanceDisplay').textContent = 'All ' + stops.length + ' stops complete';
@@ -2019,7 +2021,7 @@ var AM_CHECKPOINTS = [
         var route = snapshotRouteOf(status);
         var banner = $('completedBanner');
         if (state === 'active') {
-          if (route && route !== mode && !tracking) {
+          if (route && route !== mode) {
             snapshotOwnsTab = true;
             _switchingForNativeRide = true;
             try { setDirection(route, true); } catch (e) {}
