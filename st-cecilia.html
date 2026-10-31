@@ -982,7 +982,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.26';
+      var APP_VERSION = '8.27';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -1611,6 +1611,8 @@ var AM_CHECKPOINTS = [
           deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
           deviceLabel: (typeof getDeviceLabel === 'function' ? getDeviceLabel() : ''),
           topic: NTFY_TOPIC,
+          fbBase: FB_BASE,
+          fbPath: FB_PATH,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
           myStop: myStopLabels(),
@@ -1712,6 +1714,8 @@ var AM_CHECKPOINTS = [
           deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
           deviceLabel: (typeof getDeviceLabel === 'function' ? getDeviceLabel() : ''),
           topic: NTFY_TOPIC,
+          fbBase: FB_BASE,
+          fbPath: FB_PATH,
           followerOn: followerAlertsOn(),
           sound: soundOn(),
           myStop: myStopLabels(),
@@ -2193,6 +2197,12 @@ var AM_CHECKPOINTS = [
       }
 
       var NTFY_TOPIC = '00-St-Celia-gh45lt-Stc';
+      // Live Tracker: Firebase Realtime Database position feed — the
+      // native trackers PUT this phone's live position here during a
+      // ride and the follower pages subscribe. Config only, like the
+      // topic above; empty = the position writer stays dark.
+      var FB_BASE = 'https://bus-live-tracker-db0e1-default-rtdb.firebaseio.com';
+      var FB_PATH = 'pos-4688de3309369eb335b245d1';
 
       function followerAlertsOn() {
         return localStorage.getItem('bsa_follower_stcecilia') !== '0';
