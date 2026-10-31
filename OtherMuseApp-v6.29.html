@@ -1,0 +1,1995 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta name="theme-color" content="#0b3d2e" />
+<title>Bus Follower</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root { --green:#0b6e4f; --green-d:#0b3d2e; --bg:#0f1a15; --card:#16241d; --txt:#eef4ef; --mut:#9db3a6; --acc:#35d07f; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--txt); }
+  header { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--green-d); position:sticky; top:0; z-index:1000; }
+  header h1 { font-size:1.15rem; margin:0; flex:1; }
+  .seg { display:flex; background:#0a2b20; border-radius:999px; padding:3px; }
+  .seg button { border:0; background:transparent; color:var(--mut); font-weight:700; padding:7px 16px; border-radius:999px; cursor:pointer; }
+  .seg button.on { background:var(--green); color:#fff; }
+  #connDot { width:12px; height:12px; border-radius:50%; background:#888; flex:none; }
+  #connDot.ok { background:var(--acc); } #connDot.err { background:#ff5d5d; }
+  #map { height:52vh; min-height:320px; width:100%; }
+  .bar { padding:10px 14px; background:var(--card); border-bottom:1px solid #223129; }
+  #statusLine { font-size:1.05rem; font-weight:700; }
+  #subLine { color:var(--mut); font-size:.85rem; margin-top:2px; }
+  .prog { height:8px; background:#223129; border-radius:99px; margin-top:8px; overflow:hidden; }
+  .prog > div { height:100%; background:var(--acc); width:0%; transition:width .4s; }
+  section { padding:12px 14px; }
+  h2 { font-size:.95rem; color:var(--mut); margin:14px 0 8px; text-transform:uppercase; letter-spacing:.06em; }
+  .row { display:flex; gap:8px; margin-bottom:8px; }
+  input[type=text] { flex:1; padding:10px 12px; border-radius:8px; border:1px solid #2c4034; background:#0d1712; color:var(--txt); font-size:1rem; }
+  button.act { padding:10px 16px; border-radius:8px; border:0; background:var(--green); color:#fff; font-weight:700; font-size:.95rem; cursor:pointer; }
+  button.act.ghost { background:#223129; }
+  button.act:disabled { opacity:.5; }
+  #log { max-height:260px; overflow-y:auto; background:#0d1712; border:1px solid #223129; border-radius:8px; padding:6px 0; }
+  #log .e { padding:8px 12px; border-bottom:1px solid #182420; font-size:.88rem; }
+  #log .e:last-child { border-bottom:0; }
+  #log .ts { color:var(--mut); font-size:.75rem; margin-right:6px; }
+  #log .tag { display:inline-block; font-size:.7rem; font-weight:700; border-radius:4px; padding:1px 6px; margin-right:6px; background:#223129; color:var(--mut); }
+  #log .tag.am { background:#0b3d2e; color:var(--acc); }
+  #log .tag.pm { background:#3d2b0b; color:#ffcf5d; }
+  #log .tag.test { background:#3a3a10; color:#ffe45d; }
+  #log .tag.warn { background:#3d140b; color:#ff8d5d; }
+  #logEmpty { padding:14px; color:var(--mut); text-align:center; font-size:.9rem; }
+  details.help { background:var(--card); border-radius:8px; padding:10px 12px; font-size:.88rem; color:var(--mut); }
+  details.help summary { cursor:pointer; font-weight:700; color:var(--txt); }
+  .pin { width:28px; height:28px; border-radius:50%; background:#fff; border:2px solid var(--green); color:var(--green); display:grid; place-items:center; font-weight:800; font-size:.8rem; }
+  .pin.done { background:var(--green); color:#fff; }
+  .pin.next { box-shadow:0 0 0 4px rgba(53,208,127,.45); }
+  .pin.skipped { background:#e5e7eb; border-color:#9ca3af; color:#9ca3af; }
+  .pin.wide { width:58px; border-radius:999px; font-size:.72rem; }
+  .pin.wpdot { width:11px; height:11px; font-size:0; }
+  .busdot { width:22px; height:22px; border-radius:50%; background:#2f8bff; border:3px solid #fff; box-shadow:0 0 0 3px rgba(47,139,255,.4), 0 2px 8px rgba(0,0,0,.5); }
+  .arrivedlbl { background:var(--green); color:#fff; font-weight:800; font-size:15px; padding:5px 16px; border-radius:18px; text-align:center; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.35); }
+  .datebar { display:flex; align-items:center; gap:8px; padding:8px 14px; background:#0d1712; border-bottom:1px solid #223129; }
+  .datebar label { color:var(--mut); font-size:.85rem; font-weight:700; }
+  #dateSelect { flex:1; padding:8px 10px; border-radius:8px; border:1px solid #2c4034; background:#16241d; color:var(--txt); font-size:.95rem; max-width:320px; }
+  #dateSummary { color:var(--mut); font-size:.82rem; }
+  #histBadge { display:none; font-size:.75rem; font-weight:700; background:#3d2b0b; color:#ffcf5d; border-radius:4px; padding:2px 8px; }
+  #histBadge.on { display:inline-block; }
+  .histnote { padding:6px 14px; color:var(--mut); font-size:.78rem; background:#0d1712; border-bottom:1px solid #223129; }
+  .devfilter { background:#0d1712; border:1px solid #223129; border-radius:8px; padding:8px 12px; margin-bottom:8px; }
+  .devrow { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:.9rem; cursor:pointer; }
+  .devrow input[type=checkbox] { width:18px; height:18px; accent-color:var(--acc); flex:none; }
+  .devdot { width:14px; height:14px; border-radius:50%; flex:none; }
+  .devhint { color:var(--mut); font-size:.85rem; padding:6px 0; }
+  .devbuslbl { background:rgba(0,0,0,.7); color:#fff; font-size:11px; font-weight:800; padding:1px 7px; border-radius:10px; text-align:center; white-space:nowrap; margin-top:2px; }
+  .waitlbl { background:#b45309; color:#fff; font-weight:700; font-size:12px; padding:5px 16px; border-radius:18px; text-align:center; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.35); }
+  .gotofflbl { background:#475569; color:#fff; font-weight:700; font-size:12px; padding:5px 16px; border-radius:18px; text-align:center; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.35); }
+  .herostrip { padding:10px 12px 4px; background:#0d1712; border-bottom:1px solid #223129; }
+  .hero { border-radius:16px; padding:13px 16px 11px; background:linear-gradient(135deg,#0f5132 0%,#146c43 60%,#198754 100%); box-shadow:0 8px 20px rgba(20,108,67,.4), inset 0 1px 0 rgba(255,255,255,.18); }
+  .herochip { display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:1.8px; color:#0b3520; background:#ffd479; border-radius:999px; padding:3px 9px; margin-bottom:6px; }
+  .herobig { color:#fff; font-size:30px; font-weight:800; line-height:1.05; letter-spacing:-.5px; }
+  .heroasof { color:rgba(255,255,255,.85); font-size:14.5px; font-weight:600; margin-top:4px; }
+  .herocap { color:var(--mut); font-size:.8rem; font-weight:600; margin-top:6px; }
+  .phonedot { width:22px; height:22px; border-radius:50%; background:#35d07f; border:3px solid #fff; box-shadow:0 0 0 3px rgba(53,208,127,.4), 0 2px 8px rgba(0,0,0,.5); display:grid; place-items:center; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>&#x1F68C; Bus Follower <span id="ver" style="font-size:0.6em;opacity:0.7;font-weight:normal;">v6.29</span></h1>
+  <div class="seg">
+    <button id="btnAM" class="on">AM</button>
+    <button id="btnPM">PM</button>
+  </div>
+  <span id="connDot" title="Disconnected"></span>
+</header>
+
+<div id="map"></div>
+
+<div class="herostrip" id="heroStrip" style="display:none">
+  <div class="hero"><div class="herochip" id="heroChip"></div><div class="herobig" id="heroBig"></div><div class="heroasof" id="heroAsof"></div></div>
+  <div class="herocap" id="heroCap"></div>
+</div>
+
+<div class="datebar">
+  <label for="dateSelect">View:</label>
+  <select id="dateSelect"><option value="live">&#x1F534; Live</option></select>
+  <span id="histBadge">HISTORY</span>
+  <span id="dateSummary"></span>
+</div>
+<div class="histnote">Shared history covers recent alerts (ntfy keeps ~12h) and is the same on every device. This device also keeps up to 1 year locally.</div>
+
+<div class="bar">
+  <div id="statusLine">No bus updates yet</div>
+  <div id="subLine">Connect to the follower channel below to start tracking.</div>
+  <div class="prog"><div id="progFill"></div></div>
+</div>
+
+<section>
+  <h2>Channel</h2>
+  <div class="row">
+    <input type="text" id="topicInput" placeholder="ntfy channel name" autocomplete="off" value="00-Bus-107-135-gh45lt" readonly />
+    <button class="act" id="connBtn">Connect</button>
+    <button class="act ghost" id="refreshBtn" title="Re-check for new alerts">↻</button>
+  </div>
+  <details class="help">
+    <summary>Where do I find the channel name?</summary>
+    <p>On the bus phone, open <b>Bus Stop Alerts</b> &gt; <b>Alerts to another phone</b> panel. The channel name is shown there &mdash; type it in above exactly and tap Connect.</p>
+  </details>
+
+  <h2>Devices</h2>
+  <div class="devfilter" id="devFilter">
+    <label class="devrow"><input type="checkbox" id="devAllToggle" checked /> <b>All devices</b></label>
+    <label class="devrow"><input type="checkbox" id="posTestToggle" checked /> <b>Position test</b> — raw live dot from positions alone (testing only; on by default for now)</label>
+    <div id="devList"></div>
+  </div>
+
+  <h2>Event log</h2>
+  <div class="row">
+    <button class="act ghost" id="clearLog">Clear log</button>
+    <button class="act ghost" id="clearHistory">Clear all history</button>
+    <a class="act ghost" href="test-alerts.html" target="_blank" style="text-decoration:none;display:inline-block;text-align:center;">🔔 Test stop alerts</a>
+  </div>
+  <div id="log"><div id="logEmpty">No events yet. Arrivals posted to the channel will appear here.</div></div>
+</section>
+
+<script>
+"use strict";
+
+var AM_STOPS = [{"n":1,"t":"8:27 AM","name":"ON WILLIAM CUTMORE AVE AT EVEREST CRES (NORTH ENTRANCE) AT PARK","lat":43.50537,"lng":-79.70545},{"n":2,"t":"8:29 AM","name":"ON FORD STRATHY CRES - OPPOSITE 1411 AT BENCHES","lat":43.5084,"lng":-79.710098},{"n":3,"t":"8:31 AM","name":"ON MEADOWRIDGE DR AT WHEAT BOOM DR (N/W CORNER)","lat":43.50467,"lng":-79.7096},{"n":4,"t":"8:33 AM","name":"ON JOHN MCKAY BLVD - NORTH OF ANSON GATE AT WALKWAY","lat":43.49945,"lng":-79.712},{"n":5,"t":"8:36 AM","name":"ON THRESHING MILL BLVD AT MEADOW MARSH CRES (N/E CORNER)","lat":43.4964,"lng":-79.7187},{"n":6,"t":"8:38 AM","name":"ON WHEAT BOOM DR - OPPOSITE 434 WHEAT BOOM DR AT PARK","lat":43.492996,"lng":-79.719124},{"n":7,"t":"8:41 AM","name":"ON POSTRIDGE DR AT FAIRGATE WAY (N/W CORNER) - TRANSIT STYLE STOP","lat":43.48828,"lng":-79.71337},{"n":8,"t":"8:47 AM","name":"ON CRIMSON OAK TRAIL - BETWEEN NICHOLS & CEDAR","lat":43.491238,"lng":-79.712185},{"n":9,"t":"8:52 AM","name":"ON PONDVIEW PL - OPPOSITE 495 PONDVIEW PL AT PARK SIGN","lat":43.488259,"lng":-79.707735},{"n":10,"t":"8:56 AM","name":"ON CORONATION DR AT NORTH RIDGE TRAIL (S/E CORNER) AT PARK","lat":43.49347,"lng":-79.70835},{"n":11,"t":"8:58 AM","name":"ON CRAIGLEITH RD - OPPOSITE SYLVIA DR AT PARK (SOUTH SIDE)","lat":43.49837,"lng":-79.70403},{"n":12,"t":"9:00 AM","name":"ON CRAIGLEITH RD AT MEADOWRIDGE DR (S/W CORNER)","lat":43.50118,"lng":-79.70128},{"n":13,"t":"9:05 AM","name":"SCHOOL: ST MARGUERITE D'YOUVILLE CES - 1359 BAYSHIRE DR - BUS LOADING ZONE","lat":43.494805,"lng":-79.692655}];
+var PM_STOPS = [{"n":1,"letter":"S","t":"3:50 PM","am":13,"name":"SCHOOL: ST MARGUERITE D'YOUVILLE CES - 1359 BAYSHIRE DR - BUS LOADING ZONE","lat":43.494805,"lng":-79.692655},{"n":2,"letter":"0","t":"3:51 PM","am":0,"name":"STOP 0","lat":43.492605,"lng":-79.692526},{"n":3,"letter":"01","t":"3:53 PM","name":"STOP 01 - BIG TASTE","lat":43.488486,"lng":-79.698247},{"n":4,"letter":"02","t":"3:55 PM","name":"STOP 02 - 8TH LINE","lat":43.485614,"lng":-79.702145},{"n":5,"letter":"A","t":"3:57 PM","am":9,"name":"ON PONDVIEW PL - OPPOSITE 495 PONDVIEW PL AT PARK SIGN","lat":43.488259,"lng":-79.707735},{"n":6,"letter":"B","t":"4:01 PM","am":8,"name":"ON CRIMSON OAK TRAIL - BETWEEN NICHOLS & CEDAR","lat":43.491238,"lng":-79.712185},{"n":7,"letter":"C","t":"4:06 PM","am":10,"name":"ON CORONATION DR AT NORTH RIDGE TRAIL (S/E CORNER) AT PARK","lat":43.49347,"lng":-79.70835},{"n":8,"letter":"D","t":"4:09 PM","am":11,"name":"ON CRAIGLEITH RD - OPPOSITE SYLVIA DR AT PARK (SOUTH SIDE)","lat":43.49837,"lng":-79.70403},{"n":9,"letter":"E","t":"4:11 PM","am":12,"name":"ON CRAIGLEITH RD AT MEADOWRIDGE DR (S/W CORNER)","lat":43.50118,"lng":-79.70128},{"n":10,"letter":"F","t":"4:17 PM","am":1,"name":"ON WILLIAM CUTMORE AVE AT EVEREST CRES (NORTH ENTRANCE) AT PARK","lat":43.50537,"lng":-79.70545},{"n":11,"letter":"G","t":"4:19 PM","am":2,"name":"ON FORD STRATHY CRES - OPPOSITE 1411 AT BENCHES","lat":43.5084,"lng":-79.710098},{"n":12,"letter":"H","t":"4:21 PM","am":3,"name":"ON MEADOWRIDGE DR AT WHEAT BOOM DR (N/W CORNER)","lat":43.50467,"lng":-79.7096},{"n":13,"letter":"I","t":"4:23 PM","am":4,"name":"ON JOHN MCKAY BLVD - NORTH OF ANSON GATE AT WALKWAY","lat":43.49945,"lng":-79.712},{"n":14,"letter":"J","t":"4:26 PM","am":5,"name":"ON THRESHING MILL BLVD AT MEADOW MARSH CRES (N/E CORNER)","lat":43.4964,"lng":-79.7187},{"n":15,"letter":"K","t":"4:28 PM","am":6,"name":"ON WHEAT BOOM DR - OPPOSITE 434 WHEAT BOOM DR AT PARK","lat":43.492996,"lng":-79.719124},{"n":16,"letter":"L","t":"4:31 PM","am":7,"name":"ON POSTRIDGE DR AT FAIRGATE WAY (N/W CORNER) - TRANSIT STYLE STOP","lat":43.48828,"lng":-79.71337}];
+var AM_PATH = [[43.50536,-79.70546],[43.50574,-79.70618],[43.5061,-79.70687],[43.50649,-79.70761],[43.50686,-79.70835],[43.50725,-79.70908],[43.50764,-79.7098],[43.50802,-79.71051],[43.50812,-79.7104],[43.50841,-79.71008],[43.50863,-79.70984],[43.50865,-79.70982],[43.50867,-79.70981],[43.50869,-79.70981],[43.50871,-79.70982],[43.50874,-79.70984],[43.5092,-79.71032],[43.50909,-79.71049],[43.50854,-79.711077],[43.508504,-79.711116],[43.508409,-79.711222],[43.507691,-79.71199],[43.506532,-79.71315],[43.5063,-79.71338],[43.50606,-79.71269],[43.50574,-79.71185],[43.50538,-79.71094],[43.50507,-79.71034],[43.50468,-79.7096],[43.504675,-79.709608],[43.503169,-79.711258],[43.502744,-79.71178],[43.502703,-79.71183],[43.501888,-79.712832],[43.501693,-79.713102],[43.501487,-79.71342],[43.501217,-79.713173],[43.501062,-79.713005],[43.501019,-79.712977],[43.499991,-79.712308],[43.49976,-79.712158],[43.499462,-79.711965],[43.499405,-79.711928],[43.499356,-79.711896],[43.499302,-79.711831],[43.499083,-79.711567],[43.499012,-79.711397],[43.49898,-79.711321],[43.498947,-79.71124],[43.498883,-79.71109],[43.4988,-79.710635],[43.498718,-79.710182],[43.498469,-79.709423],[43.498121,-79.708783],[43.498004,-79.708681],[43.497906,-79.708788],[43.495912,-79.71097],[43.495495,-79.711428],[43.495436,-79.711492],[43.495209,-79.711746],[43.494306,-79.712758],[43.493898,-79.713208],[43.493762,-79.713337],[43.493857,-79.713483],[43.494108,-79.71383],[43.494344,-79.71416],[43.494438,-79.714301],[43.494647,-79.714588],[43.494791,-79.714785],[43.495096,-79.715199],[43.495257,-79.715418],[43.495307,-79.715485],[43.495513,-79.715766],[43.495732,-79.716066],[43.495996,-79.716427],[43.496269,-79.7168],[43.496332,-79.716887],[43.496356,-79.716924],[43.49638,-79.716967],[43.496399,-79.717009],[43.496427,-79.717089],[43.496443,-79.717145],[43.496455,-79.717204],[43.496464,-79.717255],[43.496469,-79.717326],[43.496469,-79.717369],[43.496468,-79.717421],[43.496448,-79.717763],[43.496403,-79.718587],[43.496398,-79.718679],[43.496397,-79.7187],[43.496398,-79.718679],[43.49633,-79.718671],[43.496305,-79.718667],[43.495945,-79.718629],[43.495872,-79.718614],[43.495803,-79.718588],[43.495738,-79.718548],[43.495673,-79.718492],[43.495616,-79.718427],[43.495565,-79.718354],[43.495387,-79.718111],[43.49494,-79.7175],[43.494809,-79.717282],[43.494797,-79.71726],[43.494743,-79.717161],[43.494205,-79.717748],[43.493277,-79.718761],[43.49316,-79.718892],[43.492996,-79.719124],[43.492996,-79.719124],[43.492996,-79.719124],[43.492996,-79.719124],[43.492996,-79.719124],[43.492996,-79.719124],[43.492996,-79.719124],[43.492996,-79.719124],[43.492791,-79.719409],[43.492776,-79.719434],[43.492705,-79.719545],[43.492649,-79.719421],[43.49262,-79.719354],[43.492419,-79.718905],[43.492305,-79.718647],[43.492264,-79.718563],[43.492204,-79.718446],[43.492128,-79.718317],[43.492058,-79.718212],[43.491977,-79.718103],[43.491877,-79.717985],[43.491568,-79.717608],[43.491387,-79.717393],[43.491337,-79.717333],[43.491171,-79.717081],[43.490972,-79.716941],[43.490836,-79.716759],[43.490745,-79.716638],[43.490642,-79.7165],[43.49054,-79.716367],[43.490112,-79.715788],[43.490092,-79.715761],[43.489694,-79.715217],[43.489615,-79.715108],[43.489547,-79.715012],[43.489011,-79.714261],[43.488798,-79.713963],[43.488686,-79.713801],[43.488555,-79.713626],[43.488444,-79.71348],[43.488304,-79.71332],[43.488264,-79.713289],[43.488186,-79.713227],[43.488205,-79.713199],[43.48811,-79.71318],[43.48801,-79.71313],[43.48781,-79.71304],[43.48762,-79.71298],[43.48745,-79.71295],[43.48728,-79.71294],[43.48715,-79.71295],[43.48696,-79.71299],[43.48687,-79.71298],[43.48613,-79.71325],[43.48607,-79.71334],[43.48555,-79.7135],[43.48548,-79.71353],[43.48546,-79.71342],[43.48544,-79.71331],[43.48543,-79.71327],[43.48538,-79.71308],[43.48528,-79.71279],[43.48517,-79.71262],[43.48497,-79.71224],[43.48495,-79.7122],[43.48492,-79.71213],[43.4848,-79.7118],[43.48459,-79.7112],[43.48452,-79.71091],[43.4845,-79.71087],[43.48413,-79.71103],[43.48392,-79.71115],[43.48364,-79.71144],[43.48365,-79.71145],[43.48369,-79.71151],[43.48371,-79.71154],[43.48378,-79.71166],[43.48431,-79.7124],[43.4844,-79.71245],[43.48443,-79.71244],[43.48448,-79.71244],[43.48485,-79.71218],[43.48492,-79.71213],[43.48495,-79.7122],[43.48497,-79.71224],[43.48517,-79.71262],[43.48528,-79.71279],[43.48538,-79.71308],[43.48543,-79.71327],[43.48544,-79.71331],[43.48546,-79.71342],[43.48553,-79.71339],[43.48605,-79.71321],[43.48613,-79.71325],[43.48687,-79.71298],[43.48693,-79.71291],[43.48701,-79.71287],[43.48719,-79.71283],[43.48743,-79.71282],[43.48761,-79.71284],[43.48782,-79.71291],[43.4881,-79.71304],[43.48817,-79.71309],[43.48825,-79.71313],[43.4883,-79.71307],[43.48849,-79.7128],[43.4886,-79.71264],[43.48874,-79.71246],[43.48889,-79.71229],[43.48894,-79.71224],[43.48903,-79.71218],[43.48911,-79.71213],[43.48921,-79.71208],[43.48932,-79.71203],[43.48942,-79.712],[43.48973,-79.71196],[43.49009,-79.7119],[43.49016,-79.71188],[43.49018,-79.71205],[43.49029,-79.71268],[43.49031,-79.71273],[43.49034,-79.71276],[43.49037,-79.71278],[43.49041,-79.71277],[43.49076,-79.71259],[43.49101,-79.7124],[43.49125,-79.71218],[43.491238,-79.712185],[43.491238,-79.712185],[43.491238,-79.712185],[43.491238,-79.712185],[43.49111,-79.71138],[43.49108,-79.71135],[43.491,-79.71125],[43.49095,-79.71118],[43.49094,-79.71116],[43.49058,-79.71059],[43.48975,-79.70949],[43.48964,-79.70949],[43.48927,-79.7098],[43.48895,-79.71],[43.48821,-79.71028],[43.488,-79.71034],[43.48791,-79.71025],[43.48755,-79.70967],[43.48751,-79.70971],[43.48724,-79.70999],[43.48693,-79.71037],[43.48648,-79.71112],[43.48643,-79.71117],[43.48637,-79.71117],[43.48631,-79.71112],[43.48607,-79.71076],[43.48597,-79.71043],[43.48597,-79.71019],[43.48598,-79.70957],[43.48602,-79.70956],[43.48605,-79.70956],[43.48638,-79.7095],[43.48656,-79.70933],[43.4871,-79.70879],[43.48738,-79.70849],[43.48751,-79.70829],[43.48753,-79.70826],[43.48769,-79.70807],[43.488259,-79.707735],[43.487996,-79.707834],[43.488246,-79.707723],[43.488105,-79.707195],[43.488021,-79.706999],[43.487902,-79.706828],[43.48781,-79.70662],[43.487703,-79.706301],[43.487704,-79.706208],[43.487741,-79.706114],[43.488032,-79.705782],[43.488109,-79.705698],[43.488192,-79.705604],[43.488401,-79.705368],[43.489992,-79.70357],[43.490036,-79.70352],[43.49011,-79.70345],[43.490746,-79.702853],[43.490804,-79.702799],[43.4909,-79.702714],[43.4905669,-79.7043055],[43.4910432,-79.7049644],[43.4911692,-79.7051581],[43.4912571,-79.7053394],[43.4913751,-79.7056641],[43.4915111,-79.7058968],[43.4918597,-79.7063868],[43.4920625,-79.706618],[43.4923774,-79.7069773],[43.4929467,-79.7076185],[43.4930381,-79.7077214],[43.4930761,-79.7077744],[43.4934193,-79.7082753],[43.4934703,-79.7083496],[43.49352,-79.70829],[43.49403,-79.70767],[43.49422,-79.70736],[43.49448,-79.70683],[43.49457,-79.70643],[43.49465,-79.70609],[43.49467,-79.70599],[43.49479,-79.70602],[43.49548,-79.70622],[43.49593,-79.70634],[43.49626,-79.70654],[43.49648,-79.70671],[43.49653,-79.70663],[43.49654,-79.70661],[43.4978,-79.70482],[43.49784,-79.70476],[43.49789,-79.7047],[43.49838,-79.70405],[43.49858,-79.70377],[43.49896,-79.70336],[43.49901,-79.70329],[43.49956,-79.7027],[43.5,-79.7022],[43.50014,-79.70204],[43.50019,-79.70198],[43.50024,-79.70193],[43.50051,-79.70163],[43.50058,-79.70157],[43.50111,-79.70131],[43.50117,-79.70127],[43.50115,-79.70119],[43.50108,-79.70095],[43.50098,-79.70057],[43.50096,-79.70049],[43.50095,-79.70042],[43.50095,-79.70036],[43.50095,-79.70026],[43.50101,-79.69946],[43.50101,-79.69937],[43.50101,-79.69933],[43.50101,-79.69929],[43.50101,-79.69925],[43.50088,-79.69855],[43.50086,-79.69842],[43.50078,-79.69843],[43.50071,-79.69841],[43.50065,-79.69836],[43.50061,-79.69828],[43.50059,-79.69819],[43.50058,-79.69811],[43.5006,-79.69803],[43.50062,-79.69796],[43.50067,-79.69791],[43.50072,-79.69787],[43.5007,-79.69779],[43.50066,-79.69762],[43.5004,-79.6965],[43.50037,-79.69641],[43.50036,-79.69637],[43.50033,-79.69631],[43.5,-79.69575],[43.49992,-79.69563],[43.49983,-79.69553],[43.49962,-79.6953],[43.49959,-79.69526],[43.49958,-79.69523],[43.49915,-79.69425],[43.49912,-79.69419],[43.4991,-79.69415],[43.49908,-79.69413],[43.49899,-79.69402],[43.49893,-79.69397],[43.49887,-79.69393],[43.49878,-79.6939],[43.49866,-79.69389],[43.49855,-79.69392],[43.49846,-79.69396],[43.49837,-79.69404],[43.49808,-79.69438],[43.49803,-79.69443],[43.49799,-79.69437],[43.49758,-79.69371],[43.49757,-79.69366],[43.49756,-79.69361],[43.49756,-79.69357],[43.49758,-79.69353],[43.49766,-79.69343],[43.49798,-79.69307],[43.49802,-79.69303],[43.49804,-79.69302],[43.49806,-79.693],[43.4982,-79.69293],[43.49826,-79.6929],[43.49829,-79.69288],[43.49831,-79.69285],[43.49833,-79.69283],[43.49834,-79.69278],[43.49834,-79.69239],[43.49834,-79.69227],[43.49832,-79.6922],[43.49831,-79.69215],[43.49829,-79.69209],[43.4982,-79.69194],[43.49808,-79.69175],[43.49772,-79.69115],[43.49765,-79.69106],[43.49762,-79.69102],[43.49758,-79.69098],[43.49751,-79.69093],[43.49733,-79.69082],[43.49651,-79.69042],[43.49644,-79.69038],[43.49636,-79.69051],[43.49619,-79.6908],[43.49516,-79.69231],[43.49494,-79.69256],[43.49474,-79.69267],[43.49457,-79.69273],[43.49443,-79.69272],[43.49431,-79.6927]];
+var PM_PATH = [[43.4948, -79.692637], [43.494743, -79.692668], [43.49457, -79.692727], [43.49443, -79.692723], [43.494064, -79.692657], [43.493945, -79.692628], [43.493202, -79.692445], [43.493007, -79.692442], [43.492603, -79.69246], [43.492542, -79.692463], [43.492071, -79.692484], [43.49182, -79.692634], [43.491438, -79.693001], [43.491359, -79.693093], [43.491279, -79.693183], [43.490706, -79.693824], [43.490328, -79.694202], [43.490078, -79.694509], [43.489932, -79.694791], [43.48981, -79.6951], [43.489213, -79.696901], [43.48917, -79.69704], [43.48906, -79.69734], [43.488969, -79.697523], [43.48892, -79.69762], [43.48878, -79.69785], [43.48867, -79.698005], [43.488544, -79.698165], [43.488484, -79.698245], [43.488479, -79.698252], [43.488401, -79.698337], [43.487663, -79.699195], [43.487375, -79.699522], [43.487082, -79.699857], [43.486776, -79.700242], [43.486734, -79.700296], [43.48669, -79.700381], [43.486593, -79.700567], [43.486387, -79.701099], [43.486283, -79.701322], [43.486106, -79.701578], [43.485618, -79.702139], [43.485613, -79.702144], [43.48553, -79.702233], [43.485602, -79.702332], [43.486105, -79.703009], [43.486607, -79.703684], [43.486995, -79.704187], [43.487338, -79.70466], [43.487581, -79.705005], [43.488066, -79.705636], [43.488109, -79.705698], [43.488032, -79.705782], [43.487741, -79.706114], [43.487704, -79.706208], [43.487703, -79.706301], [43.48781, -79.70662], [43.487902, -79.706828], [43.488021, -79.706999], [43.488105, -79.707195], [43.488246, -79.707723], [43.488342, -79.708203], [43.488493, -79.708953], [43.488504, -79.709009], [43.488857, -79.70888], [43.489332, -79.708384], [43.489416, -79.7083], [43.489633, -79.707995], [43.489722, -79.707871], [43.491628, -79.710434], [43.491702, -79.710525], [43.491606, -79.710638], [43.491196, -79.711075], [43.49119, -79.711081], [43.490996, -79.711251], [43.490664, -79.711606], [43.490538, -79.711709], [43.490383, -79.711801], [43.490289, -79.711845], [43.490157, -79.711881], [43.49018, -79.712048], [43.490287, -79.712685], [43.490306, -79.712729], [43.490335, -79.712761], [43.490372, -79.71278], [43.490408, -79.712773], [43.490758, -79.712595], [43.491012, -79.712398], [43.491074, -79.712339], [43.491246, -79.712175], [43.491462, -79.71194], [43.491509, -79.71189], [43.491106, -79.711377], [43.491083, -79.711352], [43.490996, -79.711251], [43.49119, -79.711081], [43.491196, -79.711075], [43.491606, -79.710638], [43.491702, -79.710525], [43.491628, -79.710434], [43.489722, -79.707871], [43.489482, -79.707548], [43.489077, -79.707003], [43.488328, -79.705995], [43.488172, -79.705786], [43.488109, -79.705698], [43.488192, -79.705604], [43.488401, -79.705368], [43.489575, -79.704041], [43.489992, -79.70357], [43.490036, -79.70352], [43.490093, -79.703611], [43.490298, -79.703933], [43.490522, -79.704244], [43.490567, -79.704306], [43.491043, -79.704964], [43.491169, -79.705158], [43.491257, -79.705339], [43.491375, -79.705664], [43.491511, -79.705897], [43.49186, -79.706387], [43.492063, -79.706618], [43.492377, -79.706977], [43.492947, -79.707619], [43.493038, -79.707721], [43.493076, -79.707774], [43.493419, -79.708275], [43.49347, -79.70835], [43.493524, -79.708285], [43.493583, -79.708214], [43.494034, -79.707669], [43.494224, -79.707356], [43.49448, -79.706826], [43.494571, -79.706429], [43.494649, -79.706087], [43.494671, -79.705992], [43.494785, -79.706024], [43.495479, -79.706218], [43.495928, -79.706342], [43.496264, -79.706535], [43.496477, -79.706706], [43.49653, -79.70663], [43.496544, -79.70661], [43.497802, -79.704821], [43.497842, -79.704764], [43.497891, -79.704698], [43.498383, -79.704052], [43.498385, -79.70405], [43.498585, -79.703771], [43.498955, -79.703355], [43.499011, -79.703295], [43.499562, -79.702704], [43.5, -79.702201], [43.500143, -79.702038], [43.50019, -79.701984], [43.500238, -79.70193], [43.500506, -79.701627], [43.500577, -79.701571], [43.501106, -79.701308], [43.501173, -79.701274], [43.501251, -79.701235], [43.501663, -79.701031], [43.501914, -79.700817], [43.502071, -79.700694], [43.502163, -79.700624], [43.50242, -79.700338], [43.502471, -79.700281], [43.502522, -79.700415], [43.50259, -79.700594], [43.502793, -79.701197], [43.502875, -79.701129], [43.502938, -79.701078], [43.503998, -79.699928], [43.504014, -79.699904], [43.504015, -79.699902], [43.504029, -79.699872], [43.504038, -79.699837], [43.504043, -79.6998], [43.504043, -79.699762], [43.504036, -79.699684], [43.504029, -79.699633], [43.504017, -79.699584], [43.504002, -79.699536], [43.503974, -79.699476], [43.50394, -79.699423], [43.5039, -79.699379], [43.503786, -79.699281], [43.503761, -79.699259], [43.503736, -79.699232], [43.503587, -79.699026], [43.503567, -79.69901], [43.503545, -79.698999], [43.503522, -79.698995], [43.503499, -79.698997], [43.503476, -79.699005], [43.503456, -79.699019], [43.503323, -79.699176], [43.503264, -79.699262], [43.503058, -79.699616], [43.503025, -79.699665], [43.502987, -79.699706], [43.502945, -79.699739], [43.502898, -79.699764], [43.502849, -79.699778], [43.502674, -79.699805], [43.502581, -79.699819], [43.502587, -79.699973], [43.502557, -79.700133], [43.502502, -79.700245], [43.502471, -79.700281], [43.50242, -79.700338], [43.502163, -79.700624], [43.502071, -79.700694], [43.501914, -79.700817], [43.501663, -79.701031], [43.501251, -79.701235], [43.501173, -79.701274], [43.501198, -79.701363], [43.501496, -79.702449], [43.501646, -79.702954], [43.501671, -79.703027], [43.50172, -79.703183], [43.501787, -79.703346], [43.501882, -79.70355], [43.501978, -79.703599], [43.502006, -79.703644], [43.502079, -79.703761], [43.50215, -79.703874], [43.502221, -79.7038], [43.503559, -79.702359], [43.504419, -79.701433], [43.504549, -79.701293], [43.504618, -79.701419], [43.504985, -79.702061], [43.50502, -79.702138], [43.505048, -79.702221], [43.505068, -79.702308], [43.505078, -79.702388], [43.505082, -79.702469], [43.50508, -79.702551], [43.505022, -79.703038], [43.504921, -79.703883], [43.504913, -79.703988], [43.50491, -79.704104], [43.504914, -79.704219], [43.504924, -79.704334], [43.504941, -79.704445], [43.504963, -79.704555], [43.504991, -79.704662], [43.505025, -79.704766], [43.505061, -79.704858], [43.505102, -79.704946], [43.505356, -79.705445], [43.50536, -79.70546], [43.50574, -79.70618], [43.5061, -79.70687], [43.50649, -79.70761], [43.50686, -79.70835], [43.50725, -79.70908], [43.50764, -79.7098], [43.50802, -79.71051], [43.50812, -79.7104], [43.50841, -79.71008], [43.50863, -79.70984], [43.50865, -79.70982], [43.50867, -79.70981], [43.50869, -79.70981], [43.50871, -79.70982], [43.50874, -79.70984], [43.5092, -79.71032], [43.50909, -79.71049], [43.50854, -79.711077], [43.508504, -79.711116], [43.508409, -79.711222], [43.507691, -79.71199], [43.506532, -79.71315], [43.5063, -79.71338], [43.50606, -79.71269], [43.50574, -79.71185], [43.50538, -79.71094], [43.50507, -79.71034], [43.50468, -79.7096], [43.504675, -79.709608], [43.503169, -79.711258], [43.502744, -79.71178], [43.502703, -79.71183], [43.501888, -79.712832], [43.501693, -79.713102], [43.501487, -79.71342], [43.501217, -79.713173], [43.501062, -79.713005], [43.501019, -79.712977], [43.499991, -79.712308], [43.49976, -79.712158], [43.499462, -79.711965], [43.499405, -79.711928], [43.499356, -79.711896], [43.499302, -79.711831], [43.499083, -79.711567], [43.499012, -79.711397], [43.49898, -79.711321], [43.498947, -79.71124], [43.498883, -79.71109], [43.4988, -79.710635], [43.498718, -79.710182], [43.498469, -79.709423], [43.498121, -79.708783], [43.498004, -79.708681], [43.497906, -79.708788], [43.495912, -79.71097], [43.495495, -79.711428], [43.495436, -79.711492], [43.495209, -79.711746], [43.494306, -79.712758], [43.493898, -79.713208], [43.493762, -79.713337], [43.493857, -79.713483], [43.494108, -79.71383], [43.494344, -79.71416], [43.494438, -79.714301], [43.494647, -79.714588], [43.494791, -79.714785], [43.495096, -79.715199], [43.495257, -79.715418], [43.495307, -79.715485], [43.495513, -79.715766], [43.495732, -79.716066], [43.495996, -79.716427], [43.496269, -79.7168], [43.496332, -79.716887], [43.496356, -79.716924], [43.49638, -79.716967], [43.496399, -79.717009], [43.496427, -79.717089], [43.496443, -79.717145], [43.496455, -79.717204], [43.496464, -79.717255], [43.496469, -79.717326], [43.496469, -79.717369], [43.496468, -79.717421], [43.496448, -79.717763], [43.496403, -79.718587], [43.496398, -79.718679], [43.49633, -79.718671], [43.496305, -79.718667], [43.495945, -79.718629], [43.495872, -79.718614], [43.495803, -79.718588], [43.495738, -79.718548], [43.495673, -79.718492], [43.495616, -79.718427], [43.495565, -79.718354], [43.495432, -79.718172], [43.49494, -79.7175], [43.494809, -79.717282], [43.494797, -79.71726], [43.494743, -79.717161], [43.494205, -79.717748], [43.493277, -79.718761], [43.49316, -79.718892], [43.493044, -79.719025], [43.492982, -79.719103], [43.492974, -79.719113], [43.492791, -79.719409], [43.492776, -79.719434], [43.492705, -79.719545], [43.492649, -79.719421], [43.49262, -79.719354], [43.492419, -79.718905], [43.492305, -79.718647], [43.492264, -79.718563], [43.492204, -79.718446], [43.492128, -79.718317], [43.492058, -79.718212], [43.491977, -79.718103], [43.491877, -79.717985], [43.491387, -79.717393], [43.491337, -79.717333], [43.491171, -79.717081], [43.490972, -79.716941], [43.490836, -79.716759], [43.490745, -79.716638], [43.490642, -79.7165], [43.49054, -79.716367], [43.490112, -79.715788], [43.490092, -79.715761], [43.489694, -79.715217], [43.489547, -79.715012], [43.489011, -79.714261], [43.488798, -79.713963], [43.488686, -79.713801], [43.488555, -79.713626], [43.488444, -79.71348], [43.488304, -79.71332], [43.488301, -79.713318]];
+
+var BUS = "\uD83D\uDE8C", BELL = "\uD83D\uDD14", PHONE = "\uD83D\uDCF1";
+
+/* ===== State ===== */
+var route = 'AM';
+var state = { AM: freshRouteState(), PM: freshRouteState() };
+/* ===== Per-device filter ===== */
+var DEV_UNKNOWN = '?';
+var DEV_COLORS = ['#3b82f6', '#f97316', '#a855f7', '#14b8a6', '#ec4899', '#eab308'];
+var DEVLS_KNOWN = 'busfollower_dev_known';
+var DEVLS_OFF = 'busfollower_dev_off';
+var devStates = {};   /* dev -> { AM: routeState, PM: routeState } */
+var busMarkers = {};  /* dev -> L.marker, used when a subset of devices is shown */
+
+function freshRouteState() { return { reached: {}, skipped: {}, busIdx: -1, complete: false, lastUpdate: null, waiting: null, done: false, offStop: null, delaySec: null, delayStop: null, delayTime: null }; }
+// v6.22: progress "passed" = true arrivals ∪ look-ahead skips (reached stays arrival-only).
+function passedCount(st) {
+  var seen = {};
+  Object.keys(st.reached || {}).forEach(function (k) { seen[k] = true; });
+  Object.keys(st.skipped || {}).forEach(function (k) { seen[k] = true; });
+  return Object.keys(seen).length;
+}
+function devRouteState(dev, r) {
+  if (!devStates[dev]) devStates[dev] = { AM: freshRouteState(), PM: freshRouteState() };
+  return devStates[dev][r];
+}
+function loadDevList(key) {
+  try { var a = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function saveDevList(key, arr) { try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {} }
+function knownDevices() { return loadDevList(DEVLS_KNOWN); }
+function registerDevice(dev, quiet) {
+  var k = knownDevices();
+  if (k.indexOf(dev) === -1) {
+    k.push(dev); k.sort(); saveDevList(DEVLS_KNOWN, k);
+    if (!quiet) renderDevFilter();
+  }
+}
+function deselectedDevices() { return loadDevList(DEVLS_OFF); }
+function isDevSelected(dev) { return deselectedDevices().indexOf(dev) === -1; }
+function selectedDevices() {
+  var off = deselectedDevices();
+  return knownDevices().filter(function (d) { return off.indexOf(d) === -1; });
+}
+function allDevsSelected() { return deselectedDevices().length === 0; }
+function setDevSelected(dev, on) {
+  var off = deselectedDevices(), i = off.indexOf(dev);
+  if (on && i !== -1) off.splice(i, 1);
+  if (!on && i === -1) off.push(dev);
+  saveDevList(DEVLS_OFF, off);
+  renderDevFilter(); renderRoute();
+  if (viewDate) renderHistoryView(); else rebuildLiveLog();
+}
+function setAllDevs(on) {
+  saveDevList(DEVLS_OFF, on ? [] : knownDevices().slice());
+  renderDevFilter(); renderRoute();
+  if (viewDate) renderHistoryView(); else rebuildLiveLog();
+}
+function devColor(dev) {
+  var k = knownDevices().slice().sort(), i = k.indexOf(dev);
+  return DEV_COLORS[(i < 0 ? 0 : i) % DEV_COLORS.length];
+}
+function devLabel(dev) { return dev === DEV_UNKNOWN ? 'no ID' : dev; }
+function mergedSelectedState(r) {
+  var m = freshRouteState();
+  selectedDevices().forEach(function (dev) {
+    var ds = devStates[dev] && devStates[dev][r];
+    if (!ds) return;
+    Object.keys(ds.reached).forEach(function (k) { m.reached[k] = true; });
+    Object.keys(ds.skipped || {}).forEach(function (k) { m.skipped[k] = true; });
+    if (ds.busIdx > m.busIdx) m.busIdx = ds.busIdx;
+    if (ds.complete) m.complete = true;
+    if (ds.done) m.done = true;
+    if (!m.offStop && ds.offStop) m.offStop = ds.offStop;
+    if (!m.waiting && ds.waiting && ds.busIdx < 0) m.waiting = ds.waiting;
+    if (ds.lastUpdate && (!m.lastUpdate || ds.lastUpdate > m.lastUpdate)) m.lastUpdate = ds.lastUpdate;
+  });
+  return m;
+}
+function devDisplayState(r, dev) {
+  if (viewDate) {
+    var h = loadHistory(), day = h[viewDate];
+    var evs = day ? ((r === 'AM') ? (day.am || []) : (day.pm || [])) : [];
+    return stateFromEvents(r, evs.filter(function (ev) { return (ev.dev || DEV_UNKNOWN) === dev; }));
+  }
+  return (devStates[dev] && devStates[dev][r]) || freshRouteState();
+}
+function displayStateFor(r) {
+  if (!allDevsSelected()) {
+    if (viewDate) {
+      var h = loadHistory(), day = h[viewDate];
+      var evs = day ? ((r === 'AM') ? (day.am || []) : (day.pm || [])) : [];
+      var sel = selectedDevices();
+      return stateFromEvents(r, evs.filter(function (ev) { return sel.indexOf(ev.dev || DEV_UNKNOWN) !== -1; }));
+    }
+    return mergedSelectedState(r);
+  }
+  return getDisplayState(r);
+}
+function rebuildDevStates() {
+  devStates = {};
+  var today = torontoDateKey(new Date());
+  var h = loadHistory(), day = h[today];
+  if (!day) return;
+  ['AM', 'PM'].forEach(function (r) {
+    var evs = (r === 'AM') ? (day.am || []) : (day.pm || []);
+    var byDev = {};
+    evs.forEach(function (ev) {
+      var dev = ev.dev || DEV_UNKNOWN;
+      (byDev[dev] = byDev[dev] || []).push(ev);
+    });
+    Object.keys(byDev).forEach(function (dev) {
+      devStates[dev] = devStates[dev] || { AM: freshRouteState(), PM: freshRouteState() };
+      devStates[dev][r] = stateFromEvents(r, byDev[dev]);
+      registerDevice(dev, true);
+    });
+  });
+}
+function renderDevFilter() {
+  var listEl = document.getElementById('devList');
+  if (!listEl) return;
+  var toggle = document.getElementById('devAllToggle');
+  if (toggle) toggle.checked = allDevsSelected();
+  var known = knownDevices();
+  listEl.innerHTML = '';
+  if (!known.length) {
+    var hint = document.createElement('div');
+    hint.className = 'devhint';
+    hint.textContent = 'No devices seen yet \u2014 they appear here once alerts arrive.';
+    listEl.appendChild(hint);
+    return;
+  }
+  known.forEach(function (dev) {
+    var label = document.createElement('label');
+    label.className = 'devrow';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = isDevSelected(dev);
+    cb.addEventListener('change', function () { setDevSelected(dev, cb.checked); });
+    var dot = document.createElement('span');
+    dot.className = 'devdot';
+    dot.style.background = devColor(dev);
+    var nm = document.createElement('span');
+    nm.textContent = devLabel(dev);
+    label.appendChild(cb); label.appendChild(dot); label.appendChild(nm);
+    listEl.appendChild(label);
+  });
+}
+function renderStatusFiltered(list) {
+  var line = document.getElementById('statusLine'), sub = document.getElementById('subLine');
+  var sel = selectedDevices();
+  var pool = sel.filter(function (dev) { return !devDisplayState(route, dev).done; });
+  if (!pool.length) pool = sel; // all devices done: show them anyway
+  var best = null, bestDev = null, bestFrac = -1;
+  pool.forEach(function (dev) {
+    var ds = devDisplayState(route, dev);
+    var done = passedCount(ds);
+    var frac = list.length ? done / list.length : 0;
+    if (frac > bestFrac) { best = ds; bestDev = dev; bestFrac = frac; }
+  });
+  document.getElementById('progFill').style.width = (100 * Math.max(0, bestFrac)) + '%';
+  if (!best || bestFrac < 0) {
+    line.textContent = 'No bus updates yet';
+    sub.textContent = 'No selected devices have reported.';
+    return;
+  }
+  if (best.complete) {
+    line.textContent = 'Route complete \u2014 [' + devLabel(bestDev) + '] reached the final stop';
+    sub.textContent = best.lastUpdate ? ('Last update: ' + best.lastUpdate.toLocaleTimeString()) : '';
+  } else if (best.done && best.offStop) {
+    var bOff = stopByKey(route, best.offStop);
+    line.textContent = '\uD83D\uDCF1 [' + devLabel(bestDev) + '] Off bus at ' + (bOff ? stopShort(bOff) : 'Stop ' + best.offStop);
+    sub.textContent = 'Tracking stopped' + (best.lastUpdate ? (' \u00B7 ' + best.lastUpdate.toLocaleTimeString()) : '');
+  } else if (best.waiting && best.busIdx < 0) {
+    var bWait = stopByKey(route, best.waiting);
+    line.textContent = '\uD83D\uDCF1 [' + devLabel(bestDev) + '] Waiting for bus at ' + (bWait ? stopShort(bWait) : 'Stop ' + best.waiting);
+    sub.textContent = best.lastUpdate ? ('Last update: ' + best.lastUpdate.toLocaleTimeString()) : '';
+  } else if (best.busIdx >= 0) {
+    var s = list[best.busIdx];
+    line.textContent = 'Bus at ' + stopShort(s) + ' of ' + list.length + ' [' + devLabel(bestDev) + ']' + (route === 'PM' && best.delaySec !== null && best.delaySec !== undefined ? onBusPillSuffix(best.delaySec, (best.busIdx + 1 < list.length) ? list[best.busIdx + 1] : null) : '');
+    sub.textContent = (route === 'AM' && s.t ? s.t + ' \u00B7 ' : '') +
+      'Last update: ' + (best.lastUpdate ? best.lastUpdate.toLocaleTimeString() : '\u2014');
+    var _lsF = posStaleNoteFor(bestDev);
+    if (_lsF) sub.textContent += _lsF;
+  } else if (best.onBus) {
+    line.textContent = '\uD83D\uDCF1 [' + devLabel(bestDev) + ']' + (best.onBus.label ? ' (' + best.onBus.label + ')' : '') + ' On bus \u2014 heading to Stop ' + (best.onBus.disp || best.onBus.stop) + onBusPillSuffix(best.delaySec, stopByKey(route, String(best.onBus.stop)));
+    sub.textContent = best.onBus.time ? ('Last update: ' + best.onBus.time.toLocaleTimeString()) : '';
+  } else {
+    line.textContent = 'No bus updates yet';
+    sub.textContent = 'Selected devices have not reported.';
+  }
+}
+
+document.getElementById('devAllToggle').addEventListener('change', function () { setAllDevs(this.checked); });
+
+var lastRoute = null;
+var evtSrc = null;
+
+/* ===== Persistent history (localStorage) ===== */
+var HIST_KEY = 'busfollower_history';
+var viewDate = null; // null = live mode, else 'YYYY-MM-DD'
+
+function torontoDateKey(d) {
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Toronto' });
+}
+function loadHistory() {
+  try {
+    var h = JSON.parse(localStorage.getItem(HIST_KEY) || '{}');
+    return (h && typeof h === 'object') ? h : {};
+  } catch (e) { return {}; }
+}
+function saveHistory(h) {
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(h)); } catch (e) {}
+}
+function pruneHistory(h) {
+  var cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 365);
+  var cutoffKey = torontoDateKey(cutoff);
+  Object.keys(h).forEach(function (k) { if (k < cutoffKey) delete h[k]; });
+  return h;
+}
+function recordEvent(r, s, isTest, rawMsg, isFinal, whenISO, deferUI, dev, kind, extra) {
+  var now = whenISO ? new Date(whenISO) : new Date();
+  var key = torontoDateKey(now);
+  var h = pruneHistory(loadHistory());
+  var day = h[key] || { am: [], pm: [] };
+  var arr = (r === 'AM') ? day.am : day.pm;
+  var evStop = (r === 'AM') ? s.n : s.am;
+  var evLetter = (r === 'AM') ? null : s.letter;
+  // Dedupe: skip if any event for this route+day is the same stop within 60s
+  var t = now.getTime();
+  for (var i = 0; i < arr.length; i++) {
+    var e = arr[i];
+    if (e.stop === evStop && e.letter === evLetter && (e.dev || DEV_UNKNOWN) === (dev || DEV_UNKNOWN) &&
+        (e.kind || 'bus') === (kind || 'bus') &&
+        Math.abs(t - new Date(e.time).getTime()) < 60000) {
+      return false;
+    }
+  }
+  var rec = { stop: evStop, letter: evLetter, time: now.toISOString(),
+             msg: String(rawMsg), test: !!isTest, final: !!isFinal, dev: dev || DEV_UNKNOWN, kind: kind || 'bus' };
+  if (extra) Object.keys(extra).forEach(function (k) { rec[k] = extra[k]; });
+  arr.push(rec);
+  if (arr.length > 200) arr.splice(0, arr.length - 200);
+  h[key] = day;
+  saveHistory(h);
+  if (!deferUI) refreshDatePicker();
+  return true;
+}
+function stateFromEvents(r, events) {
+  var st = freshRouteState();
+  var list = (r === 'AM') ? AM_STOPS : PM_STOPS;
+  events.forEach(function (ev) {
+    var key = (r === 'AM') ? String(ev.stop) : ev.letter;
+    var t = new Date(ev.time);
+    if (!st.lastUpdate || t > st.lastUpdate) st.lastUpdate = t;
+    if (ev.kind === 'wait') { if (st.busIdx < 0 && !st.waiting) { st.waiting = key; st.waitLabel = ev.label || ''; } st.delaySec = null; st.delayStop = null; st.delayTime = null; return; }
+    if (ev.kind === 'skip') { st.skipped[key] = true; return; }
+    if (ev.kind === 'off') { st.reached[key] = true; st.done = true; st.offStop = key; st.offLabel = ''; st.waiting = null; st.delaySec = null; st.delayStop = null; st.delayTime = null; return; }
+    if (ev.kind === 'onbus') {
+      if (st.waiting) {
+        st.reached[st.waiting] = true;
+        var wIdx = -1;
+        list.forEach(function (s2, i2) { if (((r === 'AM') ? String(s2.n) : s2.letter) === st.waiting) wIdx = i2; });
+        if (wIdx > st.busIdx) st.busIdx = wIdx;
+      }
+      st.waiting = null;
+      st.onBus = { stop: key, disp: ev.disp || key, time: t, label: ev.label };
+      if (!ev.test) { var ndOb = calcOnBusDelay(r, key, t); var hIdx = -1; list.forEach(function (s3, i3) { if (((r === 'AM') ? String(s3.n) : s3.letter) === key) hIdx = i3; }); if (hIdx > 0) { var dep = list[hIdx - 1]; st.delayStop = (r === 'AM') ? String(dep.n) : dep.letter; st.delayTime = t; } if (ndOb !== null) st.delaySec = ndOb; }
+      return;
+    }
+    st.reached[key] = true;
+    if (r === 'PM' && !ev.test) {
+      st.arrLabel = ev.label || '';
+      var ndS = calcArrivalDelay(r, stopByKey(r, key), t); st.delayStop = key; st.delayTime = t; if (ndS !== null) st.delaySec = ndS;
+    }
+    var idx = -1;
+    list.forEach(function (s, i) {
+      if ((r === 'AM') ? (s.n === ev.stop) : (s.letter === ev.letter)) idx = i;
+    });
+    if (idx > st.busIdx) st.busIdx = idx;
+    if (ev.final) { st.complete = true; st.busIdx = list.length - 1; }
+  });
+  return st;
+}
+function getDisplayState(r) {
+  if (!viewDate) return state[r];
+  var h = loadHistory();
+  var day = h[viewDate];
+  if (!day) return freshRouteState();
+  return stateFromEvents(r, (r === 'AM') ? day.am : day.pm);
+}
+// Returns true if every tracked device is done (got off or route complete).
+// Used to suppress the aggregate "off bus" banner/grey-out while another
+// phone is still riding.
+// True if the device has any activity on this route (not just a fresh empty state).
+// A phone that only did AM should not block the PM banner.
+function deviceParticipated(r, dev) {
+  var ds = devDisplayState(r, dev);
+  return Object.keys(ds.reached || {}).length > 0 ||
+         ds.busIdx >= 0 ||
+         ds.waiting !== null ||
+         ds.done ||
+         ds.complete;
+}
+function allDevicesDone(r) {
+  var devs = [];
+  try { devs = knownDevices() || []; } catch (e) {}
+  // Only count devices that actually participated in THIS route
+  var participants = devs.filter(function (d) { return deviceParticipated(r, d); });
+  if (!participants.length) return true;
+  for (var i = 0; i < participants.length; i++) {
+    var ds = devDisplayState(r, participants[i]);
+    if (!ds.done && !ds.complete) return false;
+  }
+  return true;
+}
+function restoreToday() {
+  var today = torontoDateKey(new Date());
+  var h = loadHistory();
+  var day = h[today];
+  if (!day) return;
+  ['AM', 'PM'].forEach(function (r) {
+    var st = stateFromEvents(r, (r === 'AM') ? day.am : day.pm);
+    state[r] = st;
+    var evs = (r === 'AM') ? day.am : day.pm;
+    if (evs.length) lastRoute = r;
+  });
+}
+
+function stops() { return route === 'AM' ? AM_STOPS : PM_STOPS; }
+function path()  { return route === 'AM' ? AM_PATH  : PM_PATH; }
+function stopKey(s) { return route === 'AM' ? String(s.n) : s.letter; }
+function stopShort(s) { return route === 'AM' ? ('Stop ' + s.n) : ('Stop ' + dispLetterOf(s) + (s.am > 0 ? ' (' + s.am + ')' : '')); }
+// Display-only: the PM school stop's letter is 'S' — that value is the
+// functional key every message match and lookup uses, so the DATA never
+// changes; only what the GUI prints. Rendered labels call this instead
+// of s.letter directly.
+function dispLetterOf(s) { return (s && s.letter === 'S') ? 'School' : (s ? s.letter : ''); }
+function isWaypoint(s) { return route === 'PM' && !!s && (s.letter === '0' || s.letter === '01' || s.letter === '02'); }
+function stopByKey(r, key) { var f = null; var l = (r === 'AM') ? AM_STOPS : PM_STOPS;
+  l.forEach(function (s) { if ((r === 'AM' ? String(s.n) : s.letter) === key) f = s; }); return f; }
+/* ===== Minutes Behind =====
+   AM: delay measured ONLY from on-bus events (delay = on-bus time -
+   scheduled time of the stop just departed - allowance); arrivals display
+   the carried value. PM amendment (Domi, 2026-10-25): PM rides send no
+   on-bus messages (driver checkpoints are AM-only), so PM measures from
+   ARRIVALS: delay = arrival time - this stop's scheduled time, NO allowance.
+   The timetable is the stops' own "t" fields (fixed page data). */
+
+var ONBUS_ALLOWANCE_S = 60;
+var ON_TIME_BAND_S = 50; // |delay| below this reads "on time" (approved Friday table: 0m48s on time, 0m58s = 1 min late)
+function schedMinOfStop(s) {
+  if (!s || !s.t) return null;
+  var m = String(s.t).match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return null;
+  var hh = parseInt(m[1], 10) % 12;
+  if (/pm/i.test(m[3])) hh += 12;
+  return hh * 60 + parseInt(m[2], 10);
+}
+var ROUTE_BLANK = {
+  AM: AM_STOPS.every(function (s) { return schedMinOfStop(s) === null; }),
+  PM: PM_STOPS.every(function (s) { return schedMinOfStop(s) === null; })
+};
+function torontoTODSec(d) {
+  try {
+    var parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(d);
+    var h = 0, mi = 0, se = 0;
+    parts.forEach(function (p) {
+      if (p.type === 'hour') h = parseInt(p.value, 10) % 24;
+      else if (p.type === 'minute') mi = parseInt(p.value, 10);
+      else if (p.type === 'second') se = parseInt(p.value, 10);
+    });
+    return h * 3600 + mi * 60 + se;
+  } catch (e) { return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(); }
+}
+function calcOnBusDelay(r, headingKey, when) {
+  var list = (r === 'AM') ? AM_STOPS : PM_STOPS, idx = -1;
+  list.forEach(function (s, i) { if (((r === 'AM') ? String(s.n) : s.letter) === headingKey) idx = i; });
+  if (idx <= 0) return null;
+  var prevMin = schedMinOfStop(list[idx - 1]);
+  if (prevMin === null) return null;
+  return torontoTODSec(when) - prevMin * 60 - ONBUS_ALLOWANCE_S;
+}
+function calcArrivalDelay(r, stopObj, when) {
+  // PM-only: arrivals fire at the stop (not 150m past it), so no allowance.
+  if (r !== 'PM' || !stopObj) return null;
+  var sm = schedMinOfStop(stopObj);
+  if (sm === null) return null;
+  return torontoTODSec(when) - sm * 60;
+}
+function fmtDelayWord(sec) {
+  if (sec === null || sec === undefined) return 'on time';
+  if (Math.abs(sec) < ON_TIME_BAND_S) return 'on time';
+  var mins = Math.round(Math.abs(sec) / 60), dir = sec > 0 ? 'late' : 'early';
+  if (mins < 60) return mins + ' min ' + dir;
+  var h = Math.floor(mins / 60), m = mins % 60;
+  return h + ' h' + (m ? ' ' + m + ' min' : '') + ' ' + dir;
+}
+function fmtClockSec(totalSec) {
+  var mins = Math.round(totalSec / 60);
+  mins = ((mins % 1440) + 1440) % 1440;
+  var h24 = Math.floor(mins / 60), mm = mins % 60, ap = h24 >= 12 ? 'PM' : 'AM', h12 = h24 % 12;
+  if (h12 === 0) h12 = 12;
+  return h12 + ':' + (mm < 10 ? '0' : '') + mm + ' ' + ap;
+}
+function onBusDelaySuffix(delaySec, headingStop) {
+  if (delaySec === null || delaySec === undefined) return ' \u2014 no schedule';
+  var word = fmtDelayWord(delaySec);
+  var txt = ' \u2014 ' + (word === 'on time' ? 'on time' : 'running ~' + word);
+  var schedMin = schedMinOfStop(headingStop);
+  if (schedMin !== null && delaySec !== null && delaySec !== undefined) {
+    txt += ', ETA ' + fmtClockSec(schedMin * 60 + delaySec) + ' (scheduled ' + fmtClockSec(schedMin * 60) + ')';
+  }
+  return txt;
+}
+function onBusPillSuffix(delaySec, headingStop) {
+  if (delaySec === null || delaySec === undefined) return ' \u2014 no schedule';
+  var txt = ' \u2014 ' + fmtDelayWord(delaySec);
+  var schedMin = schedMinOfStop(headingStop);
+  if (schedMin !== null && delaySec !== null && delaySec !== undefined) {
+    txt += ' \u00B7 ETA ' + fmtClockSec(schedMin * 60 + delaySec);
+  }
+  return txt;
+}
+function arrivalDelaySuffix(delaySec, r) {
+  if (delaySec === null || delaySec === undefined) return ROUTE_BLANK[r] ? ' (no schedule)' : '';
+  var word = fmtDelayWord(delaySec);
+  return word === 'on time' ? ' (on time)' : ' (running ' + word + ')';
+}
+function annotateDelays(r, events) {
+  var delays = {};
+  events.forEach(function (ev) {
+    ev._dsfx = '';
+    var dev = ev.dev || DEV_UNKNOWN;
+    var cur = (dev in delays) ? delays[dev] : null;
+    if (ev.kind === 'wait' || ev.kind === 'off') { delays[dev] = null; return; }
+    if (ev.kind === 'onbus') {
+      if (!ev.test) {
+        var key = (r === 'AM') ? String(ev.stop) : ev.letter;
+        var nd = calcOnBusDelay(r, key, new Date(ev.time));
+        if (nd !== null) { delays[dev] = nd; cur = nd; }
+        ev._dsfx = onBusDelaySuffix(cur, stopByKey(r, key));
+      }
+      return;
+    }
+    if (!ev.test && (ev.kind === 'bus' || ev.kind === 'newbus' || ev.kind === 'newarr' || ev.kind === 'newfinal' || ev.final)) {
+      if (r === 'PM') {
+        var ndAn = calcArrivalDelay(r, stopByKey(r, ev.letter), new Date(ev.time));
+        if (ndAn !== null) { delays[dev] = ndAn; cur = ndAn; }
+      }
+      ev._dsfx = arrivalDelaySuffix(cur, r);
+    }
+  });
+}
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+/* ===== Map ===== */
+var map = L.map('map');
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+var routeLine = null, pinLayer = null, busMarker = null;
+
+function pinIcon(s, cls) {
+  if (isWaypoint(s)) {
+    return L.divIcon({
+      className: '',
+      html: '<div class="pin wpdot ' + (cls || '') + '"></div>',
+      iconSize: [15, 15], iconAnchor: [8, 8]
+    });
+  }
+  var label = route === 'AM' ? s.n : dispLetterOf(s);
+  var wide = String(label).length > 2;
+  return L.divIcon({ className: '', html: '<div class="pin ' + cls + (wide ? ' wide' : '') + '">' + label + '</div>',
+                     iconSize: wide ? [58, 28] : [28, 28], iconAnchor: wide ? [29, 14] : [14, 14] });
+}
+
+function renderRoute() {
+  if (routeLine) map.removeLayer(routeLine);
+  if (pinLayer) map.removeLayer(pinLayer);
+  routeLine = L.polyline(path(), { color: '#0b6e4f', weight: 4, opacity: 0.9 }).addTo(map);
+  pinLayer = L.layerGroup().addTo(map);
+  var st = displayStateFor(route), list = stops();
+  // Grey out unvisited stops only when ALL phones are done.
+  // If another phone is still riding, keep the map looking live.
+  var rideOver = (st.complete || st.done) && allDevicesDone(route);
+  list.forEach(function (s, i) {
+    var key = stopKey(s);
+    var cls;
+    // v6.22 precedence: arrived-green > next-ring > skipped-grey.
+    if (st.reached[key]) cls = 'done';
+    else if (!rideOver && i === st.busIdx + 1) cls = 'next';
+    else if (st.skipped && st.skipped[key]) cls = 'skipped';
+    else if (rideOver) cls = 'skipped';
+    else cls = '';
+    L.marker([s.lat, s.lng], { icon: pinIcon(s, cls) })
+      .bindPopup(isWaypoint(s) ? ('<b>Waypoint ' + s.letter + '</b><br>Progress point \u2014 not a stop') : ('<b>' + stopShort(s) + '</b><br>' + esc(s.name)))
+      .addTo(pinLayer);
+  });
+  if (busMarker) { map.removeLayer(busMarker); busMarker = null; }
+  Object.keys(busMarkers).forEach(function (d) { map.removeLayer(busMarkers[d]); delete busMarkers[d]; });
+  if (!allDevsSelected()) {
+    selectedDevices().forEach(function (dev) {
+      var ds = devDisplayState(route, dev);
+      var color = devColor(dev);
+      if (ds.done && ds.offStop) {
+        var os = stopByKey(route, ds.offStop);
+        if (os) {
+          var devOffText = '\uD83D\uDCF1 [' + devLabel(dev) + '] Off bus at ' + stopShort(os);
+          busMarkers[dev] = L.marker([os.lat, os.lng], {
+            icon: L.divIcon({ className: '', html: '<div class="gotofflbl">' + esc(devOffText) + '</div>', iconSize: [220, 32], iconAnchor: [110, -18] }),
+            zIndexOffset: 1000
+          }).addTo(map).bindPopup('<b>' + esc(devOffText) + '</b><br><i>Tracking stopped</i>');
+        }
+        return;
+      }
+      if (ds.waiting && ds.busIdx < 0) {
+        var ws = stopByKey(route, ds.waiting);
+        if (ws) {
+          var devWaitText = '\uD83D\uDCF1 [' + devLabel(dev) + '] Waiting for bus at ' + stopShort(ws);
+          busMarkers[dev] = L.marker([ws.lat, ws.lng], {
+            icon: L.divIcon({ className: '', html: '<div class="waitlbl">' + esc(devWaitText) + '</div>', iconSize: [220, 32], iconAnchor: [110, -18] }),
+            zIndexOffset: 1000
+          }).addTo(map).bindPopup('<b>' + esc(devWaitText) + '</b>');
+        }
+        return;
+      }
+      var atIdx = ds.complete ? list.length - 1 : ds.busIdx;
+      if (atIdx < 0 || atIdx >= list.length) return;
+      var b = list[atIdx];
+      busMarkers[dev] = L.marker([b.lat, b.lng], {
+        icon: L.divIcon({ className: '', html: '<div style="text-align:center"><div class="busdot" style="background:' + color + ';box-shadow:0 0 0 3px ' + color + '55, 0 2px 8px rgba(0,0,0,.5)"></div><div class="devbuslbl">' + esc(devLabel(dev)) + '</div></div>', iconSize: [46, 46], iconAnchor: [23, 14] }),
+        zIndexOffset: 1000
+      }).addTo(map).bindPopup('<b>Bus here [' + esc(devLabel(dev)) + ']</b><br>' + esc(stopShort(b)));
+    });
+  } else if (st.complete) {
+    var f = list[list.length - 1];
+    busMarker = L.marker([f.lat, f.lng], {
+      icon: L.divIcon({ className: '', html: '<div class="arrivedlbl">\u2713 Arrived</div>', iconSize: [110, 32], iconAnchor: [55, -18] }),
+      zIndexOffset: 1000, interactive: false
+    }).addTo(map);
+  } else if (st.done && st.offStop && allDevicesDone(route)) {
+    // Only show the aggregate off-bus banner when ALL phones are done.
+    // If another phone is still riding, suppress it (their progress shows instead).
+    var agOff = stopByKey(route, st.offStop);
+    var _offDev = '';
+    try { (knownDevices()||[]).forEach(function(d){ var dds=devDisplayState(route,d); if(dds.done && dds.offStop && !_offDev) _offDev=d; }); } catch(e){}
+    var _offLbl = (st.offLabel ? ' (' + st.offLabel + ')' : '');
+    var agOffText = '\uD83D\uDCF1 ' + (_offDev ? '[' + _offDev + ']' + _offLbl + ' ' : '') + 'Off bus at ' + (agOff ? stopShort(agOff) : 'Stop ' + st.offStop);
+    if (agOff) busMarker = L.marker([agOff.lat, agOff.lng], {
+      icon: L.divIcon({ className: '', html: '<div class="gotofflbl">' + esc(agOffText) + '</div>', iconSize: [220, 32], iconAnchor: [110, -18] }),
+      zIndexOffset: 1000, interactive: false
+    }).addTo(map).bindPopup('<b>' + esc(agOffText) + '</b><br><i>Tracking stopped</i>');
+  } else if (st.waiting && st.busIdx < 0) {
+    var agWait = stopByKey(route, st.waiting);
+    // Find waiting device for the ID (same as status line)
+    var waitDevLbl = '';
+    try {
+      (function(){ try { return knownDevices() || []; } catch(e){ return []; } })().forEach(function (d) {
+        var dds = devDisplayState(route, d);
+        if (dds.waiting && !waitDevLbl) waitDevLbl = devLabel(d);
+      });
+    } catch (e) {}
+    var _wLbl = (st.waitLabel) ? ' (' + st.waitLabel + ')' : '';
+    var waitText = '\uD83D\uDCF1 ' + (waitDevLbl ? '[' + waitDevLbl + ']' + _wLbl + ' ' : '') + 'Waiting for bus at ' + (agWait ? stopShort(agWait) : 'Stop ' + st.waiting);
+    if (agWait) busMarker = L.marker([agWait.lat, agWait.lng], {
+      icon: L.divIcon({ className: '', html: '<div class="waitlbl" style="white-space:normal;line-height:1.3;padding:6px 14px;">' + esc(waitText) + '</div>', iconSize: [240, 52], iconAnchor: [120, -30] }),
+      zIndexOffset: 1000, interactive: false
+    }).addTo(map).bindPopup('<b>' + esc(waitText) + '</b>');
+  } else if (st.busIdx >= 0 && st.busIdx < list.length) {
+    var b = list[st.busIdx];
+    busMarker = L.marker([b.lat, b.lng], {
+      icon: L.divIcon({ className: '', html: '<div class="busdot"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }),
+      zIndexOffset: 1000
+    }).addTo(map).bindPopup('<b>Bus here</b><br>' + esc(stopShort(b)));
+  }
+  if (!renderRoute._fit || renderRoute._r !== route) {
+    map.fitBounds(routeLine.getBounds(), { padding: [24, 24] });
+    renderRoute._fit = true; renderRoute._r = route;
+  }
+  renderStatus();
+  try { renderHero(); } catch (e) {}
+}
+
+
+/* ===== Hero banner (v6.23) =====
+   The headline moved off the map into this strip. Renders from the
+   same derived state as everything else (live aggregate, per-device
+   filtered, or history rebuild), so past dates show the same cards.
+   Delay provenance: (delaySec, delayStop, delayTime) — the origin is
+   recorded at every delay assignment; AM readings are born at on-bus
+   events (origin = departed stop) and do not move on arrivals; PM
+   re-measures at every arrival (origin advances). */
+function fmtQuietTime(d) {
+  if (!d) return '';
+  var s = new Date(d).toLocaleTimeString('en-CA', { timeZone: 'America/Toronto', hour: 'numeric', minute: '2-digit', hour12: true });
+  return s.replace(/[\s.]/g, '').toLowerCase();
+}
+function fmtCapTime(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleTimeString('en-CA', { timeZone: 'America/Toronto', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+}
+function heroRef(s) { return s ? stopShort(s) : ''; }
+function heroFigure(sec) {
+  var w = fmtDelayWord(sec);
+  return (w === 'on time') ? 'On time' : w;
+}
+function heroState() {
+  if (allDevsSelected()) return { st: getDisplayState(route), dev: '' };
+  var sel = selectedDevices();
+  if (!sel.length) return { st: null, dev: '' };
+  var pool = sel.filter(function (d) { var ds = devDisplayState(route, d); return !ds.done && !ds.complete; });
+  if (!pool.length) pool = sel;
+  var best = null, bestDev = '', bestFrac = -1, bestT = -1;
+  pool.forEach(function (d) {
+    var ds = devDisplayState(route, d);
+    var frac = passedCount(ds), t = ds.lastUpdate ? new Date(ds.lastUpdate).getTime() : 0;
+    if (frac > bestFrac || (frac === bestFrac && t > bestT)) { best = ds; bestDev = d; bestFrac = frac; bestT = t; }
+  });
+  return { st: best || getDisplayState(route), dev: bestDev };
+}
+function renderHero() {
+  var strip = document.getElementById('heroStrip');
+  if (!strip) return;
+  var hs = heroState(), st = hs.st, list = stops();
+  if (!st || !(st.busIdx >= 0 || st.waiting || st.onBus || st.done || st.complete || Object.keys(st.reached || {}).length)) {
+    strip.style.display = 'none'; return;
+  }
+  var chip = '', big = '', asof = '', cap = '';
+  var finalStop = list[list.length - 1], lu = st.lastUpdate;
+  if (st.complete) {
+    if (route === 'AM') {
+      chip = 'AT SCHOOL'; big = 'Route complete';
+      asof = '(arrived ' + heroRef(finalStop) + (lu ? ', ' + fmtQuietTime(lu) : '') + ')';
+    } else {
+      chip = 'ROUTE COMPLETE'; big = 'At ' + heroRef(finalStop); asof = '(final stop)';
+    }
+    cap = 'Last update: ' + fmtCapTime(lu) + ' · route complete';
+  } else if (st.done && st.offStop && (hs.dev || allDevicesDone(route))) {
+    chip = 'GOT OFF'; big = 'At ' + heroRef(stopByKey(route, st.offStop)); asof = '(My Stop · tracking stopped)';
+    cap = 'Last update: ' + fmtCapTime(lu) + ' · tracking stopped';
+  } else if (st.waiting && st.busIdx < 0) {
+    var who = st.waitLabel || '';
+    if (!who) {
+      var wdev = hs.dev || '';
+      if (!wdev) { try { (knownDevices() || []).forEach(function (d) { var dds = devDisplayState(route, d); if (dds.waiting && !wdev) wdev = d; }); } catch (e) {} }
+      who = wdev ? '[' + devLabel(wdev) + ']' : 'The rider';
+    }
+    chip = 'WAITING'; big = who + ' is waiting at ' + heroRef(stopByKey(route, st.waiting));
+    asof = '(My Stop · since ' + fmtQuietTime(lu) + ')';
+    cap = 'Last update: ' + fmtCapTime(lu);
+  } else if (st.onBus && !st.reached[String(st.onBus.stop)]) {
+    var headStop = stopByKey(route, String(st.onBus.stop));
+    chip = 'ON BUS';
+    big = (st.delaySec !== null && st.delaySec !== undefined) ? heroFigure(st.delaySec) : ('Heading to ' + heroRef(headStop));
+    if (st.delayStop) asof = '(as of ' + heroRef(stopByKey(route, st.delayStop)) + (st.delayTime ? ', ' + fmtQuietTime(st.delayTime) : '') + ')';
+    cap = 'Last update: ' + fmtCapTime(st.onBus.time || st.delayTime || lu) + (headStop ? ' · heading to ' + heroRef(headStop) : '');
+  } else if (st.busIdx >= 0 && st.busIdx < list.length) {
+    var cur = list[st.busIdx], next = (st.busIdx + 1 < list.length) ? list[st.busIdx + 1] : null;
+    var figOK = st.delaySec !== null && st.delaySec !== undefined && !(route === 'PM' && st.delayStop === 'S');
+    if (route === 'PM' && cur.letter === 'S') {
+      chip = 'AT SCHOOL'; big = 'At School';
+      var smS = schedMinOfStop(cur);
+      asof = (smS !== null) ? '(departs ' + fmtClockSec(smS * 60) + ')' : '';
+    } else {
+      chip = (route === 'AM') ? ('AT ' + heroRef(cur).toUpperCase()) : 'EN ROUTE';
+      big = figOK ? heroFigure(st.delaySec) : ('At ' + heroRef(cur));
+      if (figOK && st.delayStop) asof = '(as of ' + heroRef(stopByKey(route, st.delayStop)) + (st.delayTime ? ', ' + fmtQuietTime(st.delayTime) : '') + ')';
+    }
+    cap = 'Last update: ' + fmtCapTime(lu);
+    if (next) {
+      cap += ' · heading to ' + heroRef(next);
+      if (route === 'PM' && figOK) { var nm = schedMinOfStop(next); if (nm !== null) cap += ' · ETA ' + fmtClockSec(nm * 60 + st.delaySec); }
+    }
+  } else {
+    strip.style.display = 'none'; return;
+  }
+  document.getElementById('heroChip').textContent = chip;
+  document.getElementById('heroBig').textContent = big;
+  var asofEl = document.getElementById('heroAsof');
+  asofEl.textContent = asof; asofEl.style.display = asof ? '' : 'none';
+  document.getElementById('heroCap').textContent = cap;
+  strip.style.display = '';
+}
+
+function renderStatus() {
+  var list = stops();
+  if (!allDevsSelected()) { renderStatusFiltered(list); return; }
+  var st = getDisplayState(route);
+  var line = document.getElementById('statusLine'), sub = document.getElementById('subLine');
+  var done = passedCount(st);
+  document.getElementById('progFill').style.width = (100 * done / list.length) + '%';
+  if (st.complete) {
+    line.textContent = 'Route complete \u2014 bus reached the final stop';
+    sub.textContent = st.lastUpdate ? ('Last update: ' + st.lastUpdate.toLocaleTimeString()) : '';
+  } else if (st.done && st.offStop) {
+    if (!allDevicesDone(route)) {
+      // Another phone still riding: show its progress instead.
+      var activeBest = null, activeDev = null, activeFrac = -1;
+      var _devs2 = [];
+      try { _devs2 = knownDevices() || []; } catch (e) {}
+      _devs2.forEach(function (d) {
+        if (!deviceParticipated(route, d)) return;
+        var ads = devDisplayState(route, d);
+        if (ads.done || ads.complete) return;
+        var adone = passedCount(ads);
+        var afrac = list.length ? adone / list.length : 0;
+        if (afrac > activeFrac) { activeBest = ads; activeDev = d; activeFrac = afrac; }
+      });
+      if (activeBest && activeBest.busIdx >= 0 && activeBest.busIdx < list.length) {
+        var abb = list[activeBest.busIdx];
+        line.textContent = '\uD83D\uDE8C [' + devLabel(activeDev) + '] at ' + stopShort(abb);
+        sub.textContent = activeBest.lastUpdate ? ('Last update: ' + activeBest.lastUpdate.toLocaleTimeString()) : '';
+      } else {
+        var sOff2 = stopByKey(route, st.offStop);
+        line.textContent = '\uD83D\uDCF1 Off bus at ' + (sOff2 ? stopShort(sOff2) : 'Stop ' + st.offStop);
+        sub.textContent = st.lastUpdate ? ('Last update: ' + st.lastUpdate.toLocaleTimeString()) : '';
+      }
+    } else {
+      var sOff = stopByKey(route, st.offStop);
+      line.textContent = '\uD83D\uDCF1 Off bus at ' + (sOff ? stopShort(sOff) : 'Stop ' + st.offStop);
+      sub.textContent = 'Tracking stopped' + (st.lastUpdate ? (' \u00B7 ' + st.lastUpdate.toLocaleTimeString()) : '');
+    }
+  } else if (st.waiting && st.busIdx < 0) {
+    var sWait = stopByKey(route, st.waiting);
+    // Find which device is waiting for the ID
+    var waitDev = '';
+    try {
+      (function(){ try { return knownDevices() || []; } catch(e){ return []; } })().forEach(function (d) {
+        var ds = devDisplayState(route, d);
+        if (ds.waiting && !waitDev) waitDev = devLabel(d);
+      });
+    } catch (e) {}
+    var _sLbl = (st.waitLabel ? ' (' + st.waitLabel + ')' : '');
+    line.textContent = '\uD83D\uDCF1 ' + (waitDev ? '[' + waitDev + ']' + _sLbl + ' ' : '') + 'Waiting for bus at ' + (sWait ? stopShort(sWait) : 'Stop ' + st.waiting);
+    sub.textContent = st.lastUpdate ? ('Last update: ' + st.lastUpdate.toLocaleTimeString()) : '';
+  } else if (st.busIdx >= 0) {
+    var s = list[st.busIdx];
+    line.textContent = 'Bus at ' + stopShort(s) + ' of ' + list.length + (route === 'PM' && st.delaySec !== null && st.delaySec !== undefined ? onBusPillSuffix(st.delaySec, (st.busIdx + 1 < list.length) ? list[st.busIdx + 1] : null) : '');
+    sub.textContent = (route === 'AM' && s.t ? s.t + ' \u00B7 ' : '') +
+      'Last update: ' + (st.lastUpdate ? st.lastUpdate.toLocaleTimeString() : '\u2014');
+    var _lsA = posStaleNoteAgg();
+    if (_lsA) sub.textContent += _lsA;
+  } else if (st.onBus) {
+    var obStopObj = stopByKey(route, String(st.onBus.stop));
+    var obDevLbl = '';
+    try {
+      (function(){ try { return knownDevices() || []; } catch(e){ return []; } })().forEach(function (d) {
+        var ds = devDisplayState(route, d);
+        if (ds.onBus && !obDevLbl) obDevLbl = devLabel(d);
+      });
+    } catch (e) {}
+    var _obLblAgg = st.onBus.label ? ' (' + st.onBus.label + ')' : '';
+    line.textContent = '\uD83D\uDCF1 ' + (obDevLbl ? '[' + obDevLbl + ']' + _obLblAgg + ' ' : '') + 'On bus \u2014 heading to Stop ' + (st.onBus.disp || st.onBus.stop) + onBusPillSuffix(st.delaySec, obStopObj);
+    sub.textContent = st.onBus.time ? ('Last update: ' + st.onBus.time.toLocaleTimeString()) : '';
+  } else {
+    line.textContent = 'No bus updates yet';
+    sub.textContent = st.lastUpdate ? ('Last update: ' + st.lastUpdate.toLocaleTimeString())
+                                    : 'Connect to the follower channel below to start tracking.';
+  }
+}
+
+/* ===== Event log ===== */
+function addLog(text, tag, tagCls, whenISO) {
+  var empty = document.getElementById('logEmpty');
+  if (empty) empty.remove();
+  var log = document.getElementById('log');
+  var d = document.createElement('div');
+  d.className = 'e';
+  var ts = whenISO ? new Date(whenISO) : new Date();
+  d.innerHTML = '<span class="ts">' + ts.toLocaleTimeString() + '</span>' +
+    (tag ? '<span class="tag ' + tagCls + '">' + esc(tag) + '</span>' : '') + esc(text);
+  log.insertBefore(d, log.firstChild);
+  while (log.children.length > 200) log.removeChild(log.lastChild);
+}
+document.getElementById('clearLog').addEventListener('click', function () {
+  document.getElementById('log').innerHTML = '<div id="logEmpty">Log cleared.</div>';
+});
+
+/* ===== AM/PM toggle ===== */
+document.getElementById('btnAM').addEventListener('click', function () { setRoute('AM'); });
+document.getElementById('btnPM').addEventListener('click', function () { setRoute('PM'); });
+function setRoute(r) {
+  if (route === r) return;
+  route = r;
+  document.getElementById('btnAM').classList.toggle('on', r === 'AM');
+  document.getElementById('btnPM').classList.toggle('on', r === 'PM');
+  renderRoute();
+}
+
+/* ===== Route auto-follow (v6.21) =====
+   The tab follows today's live events: every apply path switches to the
+   event's route once the event clears the history/silent/previous-day
+   guards. The starting tab is today's latest event's route, or the
+   Toronto clock (AM before noon, PM from noon) when today has none. */
+function torontoHour(d) {
+  try {
+    var parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Toronto', hour: 'numeric', hourCycle: 'h23' }).formatToParts(d);
+    for (var i = 0; i < parts.length; i++) { if (parts[i].type === 'hour') return parseInt(parts[i].value, 10) % 24; }
+  } catch (e) {}
+  return d.getHours();
+}
+function applyStartingRoute() {
+  if (viewDate) return; // history view keeps the user's tab
+  var day = loadHistory()[torontoDateKey(new Date())];
+  var best = null, bestT = -1;
+  if (day) {
+    [['am', 'AM'], ['pm', 'PM']].forEach(function (pair) {
+      (day[pair[0]] || []).forEach(function (e) {
+        var t = new Date(e.time).getTime();
+        if (t > bestT) { bestT = t; best = pair[1]; }
+      });
+    });
+  }
+  var target = best || (torontoHour(new Date()) < 12 ? 'AM' : 'PM');
+  if (target !== route) setRoute(target);
+}
+
+/* ===== ntfy via SSE ===== */
+var topicInput = document.getElementById('topicInput');
+var connBtn = document.getElementById('connBtn');
+var connDot = document.getElementById('connDot');
+// Built-in channel — the only authority (the input below is a read-only display)
+var HARDCODED_TOPIC = '00-Bus-107-135-gh45lt';
+// Channel cleanup (v6.20): the built-in channel is the only authority.
+// Overwrite any stale stored channel once at startup; the input only displays it.
+try { localStorage.setItem('busfollower_topic', HARDCODED_TOPIC); } catch (e) {}
+topicInput.value = HARDCODED_TOPIC;
+connBtn.addEventListener('click', function () { evtSrc ? disconnect() : connect(); });
+topicInput.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !evtSrc) connect(); });
+// Manual refresh button: re-backfill shared history
+document.getElementById('refreshBtn').addEventListener('click', function () {
+  var topic = HARDCODED_TOPIC;
+  addLog('Checking for new alerts…', 'SYNC', '');
+  backfillFromNtfy(topic).then(function (msgs) {
+    var n = 0;
+    msgs.forEach(function (m) {
+      var iso = new Date(m.time * 1000).toISOString();
+      if (handleMessage(m.message, { time: iso, silent: true, deferUI: true })) n++;
+    });
+    refreshDatePicker();
+    applyStartingRoute();
+    if (!viewDate) { rebuildLiveLog(); renderRoute(); }
+    addLog(n > 0 ? ('Found ' + n + ' new alert' + (n === 1 ? '' : 's') + '.') : 'No new alerts.', 'SYNC', '');
+  }).catch(function (e) {
+    addLog('Refresh failed: ' + (e && e.message ? e.message : e), 'SYNC', 'warn');
+  });
+});
+// Starting tab (v6.21): today's latest event's route, else the Toronto clock
+applyStartingRoute();
+// Auto-connect on load
+if (HARDCODED_TOPIC) {
+  setTimeout(function () { connect(); }, 500);
+}
+// Re-backfill when tab becomes visible again (mobile browsers suspend SSE in background tabs)
+
+/* ===== Live Tracker (v6.29) =====
+   Position layer: subscribes to the Firebase Realtime Database
+   position records (REST/SSE, SDK-free) and glides the bus marker
+   along the route line between stop events. SEPARATE from the event
+   pipeline by design: hero cards, progress, the log and Minutes
+   Behind derive ONLY from events — this layer only moves the dot,
+   and only while the device's EVENT state is mid-ride on this tab.
+   A dead or absent feed changes nothing: the dot keeps today's
+   event-driven placement; past ~90 s without a fresh fix it greys
+   and the status line shows "last seen". History view: no dot. */
+var FB_BASE = 'https://bus-live-tracker-db0e1-default-rtdb.firebaseio.com';
+var FB_PATH = 'pos-4688de3309369eb335b245d1';
+var POS_STALE_MS = 90000;
+var POS_ROUTE_MAX_M = 100;  // production: positions farther than this from the route are ignored (Domi's strict pick, 2026-10-31)
+var posLastDist = 0;        // distance (m) of the most recent posProject call
+var posByTag = {};     // tag -> latest record {lat,lng,acc,ts,route,active,label}
+var posAnim = {};      // marker key -> {lat, lng, marker} animated position
+var posMode = {};      // marker key -> 'live' | 'stale' (absent = event-driven)
+var posDriverTag = ''; // aggregate mode: tag whose position drives the dot
+var posTest = true;    // Position test toggle — ON by default at Domi's direction (2026-10-31, 'for now'); memory-only, never stored
+var posSrc = null;
+
+function posProject(lat, lng, pts) {
+  if (!pts || pts.length < 2) return null;
+  var kx = Math.cos(lat * Math.PI / 180) * 111320, ky = 110540;
+  var bx = lng * kx, by = lat * ky, best = null, bestD = Infinity;
+  for (var i = 0; i < pts.length - 1; i++) {
+    var ax = pts[i][1] * kx, ay = pts[i][0] * ky;
+    var cx = pts[i + 1][1] * kx, cy = pts[i + 1][0] * ky;
+    var dx = cx - ax, dy = cy - ay;
+    var len2 = dx * dx + dy * dy;
+    var t = len2 ? ((bx - ax) * dx + (by - ay) * dy) / len2 : 0;
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    var px = ax + t * dx, py = ay + t * dy;
+    var d = (bx - px) * (bx - px) + (by - py) * (by - py);
+    if (d < bestD) { bestD = d; best = [py / ky, px / kx]; }
+  }
+  posLastDist = Math.sqrt(bestD);
+  return best;
+}
+
+function posDotIcon(color, stale, dev) {
+  if (dev) {
+    var c = stale ? '#8a8a8a' : color;
+    return L.divIcon({ className: '', html: '<div style="text-align:center"><div class="busdot" style="background:' + c + ';box-shadow:0 0 0 3px ' + c + '55, 0 2px 8px rgba(0,0,0,.5)"></div><div class="devbuslbl">' + esc(devLabel(dev)) + '</div></div>', iconSize: [46, 46], iconAnchor: [23, 14] });
+  }
+  return L.divIcon({ className: '', html: stale
+    ? '<div class="busdot" style="background:#8a8a8a;box-shadow:0 0 0 3px rgba(138,138,138,.35), 0 2px 8px rgba(0,0,0,.5)"></div>'
+    : '<div class="busdot"></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
+}
+
+function posStaleNoteFor(tag) {
+  var rec = tag ? posByTag[tag] : null;
+  if (!rec || !rec.active || typeof rec.lat !== 'number') return '';
+  if (!posTest) { posProject(rec.lat, rec.lng, path()); if (posLastDist > POS_ROUTE_MAX_M) return ''; } // off-route: ignored in production
+  if (Date.now() - (rec.ts || 0) <= POS_STALE_MS) return '';
+  return ' \u00B7 \uD83D\uDCCD last seen ' + new Date(rec.ts).toLocaleTimeString();
+}
+function posStaleNoteAgg() { return posStaleNoteFor(posDriverTag); }
+
+function posForget(key) { delete posMode[key]; delete posAnim[key]; }
+
+function posDriveMarker(key, marker, rec, color, dev) {
+  if (!marker) return;
+  var raw = posTest && key === '__agg';
+  var target;
+  if (raw) {
+    target = [rec.lat, rec.lng];
+  } else {
+    target = posProject(rec.lat, rec.lng, path());
+    if (!target) return;
+    if (posLastDist > POS_ROUTE_MAX_M) {
+      // Production only: a phone far off the route is not the bus —
+      // ignore its position entirely. (Test mode shows everything.)
+      if (posMode[key] !== 'offroute') {
+        posForget(key);
+        if (key === '__agg') { posDriverTag = ''; try { renderRoute(); } catch (e) {} }
+        else { try { map.removeLayer(marker); } catch (e) {} }
+        posMode[key] = 'offroute';
+      }
+      return;
+    }
+    if (posMode[key] === 'offroute') posMode[key] = '';
+  }
+  var age = Date.now() - (rec.ts || 0);
+  if (age > POS_STALE_MS) {
+    if (posMode[key] !== 'stale') {
+      posMode[key] = 'stale';
+      try { marker.setIcon(posDotIcon(color, true, dev)); } catch (e) {}
+      try { renderStatus(); } catch (e) {}
+    }
+    return; // dot stays at its last live spot, greyed
+  }
+  if (posMode[key] !== 'live') {
+    posMode[key] = 'live';
+    try { marker.setIcon(posDotIcon(color, false, dev)); } catch (e) {}
+    try { renderStatus(); } catch (e) {}
+  }
+  if (raw) {
+    // Position test: true coordinates — no projection, no glide —
+    // and the popup carries the raw readout. renderRoute rebinds
+    // the event popup when the toggle turns off.
+    var pa = posAnim[key];
+    if (!pa || pa.marker !== marker) { pa = { lat: target[0], lng: target[1], marker: marker, popupTs: 0 }; posAnim[key] = pa; }
+    pa.lat = target[0]; pa.lng = target[1];
+    try { marker.setLatLng(target); } catch (e) {}
+    if (pa.popupTs !== rec.ts) {
+      pa.popupTs = rec.ts;
+      var html = '<b>Live GPS</b><br>' + rec.lat.toFixed(6) + ', ' + rec.lng.toFixed(6)
+        + '<br>acc ' + (typeof rec.acc === 'number' ? Math.round(rec.acc) + ' m' : '\u2014')
+        + ' \u00B7 ' + new Date(rec.ts).toLocaleTimeString();
+      try {
+        if (marker.getPopup && marker.getPopup()) marker.setPopupContent(html);
+        else marker.bindPopup(html);
+      } catch (e) {}
+    }
+    return;
+  }
+  var cur = posAnim[key];
+  if (!cur || cur.marker !== marker) {
+    try { marker.setLatLng(target); } catch (e) {}
+    posAnim[key] = { lat: target[0], lng: target[1], marker: marker };
+    return;
+  }
+  var nl = cur.lat + (target[0] - cur.lat) * 0.3;
+  var ng = cur.lng + (target[1] - cur.lng) * 0.3;
+  if (Math.abs(target[0] - nl) < 1e-7 && Math.abs(target[1] - ng) < 1e-7) { nl = target[0]; ng = target[1]; }
+  try { marker.setLatLng([nl, ng]); } catch (e) {}
+  cur.lat = nl; cur.lng = ng;
+}
+
+function posTick() {
+  if (viewDate) return; // history view stays position-free
+  try {
+    if (allDevsSelected()) {
+      if (posTest) {
+        // Position test mode (toggle, memory-only): draw the dot
+        // from the position feed alone — no event gate, no
+        // participation requirement. Route match still applies.
+        var tBestTag = '', tBestRec = null;
+        Object.keys(posByTag).forEach(function (t) {
+          var rec = posByTag[t];
+          if (!rec || !rec.active || typeof rec.lat !== 'number') return;
+          if (String(rec.route || '').toUpperCase() !== route) return;
+          if (!tBestRec || (rec.ts || 0) > (tBestRec.ts || 0)) { tBestRec = rec; tBestTag = t; }
+        });
+        if (!tBestRec) { posForget('__agg'); return; }
+        posDriverTag = tBestTag;
+        posDriveMarker('__agg', busMarker, tBestRec, null, null);
+      } else {
+        var st = displayStateFor(route);
+        if (!(st.busIdx >= 0 && !st.complete && !st.done)) { posForget('__agg'); return; }
+        var devs = [];
+        try { devs = knownDevices() || []; } catch (e) {}
+        var bestTag = '', bestRec = null;
+        devs.forEach(function (d) {
+          var rec = posByTag[d];
+          if (!rec || !rec.active || typeof rec.lat !== 'number') return;
+          if (String(rec.route || '').toUpperCase() !== route) return;
+          try { if (!deviceParticipated(route, d)) return; } catch (e) { return; }
+          if (!bestRec || (rec.ts || 0) > (bestRec.ts || 0)) { bestRec = rec; bestTag = d; }
+        });
+        if (!bestRec) { posForget('__agg'); return; }
+        posDriverTag = bestTag;
+        posDriveMarker('__agg', busMarker, bestRec, null, null);
+      }
+    } else {
+      selectedDevices().forEach(function (dev) {
+        var m = busMarkers[dev];
+        if (!m) { posForget(dev); return; }
+        var ds = devDisplayState(route, dev);
+        var rec = posByTag[dev];
+        if (!rec || !rec.active || typeof rec.lat !== 'number'
+            || !(ds.busIdx >= 0 && !ds.complete && !ds.done)
+            || String(rec.route || '').toUpperCase() !== route) { posForget(dev); return; }
+        posDriveMarker(dev, m, rec, devColor(dev), dev);
+      });
+    }
+  } catch (e) {}
+}
+
+function posSetRec(tag, rec) {
+  if (!tag) return;
+  if (!rec || rec.active === false || typeof rec.lat !== 'number') {
+    var was = posByTag[tag];
+    posByTag[tag] = { active: false, ts: (rec && rec.ts) || 0 };
+    if (was && was.active && !viewDate) {
+      // Ride ended on the position feed: rebuild markers from events.
+      posForget(tag); posForget('__agg');
+      try { renderRoute(); } catch (e) {}
+    }
+    return;
+  }
+  if (typeof rec.acc === 'number' && rec.acc > 100) return; // followers ignore coarse fixes
+  posByTag[tag] = rec;
+}
+
+function posOnEvent(pathStr, data, isPatch) {
+  if (!pathStr || pathStr === '/') {
+    if (!isPatch) posByTag = {};
+    if (data) Object.keys(data).forEach(function (t) { posSetRec(t, data[t]); });
+    return;
+  }
+  var tag = pathStr.slice(1);
+  if (data === null) { delete posByTag[tag]; return; }
+  if (isPatch && posByTag[tag] && posByTag[tag].active) {
+    var merged = {};
+    Object.keys(posByTag[tag]).forEach(function (k) { merged[k] = posByTag[tag][k]; });
+    Object.keys(data).forEach(function (k) { merged[k] = data[k]; });
+    posSetRec(tag, merged);
+    return;
+  }
+  posSetRec(tag, data);
+}
+
+function posSubscribe() {
+  if (!FB_BASE || !FB_PATH || posSrc) return;
+  try {
+    posSrc = new EventSource(FB_BASE + '/' + FB_PATH + '.json');
+    posSrc.addEventListener('put', function (e) {
+      try { var d = JSON.parse(e.data); posOnEvent(d.path, d.data, false); } catch (err) {}
+    });
+    posSrc.addEventListener('patch', function (e) {
+      try { var d = JSON.parse(e.data); posOnEvent(d.path, d.data, true); } catch (err) {}
+    });
+  } catch (e) { posSrc = null; }
+}
+posSubscribe();
+setInterval(posTick, 250);
+var posTestEl = document.getElementById('posTestToggle');
+if (posTestEl) posTestEl.addEventListener('change', function () {
+  posTest = !!posTestEl.checked;
+  if (!posTest) {
+    // Restore the event-driven marker immediately.
+    posForget('__agg'); posDriverTag = '';
+    try { renderRoute(); } catch (e) {}
+  }
+});
+
+/* ===== Presence heartbeat =====
+   Publish-only: this page pings a derived "-presence" topic every
+   60 s while visible, so the test-alerts page can show a "Watching
+   now" count. Identity = persistent UUID (localStorage) combined
+   with a fingerprint hash, per the watching-now proposal. No
+   subscription, no display, nothing on the bus channel itself. */
+(function () {
+  try {
+    var PRES_TOPIC = HARDCODED_TOPIC + '-presence';
+    var wid = null;
+    try {
+      wid = localStorage.getItem('follower_watcher_id');
+      if (!wid) {
+        wid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+          : 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem('follower_watcher_id', wid);
+      }
+    } catch (e) {
+      wid = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    }
+    function fnv(str) {
+      var h = 0x811c9dc5;
+      for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+      return ('0000000' + h.toString(16)).slice(-8);
+    }
+    function fingerprint() {
+      var parts = [];
+      try { parts.push(navigator.userAgent || ''); } catch (e) { parts.push(''); }
+      try { parts.push(screen.width + 'x' + screen.height + 'x' + screen.colorDepth); } catch (e) { parts.push(''); }
+      try { parts.push(Intl.DateTimeFormat().resolvedOptions().timeZone || ''); } catch (e) { parts.push(''); }
+      try { parts.push(navigator.language || ''); } catch (e) { parts.push(''); }
+      try { parts.push(String(navigator.hardwareConcurrency || '')); } catch (e) { parts.push(''); }
+      try { parts.push(String(navigator.maxTouchPoints || 0)); } catch (e) { parts.push(''); }
+      try {
+        var cv = document.createElement('canvas');
+        var gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
+        var renderer = '';
+        if (gl) {
+          var ext = gl.getExtension('WEBGL_debug_renderer_info');
+          renderer = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '') : String(gl.getParameter(gl.RENDERER) || '');
+        }
+        parts.push(renderer);
+      } catch (e) { parts.push(''); }
+      try {
+        var c2 = document.createElement('canvas'); c2.width = 120; c2.height = 30;
+        var ctx = c2.getContext('2d');
+        ctx.textBaseline = 'top'; ctx.font = '14px Arial';
+        ctx.fillStyle = '#f60'; ctx.fillRect(2, 2, 40, 12);
+        ctx.fillStyle = '#069'; ctx.fillText('watcher', 4, 4);
+        parts.push(fnv(c2.toDataURL()));
+      } catch (e) { parts.push(''); }
+      return fnv(parts.join('|'));
+    }
+    var FP = fingerprint();
+    function ping() {
+      if (document.hidden) return;
+      try {
+        fetch('https://ntfy.sh/' + encodeURIComponent(PRES_TOPIC), { method: 'POST', body: 'W1|' + wid + '|' + FP })
+          .then(function () {}, function () {});
+      } catch (e) {}
+    }
+    ping();
+    setInterval(ping, 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) ping(); });
+  } catch (e) {}
+})();
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && HARDCODED_TOPIC && evtSrc) {
+    // Tab is visible again: refresh shared history to catch anything missed while suspended
+    backfillFromNtfy(HARDCODED_TOPIC).then(function (msgs) {
+      var n = 0;
+      msgs.forEach(function (m) {
+        var iso = new Date(m.time * 1000).toISOString();
+        if (handleMessage(m.message, { time: iso, silent: true, deferUI: true })) n++;
+      });
+      if (n > 0) {
+        refreshDatePicker();
+        applyStartingRoute();
+        if (!viewDate) { rebuildLiveLog(); renderRoute(); }
+        addLog('Caught up: ' + n + ' new alert' + (n === 1 ? '' : 's') + ' while away.', 'SYNC', '');
+      }
+    }).catch(function () {});
+  }
+});
+
+function setConn(on, err) {
+  connDot.className = on ? 'ok' : (err ? 'err' : '');
+  connDot.title = on ? 'Connected' : (err ? 'Error' : 'Disconnected');
+  connBtn.textContent = on ? 'Disconnect' : 'Connect';
+}
+/* Backfill recent messages from ntfy's server-side cache so every device
+   sees the same shared history (localStorage alone is per-device). */
+// Global error catcher: log JS errors to the event log for debugging
+window.onerror = function (msg, src, line) {
+  try {
+    addLog('JS Error: ' + msg + ' (line ' + line + ')', 'ERROR', 'warn');
+  } catch (e) {}
+};
+function fetchWithTimeout(url, ms) {
+  var ctrl = null, timer = null;
+  try {
+    if (typeof AbortController !== 'undefined') {
+      ctrl = new AbortController();
+      timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, ms || 10000);
+    }
+  } catch (e) {}
+  var opts = ctrl ? { signal: ctrl.signal } : undefined;
+  return fetch(url, opts).then(function (resp) {
+    if (timer) clearTimeout(timer);
+    return resp;
+  }, function (err) {
+    if (timer) clearTimeout(timer);
+    throw err;
+  });
+}
+function backfillFromNtfy(topic) {
+  var directUrl = 'https://ntfy.sh/' + encodeURIComponent(topic) + '/json?since=24h';
+  var htmlUrl = 'https://ntfy.sh/' + encodeURIComponent(topic);
+  function parseHtmlMessages(html) {
+    var found = [];
+    var re = /🔔 TEST: 🚌 Stop [^<]{1,200}? reached\.|🚌 Stop [^<]{1,200}? reached\.|🚌 Final stop reached:[^<]{1,200}?\.|📱 \\[[AiW][0-9]{2}\\] [^<]{1,200}?\.|🚌 \\[[AiW][0-9]{2}\\] at [^<]{1,200}?\.|⏭ \\[[AiW][0-9]{2}\\] [^<]{1,200}?\./g;
+    var m, now = Math.floor(Date.now() / 1000);
+    while ((m = re.exec(html)) !== null) {
+      var txt = m[0].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+      found.push({ event: 'message', message: txt, time: now });
+      now--;
+    }
+    return found.map(function (f) { return JSON.stringify(f); }).join('\n');
+  }
+  function fetchHtmlDirect() {
+    return fetchWithTimeout(htmlUrl, 10000).then(function (resp) {
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.text();
+    }).then(function (html) {
+      addLog('HTML page fetched: ' + html.length + ' chars', 'DEBUG', '');
+      return parseHtmlMessages(html);
+    });
+  }
+  function fetchHtmlViaProxy() {
+    var htmlProxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(htmlUrl);
+    return fetchWithTimeout(htmlProxy, 12000).then(function (resp) {
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.text();
+    }).then(parseHtmlMessages);
+  }
+  function fetchDirectJson() {
+    return fetchWithTimeout(directUrl, 8000).then(function (resp) {
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.text();
+    }).then(function (text) {
+      addLog('JSON API returned: ' + text.length + ' chars', 'DEBUG', '');
+      return text;
+    });
+  }
+  function fetchProxyJson() {
+    var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl);
+    return fetchWithTimeout(proxyUrl, 12000).then(function (resp2) {
+      if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
+      return resp2.text();
+    });
+  }
+  // Order: HTML direct -> HTML via proxy -> direct JSON -> JSON via proxy
+  return fetchHtmlDirect().catch(function () {
+    return fetchHtmlViaProxy();
+  }).catch(function () {
+    return fetchDirectJson();
+  }).catch(function () {
+    return fetchProxyJson();
+  })
+    .then(function (text) {
+      var msgs = [];
+      text.split('\n').forEach(function (line) {
+        line = line.trim();
+        if (!line) return;
+        try {
+          var o = JSON.parse(line);
+          if (o && o.event === 'message' && o.message && o.time) msgs.push(o);
+        } catch (e) {}
+      });
+      // API returns newest first; process oldest first
+      msgs.sort(function (a, b) { return a.time - b.time; });
+      // Only keep today's messages (Toronto date) — user wants same-day only on refresh
+      var todayKey = torontoDateKey(new Date());
+      msgs = msgs.filter(function (m) {
+        return torontoDateKey(new Date(m.time * 1000)) === todayKey;
+      });
+      return msgs;
+    });
+}
+function connect() {
+  var topic = HARDCODED_TOPIC;
+  disconnect();
+  connBtn.disabled = true;
+  setConn(false, false);
+  connDot.title = 'Loading history…';
+  // Safety: force-re-enable button after 15s no matter what
+  var safetyTimer = setTimeout(function () {
+    connBtn.disabled = false;
+    if (!evtSrc) {
+      addLog('Connection timed out — tap Connect to retry.', 'ERROR', 'warn');
+      setConn(false, true);
+    }
+  }, 15000);
+  function done() {
+    clearTimeout(safetyTimer);
+    connBtn.disabled = false;
+  }
+  try {
+    // SSE with ?since=24h loads today's history then streams live updates.
+    // No separate backfill fetch needed.
+    startSSE(topic);
+    startPolling(topic);
+    done();
+  } catch (e) {
+    done();
+    addLog('Connect failed: ' + e.message, 'ERROR', 'warn');
+    setConn(false, true);
+  }
+}
+// Polling fallback: re-backfill every 20s so new devices stay in sync even if SSE drops
+var pollTimer = null;
+function startPolling(topic) {
+  // Disabled: SSE with ?since=24h already loads history + live updates.
+  // Kept as a stub in case we need a fallback later.
+  stopPolling();
+}
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+function startSSE(topic) {
+  try {
+    evtSrc = new EventSource('https://ntfy.sh/' + encodeURIComponent(topic) + '/sse?since=24h');
+  // ?since=24h pulls recent history first, then live updates on the same stream.
+  // handleMessage buckets by Toronto date, so only today's show in the live view.
+  var histCount = 0, histDone = false;
+  setTimeout(function () {
+    if (!histDone) {
+      histDone = true;
+      if (histCount > 0) addLog('Loaded ' + histCount + ' past alert' + (histCount === 1 ? '' : 's') + ' from today.', 'HIST', '');
+    }
+  }, 3000);
+  } catch (e) {
+    addLog('Could not open connection: ' + e.message, 'ERROR', 'warn');
+    setConn(false, true);
+    return;
+  }
+  evtSrc.onopen = function () {
+    setConn(true, false);
+    addLog('Connected to channel "' + topic + '". Waiting for bus updates\u2026', null, '');
+  };
+  evtSrc.onerror = function () {
+    setConn(false, true);
+    addLog('Connection error \u2014 retrying\u2026', 'ERROR', 'warn');
+  };
+  evtSrc.onmessage = function (ev) {
+    try {
+      var data = JSON.parse(ev.data);
+      if (data.event === 'message' && data.message) {
+        var msgDate = data.time ? torontoDateKey(new Date(data.time * 1000)) : torontoDateKey(new Date());
+        if (!histDone && msgDate === torontoDateKey(new Date())) histCount++;
+        var o = data.time ? { time: new Date(data.time * 1000).toISOString() } : undefined;
+        handleMessage(data.message, o);
+      }
+    } catch (e) { /* keepalive */ }
+  };
+}
+function disconnect() {
+  if (evtSrc) { try { evtSrc.close(); } catch (e) {} evtSrc = null; }
+  stopPolling();
+  setConn(false, false);
+}
+
+/* ===== Message parsing ===== */
+function handleMessage(raw, opts) {
+  var msg = String(raw), isTest = false;
+  if (msg.indexOf(BELL + ' TEST:') === 0) { isTest = true; msg = msg.slice((BELL + ' TEST:').length).trim(); }
+  // New "My Stop" device-id-first formats (v3.6+):
+  //   📱 [A98] waiting at Stop 1: ...
+  //   📱 [A98] got off at Stop L: ...
+  //   🚌 [A98] at Stop 2: ...                  -> advances like a stop arrival
+  //   📱 [A98] arrived at Stop 2: ...          -> auto mode, advances
+  //   🚌 [A98] at Stop 13: ... Route complete.
+  //   📱 [A98] arrived at final stop: ...
+  var mWait = msg.match(new RegExp('^' + PHONE + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? waiting at Stop (0[12]|[A-Z0-9]+)(?: \\(\\d+\\))?[:.]'));
+  var mOff  = msg.match(new RegExp('^' + PHONE + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? got off at Stop (0[12]|[A-Z0-9]+)(?: \\(\\d+\\))?[:.]'));
+  var mBusAt = msg.match(new RegExp('^' + BUS + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? at Stop (0[12]|[A-Z0-9]+)(?: \\(\\d+\\))?[:.]'));
+  var mArr  = msg.match(new RegExp('^' + PHONE + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? arrived at Stop (0[12]|[A-Z0-9]+)(?: \\(\\d+\\))?[:.]'));
+  var mArrF = msg.match(new RegExp('^' + PHONE + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? arrived at final stop:'));
+  var mArrF2 = msg.match(new RegExp('^' + PHONE + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? arrived at final stop \\((AM|PM)\\)'));
+  var mBusF = msg.match(new RegExp('^' + BUS + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? at final stop \\((AM|PM)\\)'));
+  // "📱 [A30] off bus. Tracking stopped." -> info only, state already set by got-off
+  // "📱 [X##] on bus, heading to Stop N: ..." -> parse and clear waiting
+  var mOnBus = msg.match(new RegExp('^' + PHONE + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? on bus, heading to Stop (0[12]|[A-Z0-9]+)(?: \\((\\d+)\\))?:'));
+  if (mOnBus) {
+    var _devOb = mOnBus[1];
+    var _labelOb = mOnBus[2] || '';
+    var _tokOb = mOnBus[3];
+    var _dispOb = _tokOb + (mOnBus[4] ? ' (' + mOnBus[4] + ')' : '');
+    // Route rule matches handleNewFormat: PM tokens are S, 0, 01, 02, A-L; AM are plain numbers
+    var _rOb = (/^(0|01|02)$/.test(_tokOb) || !/^\d+$/.test(_tokOb)) ? 'PM' : 'AM';
+    var _listOb = (_rOb === 'AM') ? AM_STOPS : PM_STOPS;
+    var _keyOb = function (s) { return (_rOb === 'AM') ? String(s.n) : s.letter; };
+    var _sOb = null;
+    _listOb.forEach(function (x) { if (_keyOb(x) === _tokOb) _sOb = x; });
+    var _evTimeOb = (opts && opts.time) ? new Date(opts.time) : new Date();
+    registerDevice(_devOb);
+    // Record the on-bus event (kind 'onbus') so reloads, backfill and the
+    // date picker derive the same delay readings as the live session.
+    var _addedOb = _sOb ? recordEvent(_rOb, _sOb, isTest, raw, false, opts && opts.time, opts && opts.deferUI, _devOb, 'onbus', { disp: _dispOb, label: _labelOb }) : false;
+    if (viewDate) return _addedOb; // history mode: accumulate silently
+    if (opts && opts.silent) return _addedOb; // backfill: rendering deferred to the end
+    if (torontoDateKey(_evTimeOb) !== torontoDateKey(new Date())) return _addedOb; // previous-day: history only
+    if (_rOb !== route) setRoute(_rOb); // route auto-follow (v6.21)
+    var _dsOb = null;
+    try {
+      _dsOb = devRouteState(_devOb, _rOb);
+      if (_dsOb) {
+        // Mark the waiting stop as reached (boarded the bus there)
+        if (_dsOb.waiting) {
+          _dsOb.reached[_dsOb.waiting] = true;
+          var _wIdx = -1;
+          try { _wIdx = _listOb.findIndex(function(s) { return _keyOb(s) === String(_dsOb.waiting); }); } catch (e) {}
+          if (_wIdx > _dsOb.busIdx) _dsOb.busIdx = _wIdx;
+        }
+        _dsOb.waiting = null; _dsOb.onBus = { stop: _tokOb, disp: _dispOb, time: _evTimeOb, label: _labelOb };
+        // Minutes Behind: the ONLY delay calculation (test events excluded)
+        if (!isTest) { var _ndOb = calcOnBusDelay(_rOb, _tokOb, _evTimeOb); var _hIdx = -1; _listOb.forEach(function (s3, i3) { if (((_rOb === 'AM') ? String(s3.n) : s3.letter) === _tokOb) _hIdx = i3; }); if (_hIdx > 0) { var _dep = _listOb[_hIdx - 1]; _dsOb.delayStop = (_rOb === 'AM') ? String(_dep.n) : _dep.letter; _dsOb.delayTime = _evTimeOb; } if (_ndOb !== null) _dsOb.delaySec = _ndOb; }
+      }
+      // Clear aggregate waiting too (map banner reads state.<route>.waiting)
+      if (typeof state !== 'undefined' && state[_rOb]) {
+        if (state[_rOb].waiting) {
+          state[_rOb].reached[state[_rOb].waiting] = true;
+          var _awIdx = -1;
+          try { _awIdx = _listOb.findIndex(function(s) { return _keyOb(s) === String(state[_rOb].waiting); }); } catch (e) {}
+          if (_awIdx > state[_rOb].busIdx) state[_rOb].busIdx = _awIdx;
+        }
+        state[_rOb].waiting = null; state[_rOb].onBus = { stop: _tokOb, disp: _dispOb, time: _evTimeOb, label: _labelOb };
+        if (!isTest && _dsOb) { state[_rOb].delaySec = _dsOb.delaySec; state[_rOb].delayStop = _dsOb.delayStop; state[_rOb].delayTime = _dsOb.delayTime; }
+      }
+    } catch (e) {}
+    if (isDevSelected(_devOb)) {
+      addLog((isTest ? '[TEST] ' : '') + '\uD83D\uDCF1 [' + _devOb + ']' + (_labelOb ? ' (' + _labelOb + ')' : '') + ' on bus \u2014 heading to Stop ' + _dispOb + '.' +
+        (isTest ? '' : onBusDelaySuffix(_dsOb ? _dsOb.delaySec : null, _sOb)),
+        (isTest ? 'TEST ' : '') + _rOb, isTest ? 'test' : _rOb.toLowerCase(), opts && opts.time);
+    }
+    try { renderRoute(); renderStatus(); } catch (e) {}
+    return true;
+  }
+  // v6.22: look-ahead skip notice. Marks the stop skipped for
+  // that device (grey pin; progress counts it as passed); it is
+  // NOT an arrival and does not move the bus position.
+  var mSkip = msg.match(new RegExp('^\u23ED \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? skipped Stop (0[12]|[A-Z0-9]+)(?: \\((\\d+)\\))?[:.]'));
+  if (mSkip) {
+    var _devSk = mSkip[1];
+    var _labelSk = mSkip[2] || '';
+    var _tokSk = mSkip[3];
+    // Route rule matches the on-bus block: PM tokens are S, 0, 01, 02, A-L; AM are plain numbers
+    var _rSk = (/^(0|01|02)$/.test(_tokSk) || !/^\d+$/.test(_tokSk)) ? 'PM' : 'AM';
+    var _listSk = (_rSk === 'AM') ? AM_STOPS : PM_STOPS;
+    var _keyFnSk = function (s) { return (_rSk === 'AM') ? String(s.n) : s.letter; };
+    var _sSk = null;
+    _listSk.forEach(function (x) { if (_keyFnSk(x) === _tokSk) _sSk = x; });
+    var _evTimeSk = (opts && opts.time) ? new Date(opts.time) : new Date();
+    registerDevice(_devSk);
+    // Record kind 'skip' so reloads, backfill and the date picker
+    // derive the same grey pins as the live session.
+    var _addedSk = _sSk ? recordEvent(_rSk, _sSk, isTest, raw, false, opts && opts.time, opts && opts.deferUI, _devSk, 'skip', { label: _labelSk }) : false;
+    if (viewDate) return _addedSk; // history mode: accumulate silently
+    if (opts && opts.silent) return _addedSk; // backfill: rendering deferred to the end
+    if (torontoDateKey(_evTimeSk) !== torontoDateKey(new Date())) return _addedSk; // previous-day: history only
+    if (_rSk !== route) setRoute(_rSk); // route auto-follow (v6.21 parity)
+    try {
+      var _keySk = _sSk ? _keyFnSk(_sSk) : null;
+      var _dsSk = devRouteState(_devSk, _rSk);
+      if (_dsSk && _keySk) { _dsSk.skipped[_keySk] = true; _dsSk.lastUpdate = _evTimeSk; }
+      if (typeof state !== 'undefined' && state[_rSk] && _keySk) state[_rSk].skipped[_keySk] = true;
+    } catch (e) {}
+    if (isDevSelected(_devSk)) {
+      addLog((isTest ? '[TEST] ' : '') + msg, (isTest ? 'TEST ' : '') + _rSk, isTest ? 'test' : _rSk.toLowerCase(), opts && opts.time);
+    }
+    try { renderRoute(); renderStatus(); } catch (e) {}
+    return true;
+  }
+  var mOffBus = msg.match(new RegExp('^' + PHONE + ' \\[([AiW][0-9]{2})\\](?: \\(([^)]+)\\))? off bus\\. Tracking stopped\\.'));
+  if (mOffBus) {
+    var _dev = mOffBus[1];
+    registerDevice(_dev);
+    var _obLbl2 = mOffBus[2] ? ' (' + mOffBus[2] + ')' : '';
+    addLog('\uD83D\uDCF1 [' + _dev + ']' + _obLbl2 + ' off bus \u2014 tracking stopped.', 'PM', '');
+    return true;
+  }
+  var silent = !!(opts && opts.silent);
+  if (mWait || mOff || mBusAt || mArr || mArrF || mArrF2 || mBusF) {
+    return handleNewFormat(mWait, mOff, mBusAt, mArr, (mArrF || mArrF2 || mBusF), msg, isTest, raw, opts, silent);
+  }
+  var mPM = msg.match(new RegExp('^' + BUS + ' Stop ([A-Z0]|0[12])(?: \\((\\d+)\\))?:'));
+  // AM: test format "Stop 10: <name> reached." OR real app format "Stop 10 reached: <name>."
+  var mAM = msg.match(new RegExp('^' + BUS + ' Stop (\\d+):'))
+         || msg.match(new RegExp('^' + BUS + ' Stop (\\d+) reached:'));
+  // Legacy period variant, e.g. "🚌 Stop 5 reached. [A98]"
+  var mAMlegacy = !mAM && !mPM && msg.match(new RegExp('^' + BUS + ' Stop (0[12]|[A-Z0-9]+) reached\\.'));
+  // Final: "Final stop reached (AM):" or "(PM):" or legacy "Final stop reached:"
+  var mFinalAM = msg.indexOf(BUS + ' Final stop reached (AM):') === 0;
+  var mFinalPM = msg.indexOf(BUS + ' Final stop reached (PM):') === 0;
+  var mFinal = mFinalAM || mFinalPM || msg.indexOf(BUS + ' Final stop reached:') === 0;
+  if (mPM) {
+    var s = null;
+    PM_STOPS.forEach(function (x) { if (x.letter === mPM[1]) s = x; });
+    if (!s) { if (!silent) addLog('Unrecognized stop letter "' + mPM[1] + '": ' + raw, 'PM?', 'warn'); return false; }
+    return applyArrival('PM', s, isTest, raw, opts);
+  } else if (mAM) {
+    var n = parseInt(mAM[1], 10), s2 = null;
+    AM_STOPS.forEach(function (x) { if (x.n === n) s2 = x; });
+    if (!s2) { if (!silent) addLog('Unrecognized stop number "' + n + '": ' + raw, 'AM?', 'warn'); return false; }
+    return applyArrival('AM', s2, isTest, raw, opts);
+  } else if (mAMlegacy) {
+    var lbl = mAMlegacy[1];
+    var rr = (/^(0|01|02)$/.test(lbl) || !/^\d+$/.test(lbl)) ? 'PM' : 'AM';
+    var sL = null;
+    if (rr === 'AM') { var nn = parseInt(lbl, 10); AM_STOPS.forEach(function (x) { if (x.n === nn) sL = x; }); }
+    else { PM_STOPS.forEach(function (x) { if (x.letter === lbl) sL = x; }); }
+    if (!sL) { if (!silent) addLog('Unrecognized stop label "' + lbl + '": ' + raw, rr + '?', 'warn'); return false; }
+    return applyArrival(rr, sL, isTest, raw, opts);
+  } else if (mFinal) {
+    var r = mFinalAM ? 'AM' : (mFinalPM ? 'PM' : (lastRoute || route));
+    var st = state[r], list = r === 'AM' ? AM_STOPS : PM_STOPS;
+    var whenF = (opts && opts.time) ? new Date(opts.time) : new Date();
+    var devMatchF = String(raw || '').match(/\[([AiW][0-9]{2})\]\s*$/);
+    var devF = devMatchF ? devMatchF[1] : DEV_UNKNOWN;
+    var devIdF = devMatchF ? ' [' + devMatchF[1] + ']' : '';
+    registerDevice(devF);
+    var addedF = recordEvent(r, list[list.length - 1], isTest, raw, true,
+                             opts && opts.time, opts && opts.deferUI, devF);
+    if (viewDate || silent) return addedF;
+    if (torontoDateKey(whenF) !== torontoDateKey(new Date())) return addedF;
+    if (r !== route) setRoute(r); // route auto-follow (v6.21): guarded switch, after the date checks
+    st.complete = true; st.busIdx = list.length - 1; st.lastUpdate = whenF;
+    var keyF = stopKey(list[list.length - 1]);
+    st.reached[keyF] = true;
+    var dstF = devRouteState(devF, r);
+    dstF.complete = true; dstF.busIdx = list.length - 1; dstF.lastUpdate = whenF;
+    dstF.reached[keyF] = true;
+    if (r === 'PM' && !isTest) { var ndL = calcArrivalDelay(r, list[list.length - 1], whenF); dstF.delayStop = keyF; dstF.delayTime = whenF; st.delayStop = keyF; st.delayTime = whenF; if (ndL !== null) { dstF.delaySec = ndL; st.delaySec = ndL; } }
+    lastRoute = r;
+    if (isDevSelected(devF)) addLog((isTest ? '[TEST] ' : '') + 'Final stop reached (' + r + '). Route complete.' + devIdF + (isTest ? '' : arrivalDelaySuffix(dstF.delaySec, r)),
+           (isTest ? 'TEST ' : '') + r, 'test', opts && opts.time);
+    renderRoute();
+    return addedF;
+  } else {
+    if (!silent) addLog('Unrecognized message: ' + raw, '???', 'warn');
+    return false;
+  }
+}
+
+function applyArrival(r, s, isTest, rawMsg, opts, kind, devArg, lblArg) {
+  var devMatch = String(rawMsg || '').match(/\[([AiW][0-9]{2})\]\s*$/);
+  var dev = devArg || (devMatch ? devMatch[1] : DEV_UNKNOWN);
+  var devId = (devArg || devMatch) ? ' [' + dev + ']' : '';
+  registerDevice(dev);
+  // Live mode: ignore previous-day alerts entirely (from ?since=24h backfill).
+  // Record in history for the date picker, but don't touch live map/log state.
+  var evTime = (opts && opts.time) ? new Date(opts.time) : new Date();
+  var isOld = !viewDate && !(opts && opts.silent) &&
+              torontoDateKey(evTime) !== torontoDateKey(new Date());
+  var st = state[r], list = r === 'AM' ? AM_STOPS : PM_STOPS;
+  var key = r === 'AM' ? String(s.n) : s.letter;
+  var added = recordEvent(r, s, isTest, rawMsg, false, opts && opts.time, opts && opts.deferUI, dev, kind || 'bus', lblArg ? { label: lblArg } : undefined);
+  if (viewDate) return added; // history mode: accumulate silently, don't touch the display
+  if (opts && opts.silent) return added; // backfill: rendering deferred to the end
+  if (isOld) return added; // previous-day event: history only, no live UI update
+  if (r !== route) setRoute(r); // route auto-follow (v6.21)
+  st.reached[key] = true;
+  st.waiting = null; // boarded: clear any waiting state
+  st.onBus = null; // arrived: clear on-bus state
+  var idx = list.indexOf(s);
+  if (idx > st.busIdx) st.busIdx = idx;
+  st.lastUpdate = evTime;
+  lastRoute = r;
+  var dst = devRouteState(dev, r);
+  dst.reached[key] = true;
+  dst.waiting = null;
+  dst.onBus = null;
+  if (idx > dst.busIdx) dst.busIdx = idx;
+  dst.lastUpdate = evTime;
+  if (r === 'PM') {
+    dst.arrLabel = lblArg || '';
+    if (!isTest) { st.arrLabel = lblArg || ''; var ndA = calcArrivalDelay(r, s, evTime); dst.delayStop = key; dst.delayTime = evTime; st.delayStop = key; st.delayTime = evTime; if (ndA !== null) { dst.delaySec = ndA; st.delaySec = ndA; } }
+  }
+  var label = r === 'AM' ? ('Stop ' + s.n) : ('Stop ' + dispLetterOf(s) + (s.am > 0 ? ' (' + s.am + ')' : ''));
+  if (isDevSelected(dev)) {
+    var logText = (kind === 'newbus' || kind === 'newarr')
+      ? ((isTest ? '[TEST] ' : '') + rawMsg) // verbatim: already has icon + device ID
+      : ((isTest ? '[TEST] ' : '') + 'Bus reached ' + label + devId + '');
+    logText += isTest ? '' : arrivalDelaySuffix(dst.delaySec, r);
+    addLog(logText, (isTest ? 'TEST ' : '') + r, isTest ? 'test' : r.toLowerCase(), opts && opts.time);
+  }
+  if (r === route) renderRoute();
+  return added;
+}
+
+/* ===== New "My Stop" formats (v3.6+) ===== */
+function handleNewFormat(mWait, mOff, mBusAt, mArr, mArrF, msg, isTest, raw, opts, silent) {
+  var m = mWait || mOff || mBusAt || mArr || mArrF;
+  var dev = m[1];
+  registerDevice(dev);
+  var r = route, s = null;
+  if (mWait || mOff || mBusAt || mArr) {
+    var label = m[3];
+    // AM: 1-13 numeric; PM: S, 0, 01, 02, A-L
+    if (/^(0|01|02)$/.test(label) || !/^\d+$/.test(label)) r = 'PM'; else r = 'AM';
+    var list = (r === 'AM') ? AM_STOPS : PM_STOPS;
+    if (r === 'AM') { var n = parseInt(label, 10); list.forEach(function (x) { if (x.n === n) s = x; }); }
+    else { list.forEach(function (x) { if (x.letter === label) s = x; }); }
+    if (!s) { if (!silent) addLog('Unrecognized stop label "' + label + '": ' + raw, r + '?', 'warn'); return false; }
+  } else {
+    r = lastRoute || route;
+    var fl = (r === 'AM') ? AM_STOPS : PM_STOPS;
+    s = fl[fl.length - 1];
+  }
+  if (mWait) return applyWaiting(r, s, dev, raw, opts, isTest, mWait[2] || '');
+  if (mOff) return applyGotOff(r, s, dev, raw, opts, isTest, mOff[2] || '');
+  if (mBusAt && /Route complete\.\s*$/.test(msg)) return applyFinalNew(r, dev, raw, opts, isTest, m[2] || '');
+  if (mArrF) return applyFinalNew(r, dev, raw, opts, isTest, m[2] || '');
+  return applyArrival(r, s, isTest, raw, opts, mArr ? 'newarr' : 'newbus', dev, m[2] || '');
+}
+function applyWaiting(r, s, dev, rawMsg, opts, isTest, label) {
+  var evTime = (opts && opts.time) ? new Date(opts.time) : new Date();
+  var isOld = !viewDate && !(opts && opts.silent) &&
+              torontoDateKey(evTime) !== torontoDateKey(new Date());
+  var added = recordEvent(r, s, isTest, rawMsg, false, opts && opts.time, opts && opts.deferUI, dev, 'wait', label ? { label: label } : undefined);
+  if (viewDate) return added; // history mode: accumulate silently, don't touch the display
+  if (opts && opts.silent) return added; // backfill: rendering deferred to the end
+  if (isOld) return added; // previous-day event: history only, no live UI update
+  if (r !== route) setRoute(r); // route auto-follow (v6.21)
+  lastRoute = r;
+  var key = (r === 'AM') ? String(s.n) : s.letter;
+  var st = state[r];
+  st.waiting = key; st.waitLabel = label || ''; st.lastUpdate = evTime; st.delaySec = null; st.delayStop = null; st.delayTime = null;
+  var dst = devRouteState(dev, r);
+  dst.waiting = key; dst.waitLabel = label || ''; dst.lastUpdate = evTime; dst.delaySec = null; dst.delayStop = null; dst.delayTime = null;
+  if (isDevSelected(dev)) addLog((isTest ? '[TEST] ' : '') + rawMsg,
+         (isTest ? 'TEST ' : '') + r, isTest ? 'test' : r.toLowerCase(), opts && opts.time);
+  if (r === route) renderRoute();
+  return added;
+}
+function applyGotOff(r, s, dev, rawMsg, opts, isTest, label) {
+  var evTime = (opts && opts.time) ? new Date(opts.time) : new Date();
+  var isOld = !viewDate && !(opts && opts.silent) &&
+              torontoDateKey(evTime) !== torontoDateKey(new Date());
+  var added = recordEvent(r, s, isTest, rawMsg, false, opts && opts.time, opts && opts.deferUI, dev, 'off');
+  if (viewDate) return added; // history mode: accumulate silently, don't touch the display
+  if (opts && opts.silent) return added; // backfill: rendering deferred to the end
+  if (isOld) return added; // previous-day event: history only, no live UI update
+  if (r !== route) setRoute(r); // route auto-follow (v6.21)
+  lastRoute = r;
+  var key = (r === 'AM') ? String(s.n) : s.letter;
+  var st = state[r];
+  st.reached[key] = true; st.done = true; st.offStop = key; st.offLabel = label || ''; st.waiting = null; st.lastUpdate = evTime; st.delaySec = null; st.delayStop = null; st.delayTime = null;
+  var dst = devRouteState(dev, r);
+  dst.reached[key] = true; dst.done = true; dst.offStop = key; dst.waiting = null; dst.lastUpdate = evTime; dst.delaySec = null; dst.delayStop = null; dst.delayTime = null;
+  if (isDevSelected(dev)) addLog((isTest ? '[TEST] ' : '') + rawMsg,
+         (isTest ? 'TEST ' : '') + r, isTest ? 'test' : r.toLowerCase(), opts && opts.time);
+  if (r === route) renderRoute();
+  return added;
+}
+function applyFinalNew(r, dev, rawMsg, opts, isTest, lblF) {
+  var list = (r === 'AM') ? AM_STOPS : PM_STOPS;
+  var whenF = (opts && opts.time) ? new Date(opts.time) : new Date();
+  var added = recordEvent(r, list[list.length - 1], isTest, rawMsg, true,
+                          opts && opts.time, opts && opts.deferUI, dev, 'newfinal', lblF ? { label: lblF } : undefined);
+  if (viewDate || (opts && opts.silent)) return added;
+  if (torontoDateKey(whenF) !== torontoDateKey(new Date())) return added;
+  if (r !== route) setRoute(r); // route auto-follow (v6.21)
+  var st = state[r];
+  st.complete = true; st.busIdx = list.length - 1; st.lastUpdate = whenF; st.waiting = null;
+  var keyF = (r === 'AM') ? String(list[list.length - 1].n) : list[list.length - 1].letter;
+  st.reached[keyF] = true;
+  var dst = devRouteState(dev, r);
+  dst.complete = true; dst.busIdx = list.length - 1; dst.lastUpdate = whenF; dst.waiting = null;
+  dst.reached[keyF] = true;
+  if (r === 'PM') {
+    dst.arrLabel = lblF || '';
+    if (!isTest) { st.arrLabel = lblF || ''; var ndF2 = calcArrivalDelay(r, list[list.length - 1], whenF); dst.delayStop = keyF; dst.delayTime = whenF; st.delayStop = keyF; st.delayTime = whenF; if (ndF2 !== null) { dst.delaySec = ndF2; st.delaySec = ndF2; } }
+  }
+  lastRoute = r;
+  if (isDevSelected(dev)) addLog((isTest ? '[TEST] ' : '') + rawMsg + (isTest ? '' : arrivalDelaySuffix(dst.delaySec, r)),
+         (isTest ? 'TEST ' : '') + r, isTest ? 'test' : r.toLowerCase(), opts && opts.time);
+  if (r === route) renderRoute();
+  return added;
+}
+
+  /* ===== Date picker & history view ===== */
+function dateLabel(key) {
+  var today = torontoDateKey(new Date());
+  var yest = torontoDateKey(new Date(Date.now() - 86400000));
+  if (key === today) return 'Today';
+  if (key === yest) return 'Yesterday';
+  var d = new Date(key + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Toronto' });
+}
+function refreshDatePicker() {
+  var sel = document.getElementById('dateSelect');
+  var cur = sel.value;
+  var h = loadHistory();
+  var keys = Object.keys(h).sort().reverse();
+  // Rebuild options (keep Live at top)
+  sel.innerHTML = '<option value="live">\uD83D\uDD34 Live</option>';
+  keys.forEach(function (k) {
+    var day = h[k];
+    var amN = (day.am || []).length, pmN = (day.pm || []).length;
+    var opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = dateLabel(k) + ' (AM ' + amN + ' \u00B7 PM ' + pmN + ')';
+    sel.appendChild(opt);
+  });
+  // Restore selection if it still exists
+  if (cur && (cur === 'live' || h[cur])) sel.value = cur;
+  else if (viewDate && !h[viewDate]) { viewDate = null; sel.value = 'live'; }
+  updateDateSummary();
+}
+function updateDateSummary() {
+  var el = document.getElementById('dateSummary');
+  var badge = document.getElementById('histBadge');
+  if (!viewDate) {
+    el.textContent = '';
+    badge.classList.remove('on');
+    return;
+  }
+  badge.classList.add('on');
+  var h = loadHistory();
+  var day = h[viewDate];
+  if (!day) { el.textContent = 'No data for this date.'; return; }
+  var amN = (day.am || []).length, pmN = (day.pm || []).length;
+  el.textContent = dateLabel(viewDate) + ' \u2014 AM: ' + amN + ' stop' + (amN === 1 ? '' : 's') +
+                   ' \u00B7 PM: ' + pmN + ' stop' + (pmN === 1 ? '' : 's');
+}
+function logEntryFromEvent(r, ev) {
+  var d = document.createElement('div');
+  d.className = 'e';
+  var t = new Date(ev.time).toLocaleTimeString('en-CA', {
+    timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+  var label = (r === 'AM') ? ('Stop ' + ev.stop) : ('Stop ' + (ev.letter === 'S' ? 'School' : ev.letter) + (ev.stop > 0 ? ' (' + ev.stop + ')' : ''));
+  var devTag = (ev.dev && ev.dev !== DEV_UNKNOWN) ? ' [' + ev.dev + ']' : '';
+  var txt, tagCls = ev.test ? 'test' : r.toLowerCase();
+  if (ev.kind === 'onbus') {
+    txt = (ev.test ? '[TEST] ' : '') + '\uD83D\uDCF1 [' + (ev.dev || '?') + ']' + (ev.label ? ' (' + ev.label + ')' : '') + ' on bus \u2014 heading to Stop ' +
+      (ev.disp || ((r === 'AM') ? String(ev.stop) : (ev.letter + (ev.stop ? ' (' + ev.stop + ')' : '')))) + '.';
+  } else if (ev.kind === 'wait' || ev.kind === 'off' || ev.kind === 'skip' || ev.kind === 'newbus' || ev.kind === 'newarr' || ev.kind === 'newfinal') {
+    txt = (ev.test ? '[TEST] ' : '') + ev.msg; // verbatim: preserves icon + device ID
+  } else {
+    txt = (ev.test ? '[TEST] ' : '') + (ev.final ? 'Final stop reached' : ('Bus reached ' + label)) + devTag;
+  }
+  txt += (ev._dsfx || '');
+  d.innerHTML = '<span class="ts">' + esc(t) + '</span>' +
+    '<span class="tag ' + tagCls + '">' + esc((ev.test ? 'TEST ' : '') + r) + '</span>' + esc(txt);
+  return d;
+}
+function renderHistoryView() {
+  var log = document.getElementById('log');
+  log.innerHTML = '';
+  var h = loadHistory();
+  var day = h[viewDate];
+  var events = day ? ((route === 'AM') ? (day.am || []) : (day.pm || [])) : [];
+  if (!allDevsSelected()) {
+    var hsel = selectedDevices();
+    events = events.filter(function (ev) { return hsel.indexOf(ev.dev || DEV_UNKNOWN) !== -1; });
+  }
+  annotateDelays(route, events);
+  if (!events.length) {
+    log.innerHTML = '<div id="logEmpty">No ' + route + ' events on ' + dateLabel(viewDate) + '.</div>';
+  } else {
+    var rev = events.slice().reverse();
+    rev.forEach(function (ev) { log.appendChild(logEntryFromEvent(route, ev)); });
+  }
+  updateDateSummary();
+  renderRoute();
+}
+document.getElementById('dateSelect').addEventListener('change', function () {
+  var v = this.value;
+  if (v === 'live') {
+    viewDate = null;
+    // Rebuild live log from today's accumulated history
+    rebuildLiveLog();
+    renderRoute();
+  } else {
+    viewDate = v;
+    renderHistoryView();
+  }
+  updateDateSummary();
+});
+function rebuildLiveLog() {
+  var log = document.getElementById('log');
+  log.innerHTML = '';
+  var today = torontoDateKey(new Date());
+  var h = loadHistory();
+  var day = h[today];
+  var all = [];
+  if (day) {
+    annotateDelays('AM', day.am || []);
+    annotateDelays('PM', day.pm || []);
+    (day.am || []).forEach(function (ev) { all.push({ r: 'AM', ev: ev }); });
+    (day.pm || []).forEach(function (ev) { all.push({ r: 'PM', ev: ev }); });
+  }
+  if (!all.length) {
+    log.innerHTML = '<div id="logEmpty">No events yet. Arrivals posted to the channel will appear here.</div>';
+    return;
+  }
+  if (!allDevsSelected()) {
+    var fsel = selectedDevices();
+    all = all.filter(function (item) { return fsel.indexOf(item.ev.dev || DEV_UNKNOWN) !== -1; });
+  }
+  all.sort(function (a, b) { return new Date(b.ev.time) - new Date(a.ev.time); });
+  all.forEach(function (item) { log.appendChild(logEntryFromEvent(item.r, item.ev)); });
+}
+// AM/PM toggle must re-render history log when in history mode
+var _origSetRoute = setRoute;
+setRoute = function (r) {
+  _origSetRoute(r);
+  if (viewDate) renderHistoryView();
+};
+document.getElementById('clearHistory').addEventListener('click', function () {
+  if (!confirm('Delete ALL stored ride history (up to 1 year)? This cannot be undone.')) return;
+  try { localStorage.removeItem(HIST_KEY); } catch (e) {}
+  // Reset live state too
+  state = { AM: freshRouteState(), PM: freshRouteState() };
+  devStates = {};
+  saveDevList(DEVLS_KNOWN, []);
+  saveDevList(DEVLS_OFF, []);
+  renderDevFilter();
+  viewDate = null;
+  document.getElementById('dateSelect').value = 'live';
+  refreshDatePicker();
+  rebuildLiveLog();
+  renderRoute();
+  addLog('All history cleared.', null, '');
+});
+/* ===== Init: restore history ===== */
+(function () {
+  var h = pruneHistory(loadHistory());
+  saveHistory(h);
+  restoreToday();
+  rebuildDevStates();
+  refreshDatePicker();
+  renderDevFilter();
+  rebuildLiveLog();
+})();
+
+renderRoute();
+</script>
+</body>
+</html>
