@@ -1014,7 +1014,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.27';
+      var APP_VERSION = '9.28';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -2124,7 +2124,7 @@ var AM_CHECKPOINTS = [
       // ride and the follower pages subscribe. Config only, like the
       // topic above; empty = the position writer stays dark.
       var FB_BASE = 'https://bus-live-tracker-db0e1-default-rtdb.firebaseio.com';
-      var FB_PATH = 'pos-4688de3309369eb335b245d1';
+      var FB_PATH = 'pos-4688de3309369eb335b245d1/bus';
 
       function soundOn() { return localStorage.getItem('bsa_sound') === '1'; }
 
