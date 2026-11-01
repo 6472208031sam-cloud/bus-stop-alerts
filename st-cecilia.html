@@ -982,7 +982,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.28';
+      var APP_VERSION = '8.29';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -2208,7 +2208,8 @@ var AM_CHECKPOINTS = [
         return localStorage.getItem('bsa_follower_stcecilia') !== '0';
       }
 
-      function sendStopPush(stop) {
+      var TEST_PREFIX = '\uD83D\uDD14 TEST: ';
+      function sendStopPush(stop, isTest) {
         if (!followerAlertsOn()) return;
         var devTagStr = devTag();
         var ms = myStopLabels();
@@ -2231,6 +2232,7 @@ var AM_CHECKPOINTS = [
             ? '\uD83D\uDCF1 ' + devTagStr + ' arrived at final stop: ' + stopLabel(stop) + '.'
             : '\uD83D\uDCF1 ' + devTagStr + ' arrived at ' + stopLabelNumbered(stop) + '.';
         }
+        if (isTest) msg = TEST_PREFIX + msg;
         try {
           logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + msg);
         fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
@@ -2256,9 +2258,9 @@ var AM_CHECKPOINTS = [
         } catch (e) {}
       }
 
-      function triggerArrival(stop, quiet) {
+      function triggerArrival(stop, quiet, isTest) {
         try { hideOnBusPill(); } catch (e) {}
-        logEvent('STOP', 'Arrival triggered: ' + stopLabelNumbered(stop));
+        logEvent('STOP', (isTest ? '[TEST] ' : '') + 'Arrival triggered: ' + stopLabelNumbered(stop));
         if (!quiet) {
           playAlert();
           if (navigator.vibrate) navigator.vibrate([260, 120, 260, 120, 420]);
@@ -2276,10 +2278,11 @@ var AM_CHECKPOINTS = [
           $('arrivalText').textContent = 'Next up: Stop ' + next.letter + ' — ' + stopLabel(next) + '.';
         }
         $('alertSheet').classList.add('open');
-        if (!quiet) sendStopPush(stop);
+        if (!quiet) sendStopPush(stop, isTest);
         // Auto-stop on "got off" (PM My Stop): journey done for this phone.
         if (!quiet && msT && mineT && mode === 'pm') {
           var offMsg = '\uD83D\uDCF1 ' + devTag() + ' off bus. Tracking stopped.';
+          if (isTest) offMsg = TEST_PREFIX + offMsg;
           if (!followerAlertsOn()) {
             logEvent('NTFY', 'Suppressed (follower alerts off): ' + offMsg);
           } else try {
@@ -2355,7 +2358,7 @@ var AM_CHECKPOINTS = [
         var stop = stops[testAllIdx];
         if (stop && isConfigured(stop)) {
           var isPmMyStop = (mode === 'pm' && stopMatchesMyStop(stop));
-          triggerArrival(stop, false);
+          triggerArrival(stop, false, true);
           if (isPmMyStop) {
             // PM got-off: stop simulation after the messages send
             logEvent('SYS', 'Test All: My Stop reached on PM - stopping simulation (got off)');
@@ -2368,7 +2371,7 @@ var AM_CHECKPOINTS = [
             testAllTimer = setTimeout(function() {
               if (!testAllActive) return;
               var nextStop = stops[nextIdx];
-              var onBusMsg = '\uD83D\uDCF1 ' + devTag() + ' on bus, heading to ' + stopLabelNumbered(nextStop) + '.';
+              var onBusMsg = TEST_PREFIX + '\uD83D\uDCF1 ' + devTag() + ' on bus, heading to ' + stopLabelNumbered(nextStop) + '.';
               if (!followerAlertsOn()) {
                 logEvent('NTFY', 'Test All suppressed (follower alerts off): ' + onBusMsg);
               } else {
@@ -2584,14 +2587,14 @@ var AM_CHECKPOINTS = [
           // No confirm() here: iOS WKWebView doesn't implement it (returns false).
           // Matches the Test button behavior (direct trigger).
           if (stop && isConfigured(stop) && !stop.reached) {
-            triggerArrival(stop);
+            triggerArrival(stop, false, true);
             return;
           }
         }
         if (simBtn) {
           var idx = parseInt(simBtn.dataset.sim, 10);
           var stop = stops[idx];
-          if (stop && isConfigured(stop)) { triggerArrival(stop); }
+          if (stop && isConfigured(stop)) { triggerArrival(stop, false, true); }
           else { showToast('Stop not configured.'); }
           return;
         }
