@@ -1014,7 +1014,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.31';
+      var APP_VERSION = '9.32';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1348,6 +1348,7 @@
             idx = best;
             renderRoute();
             logEvent('STOP', 'Snap-forward to ' + stopLabelNumbered(stops[best]) + ' (dist=' + Math.round(bestDist) + 'm)');
+            sendStartingNotice(stops[best]);
             showToast('Starting from ' + stopLabelNumbered(stops[best]) + ' — earlier stops skipped.');
           }
         }
@@ -2296,6 +2297,23 @@ var AM_CHECKPOINTS = [
       // BEFORE the arrival send; snap/recovery/manual skips stay silent.
       function sendSkippedNotice(stop) {
         var msg = '⏭ ' + devTag() + ' skipped ' + shortStopRef(stop) + '.';
+        if (!followerAlertsOn()) {
+          logEvent('NTFY', 'Suppressed (follower alerts off): ' + msg);
+          return;
+        }
+        try {
+          logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + msg);
+          fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: msg, keepalive: true }).catch(function () {});
+        } catch (e) {}
+      }
+
+
+      // v9.32: ride-start snap notice. The snap block only runs when
+      // the snap skips >=1 stop; this tells followers to move their
+      // next-stop glow before the first real event. Followers treat
+      // it as a display-only hint (no state written, no log line).
+      function sendStartingNotice(stop) {
+        var msg = '📱 ' + devTag() + ' starting at ' + shortStopRef(stop) + '.';
         if (!followerAlertsOn()) {
           logEvent('NTFY', 'Suppressed (follower alerts off): ' + msg);
           return;
