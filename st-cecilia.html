@@ -750,7 +750,7 @@
       }
       function setDirection(dir, quiet) {
         if (dir === mode) return;
-        if (tracking) stopTracking();
+        if (tracking) stopTracking(false, 'tab-switch');
         mode = dir;
         // AM: 7 stops 1-7 (Mia->St. Cecilia). PM: reverse of the AM route.
         // PM: A=StCecilia(7), B=Buttonbush(6), C=ThreshingMills(5), D=Natalia(4), E=Emma(3), F=Walking(2), G=Mia(1)
@@ -982,7 +982,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.32';
+      var APP_VERSION = '8.33';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -1449,7 +1449,7 @@
       function onLocationError(error) {
         $('gpsPulse').classList.remove('live');
         showGpsProblem(error, 'trip');
-        stopTracking(true);
+        stopTracking(true, 'gps-error');
       }
 
       var ROUTE_PATH = [[43.498309, -79.720694], [43.498236, -79.720593], [43.498154, -79.720477], [43.497581, -79.719664], [43.497063, -79.71893], [43.497013, -79.71887], [43.497009, -79.718866], [43.496962, -79.718828], [43.496909, -79.718787], [43.496851, -79.718754], [43.496823, -79.718744], [43.496783, -79.71873], [43.496722, -79.718718], [43.496505, -79.718692], [43.496481, -79.718689], [43.496398, -79.718679], [43.496392, -79.718768], [43.496392, -79.718774], [43.496343, -79.719625], [43.496341, -79.719659], [43.496335, -79.719754], [43.496354, -79.719756], [43.496335, -79.719754], [43.496329, -79.719847], [43.496327, -79.71988], [43.49631, -79.720158], [43.496307, -79.720209], [43.496303, -79.720251], [43.496295, -79.720295], [43.496287, -79.72034], [43.496275, -79.720382], [43.496237, -79.720459], [43.495124, -79.721188]];
@@ -1908,7 +1908,7 @@ var AM_CHECKPOINTS = [
           var snap = status && status.snapshot;
           if (snap && snap.state === 'active') return;
           if (snap && snap.state === 'completed' && snapshotRouteOf(status) === mode) return; // D6 completed-hold
-          startTracking();
+          startTracking('auto');
         }
         attempt();
       }
@@ -2043,14 +2043,14 @@ var AM_CHECKPOINTS = [
             _switchingForNativeRide = false;
           }
           applySnapshotProgress(status, snap, toast);
-          if (tracking) stopTracking();
+          if (tracking) stopTracking(false, 'snapshot-completed');
           if (banner) {
             banner.textContent = '\u2713 Route complete (' + (route === 'pm' ? 'PM' : 'AM') + ') \u2014 tap Start for a new ride.';
             banner.hidden = false;
           }
         } else { // 'ended' or 'none'
           if (banner) banner.hidden = true;
-          if (tracking && state === 'ended') stopTracking();
+          if (tracking && state === 'ended') stopTracking(false, 'snapshot-ended');
         }
         if (snap) renderSettingsFromSnapshot(snap);
         return true;
@@ -2071,18 +2071,18 @@ var AM_CHECKPOINTS = [
         // Just update the UI to show tracking stopped.
         try {
           if (typeof renderRoute === 'function') renderRoute();
-          if (typeof stopTracking === 'function') stopTracking();
+          if (typeof stopTracking === 'function') stopTracking(false, 'native-finished');
         } catch (e) {}
       }
 
       function nativeNoRide() {
-        if (NATIVE && tracking) stopTracking();
+        if (NATIVE && tracking) stopTracking(false, 'native-no-ride');
       }
 
       window.startTracking = startTracking;
       window.stopTracking = stopTracking;
-      function startTracking() {
-        logEvent('SYS', 'startTracking() called, mode=' + mode);
+      function startTracking(source) {
+        logEvent('SYS', 'startTracking() called, mode=' + mode + ', source=' + ((typeof source === 'string' && source) ? source : 'unspecified'));
         if (configuredCount() !== DEFAULT_STOPS.length) {
           showToast('Save all ' + DEFAULT_STOPS.length + ' stop locations before starting.');
           return;
@@ -2131,8 +2131,8 @@ var AM_CHECKPOINTS = [
         }, { enableHighAccuracy: false, maximumAge: 0, timeout: 20000 });
       }
 
-      function stopTracking(preserveGpsStatus) {
-        logEvent('SYS', 'stopTracking() called');
+      function stopTracking(preserveGpsStatus, source) {
+        logEvent('SYS', 'stopTracking() called, source=' + ((typeof source === 'string' && source) ? source : 'unspecified'));
         try { hideModeWarn(); } catch (e) {}
         if (NATIVE && tracking) { try { window.NativeBridge.stopRide(); } catch (e) {} }
         stopDotWatch();
@@ -2164,7 +2164,7 @@ var AM_CHECKPOINTS = [
       }
 
       function finishRoute() {
-        stopTracking();
+        stopTracking(false, 'finish-route');
         $('tripKicker').textContent = 'Route complete';
         $('nextStopDisplay').textContent = 'Final stop reached';
         $('distanceDisplay').textContent = 'All ' + stops.length + ' stops complete';
@@ -2307,7 +2307,7 @@ var AM_CHECKPOINTS = [
             logEvent('NTFY', 'Sending to ' + NTFY_TOPIC + ': ' + offMsg);
             fetch('https://ntfy.sh/' + NTFY_TOPIC, { method: 'POST', body: offMsg, keepalive: true }).catch(function () {});
           } catch (e) {}
-          setTimeout(function () { try { stopTracking(); } catch (e) {} }, 1500);
+          setTimeout(function () { try { stopTracking(false, 'my-stop-off'); } catch (e) {} }, 1500);
         }
         clearTimeout(alertDismissTimer);
         alertDismissTimer = setTimeout(function () {
@@ -2532,9 +2532,9 @@ var AM_CHECKPOINTS = [
 
       $('gpsPulse').addEventListener('click', function () {
         if (tracking) {
-          stopTracking();
+          stopTracking(false, 'gps-pin');
         } else {
-          startTracking();
+          startTracking('gps-pin');
         }
       });
 
@@ -2622,7 +2622,7 @@ var AM_CHECKPOINTS = [
       $('radius').addEventListener('input', function () { $('radiusOut').textContent = $('radius').value + ' m'; });
       $('accuracy').addEventListener('input', function () { $('accuracyOut').textContent = $('accuracy').value + ' m'; });
       $('gpsRetryBtn').addEventListener('click', function () {
-        if (gpsRetryMode === 'trip') startTracking();
+        if (gpsRetryMode === 'trip') startTracking('gps-retry');
         else useCurrentLocation();
       });
       $('useLocationBtn').addEventListener('click', useCurrentLocation);
@@ -2632,8 +2632,8 @@ var AM_CHECKPOINTS = [
         if ($('latitude').value || $('longitude').value) saveCurrentStop(true, true);
         else { selected = Math.min(12, selected + 1); loadStopForm(); }
       });
-      $('startBtn').addEventListener('click', startTracking);
-      $('stopBtn').addEventListener('click', stopTracking);
+      $('startBtn').addEventListener('click', function () { startTracking('start-button'); });
+      $('stopBtn').addEventListener('click', function () { stopTracking(true, 'stop-button'); });
       $('resetTripBtn').addEventListener('click', resetProgress);
       $('navNextBtn').addEventListener('click', function () {
         if (reachedCount() === stops.length) { showToast('Route complete.'); return; }
