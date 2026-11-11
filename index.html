@@ -1016,7 +1016,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.35';
+      var APP_VERSION = '9.36';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1140,12 +1140,13 @@
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec)
         }).then(function (r) {
           if (btn) btn.disabled = false;
-          if (r.ok) { showToast('Logs sent ✓'); logEvent('SYS', 'Logs sent to Firebase (' + text.split('\n').length + ' lines)'); }
-          else { showToast('Send failed — check connection and tap again'); logEvent('SYS', 'Logs send FAILED (HTTP ' + r.status + ')'); }
+          if (r.ok) { showToast('Logs sent ✓'); logEvent('SYS', 'Logs sent to Firebase (' + text.split('\n').length + ' lines)'); persistLogs(); }
+          else { showToast('Send failed — check connection and tap again'); logEvent('SYS', 'Logs send FAILED (HTTP ' + r.status + ')'); persistLogs(); }
         }).catch(function () {
           if (btn) btn.disabled = false;
           showToast('Send failed — check connection and tap again');
           logEvent('SYS', 'Logs send FAILED (network)');
+          persistLogs();
         });
       }
       function downloadFullLogs() {
@@ -1209,6 +1210,11 @@
         $('logSendBtn').addEventListener('click', function() {
           try { sendLogs(); } catch (e) { var b = $('logSendBtn'); if (b) b.disabled = false; showToast('Send failed \u2014 check connection and tap again'); }
         });
+        // v9.36: logEvent persists only every 10th entry, so a session's
+        // tail (incl. the Send logs outcome lines) was lost on close.
+        // Save the whole log whenever the page goes away.
+        document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') persistLogs(); });
+        window.addEventListener('pagehide', function () { persistLogs(); });
         $('logFilters').addEventListener('click', function(e) {
           var chip = e.target.closest('[data-cat]');
           if (!chip) return;
