@@ -1016,7 +1016,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.34';
+      var APP_VERSION = '9.35';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1085,7 +1085,7 @@
         }
         return out;
       }
-      function downloadFullLogs() {
+      function buildFullLogText() {
         var nativeEntries = [];
         try {
           if (window.NativeBridge && typeof window.NativeBridge.getNativeLogs === 'function') {
@@ -1118,6 +1118,40 @@
           + 'Device: ' + devId + (devLabel ? ' (' + devLabel + ')' : '') + ' · page v' + APP_VERSION + ' · exported ' + stamp.date + ' ' + stamp.time + ' (America/Toronto)\n'
           + 'Page entries: ' + logEntries.length + ' · Native entries: ' + nativeEntries.length + ' · Merged total: ' + decorated.length + '\n---\n';
         var text = header + body;
+        return text;
+      }
+      // v%s: Send logs — PUT the full log (same text Download builds)
+      // to this phone's fixed slot at <FB parent>/logs/<tag>. Manual
+      // tap only; overwrites the previous send. See send-logs spec.
+      function sendLogs() {
+        var btn = $('logSendBtn');
+        if (btn) btn.disabled = true;
+        var text = buildFullLogText();
+        var stamp = torontoStampParts();
+        var parts = FB_PATH.split('/');
+        var rec = {
+          sentAt: Date.now(),
+          sentToronto: stamp.date + ' ' + stamp.time,
+          app: parts[parts.length - 1],
+          label: (typeof getDeviceLabel === 'function' ? getDeviceLabel() : ''),
+          text: text
+        };
+        fetch(FB_BASE + '/' + parts.slice(0, -1).join('/') + '/logs/' + DEVICE_ID + '.json', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec)
+        }).then(function (r) {
+          if (btn) btn.disabled = false;
+          if (r.ok) { showToast('Logs sent ✓'); logEvent('SYS', 'Logs sent to Firebase (' + text.split('\n').length + ' lines)'); }
+          else { showToast('Send failed — check connection and tap again'); logEvent('SYS', 'Logs send FAILED (HTTP ' + r.status + ')'); }
+        }).catch(function () {
+          if (btn) btn.disabled = false;
+          showToast('Send failed — check connection and tap again');
+          logEvent('SYS', 'Logs send FAILED (network)');
+        });
+      }
+      function downloadFullLogs() {
+        var text = buildFullLogText();
+        var stamp = torontoStampParts();
+        var devId = (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : '?');
         var fname = 'bus-logs-' + devId + '-' + stamp.date + '.txt';
         try {
           if (window.NativeBridge && typeof window.NativeBridge.downloadLogs === 'function') {
@@ -1171,6 +1205,9 @@
         });
         $('logDownloadBtn').addEventListener('click', function() {
           try { downloadFullLogs(); } catch (e) { showToast('Download failed.'); }
+        });
+        $('logSendBtn').addEventListener('click', function() {
+          try { sendLogs(); } catch (e) { var b = $('logSendBtn'); if (b) b.disabled = false; showToast('Send failed \u2014 check connection and tap again'); }
         });
         $('logFilters').addEventListener('click', function(e) {
           var chip = e.target.closest('[data-cat]');
@@ -2126,6 +2163,9 @@ var AM_CHECKPOINTS = [
       // native trackers PUT this phone's live position here during a
       // ride and the follower pages subscribe. Config only, like the
       // topic above; empty = the position writer stays dark.
+      // Exception (v9.35): the Logs panel's Send logs button PUTs this
+      // phone's full log to <parent>/logs/<tag> — the page's only
+      // Firebase write, fired only by that tap.
       var FB_BASE = 'https://bus-live-tracker-db0e1-default-rtdb.firebaseio.com';
       var FB_PATH = 'pos-4688de3309369eb335b245d1/bus';
 
@@ -2872,6 +2912,7 @@ var AM_CHECKPOINTS = [
           <button class="btn" type="button" id="logNativeBtn">Load native logs</button>
           <button class="btn" type="button" id="logCopyBtn">Copy</button>
           <button class="btn" type="button" id="logDownloadBtn">Download full logs</button>
+          <button class="btn" type="button" id="logSendBtn">Send logs</button>
           <button class="btn" type="button" id="logClearBtn">Clear</button>
           <button class="btn" type="button" id="logCloseBtn">Close</button>
         </div>
