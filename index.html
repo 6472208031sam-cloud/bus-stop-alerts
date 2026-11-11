@@ -229,6 +229,7 @@
     .follower-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .follower-head h3 { font-size: 1rem; margin: 0; letter-spacing: -.01em; }
     .follower-card .sub { font-size: .85rem; }
+    .checkin-note { margin: 10px 0 0; padding: 9px 11px; border-radius: 9px; background: var(--green-soft); color: var(--text); font-size: .85rem; line-height: 1.45; }
     .sched-card { margin-top: 16px; padding: 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
     .sched-card .sub { font-size: .85rem; }
     .sched-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
@@ -504,6 +505,7 @@
               <label class="switch" aria-label="Send stop alerts to another phone"><input type="checkbox" id="followerToggle" checked /><span class="slider"></span></label>
             </div>
             <p class="sub">When on, every stop reached also sends a push notification to your private channel. The other person installs the free <strong>ntfy</strong> app and subscribes to the channel below.</p>
+            <p class="checkin-note">📍 <strong>One switch for everything this phone reports:</strong> stop alerts, live position during rides, and idle check-ins (location + battery, about hourly) — view check-ins on the Check-ins page.</p>
             <div class="channel-row">
               <input id="followerChannel" readonly value="00-Bus-107-135-gh45lt" aria-label="Notification channel" onclick="this.select()" />
               <button class="small-btn" type="button" id="copyChannelBtn">Copy</button>
@@ -1014,7 +1016,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.33';
+      var APP_VERSION = '9.34';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
