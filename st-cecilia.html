@@ -984,7 +984,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.38';
+      var APP_VERSION = '8.39';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -1115,8 +1115,13 @@
         // presence/<DEVICE_ID>/page, re-stamped every 30 s while the
         // page is alive. The native poll writes the sibling 'poll'
         // child. Native apps only (the caller is NATIVE-gated).
-        var url = FB_BASE + '/' + fbParentPath() + '/presence/' + DEVICE_ID + '/page.json';
-        return fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Date.now()) }).catch(function () {});
+        // v8.39: the same beat also publishes the follower-
+        // alerts toggle as a bare boolean at .../alerts (Presence
+        // Toggle State) — ungated, so an alerts-off phone can report
+        // that it is off.
+        var base = FB_BASE + '/' + fbParentPath() + '/presence/' + DEVICE_ID;
+        try { fetch(base + '/alerts.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(followerAlertsOn()) }).catch(function () {}); } catch (e) {}
+        return fetch(base + '/page.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Date.now()) }).catch(function () {});
       }
       function autoLogOn() { try { return localStorage.getItem('stcecilia_autolog') !== '0'; } catch (e) { return true; } }
       function setAutoLog(on) { try { localStorage.setItem('stcecilia_autolog', on ? '1' : '0'); } catch (e) {} }
