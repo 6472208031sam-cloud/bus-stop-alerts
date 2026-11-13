@@ -984,7 +984,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.36';
+      var APP_VERSION = '8.37';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -1090,9 +1090,37 @@
       // v%s: Send logs — PUT the full log (same text Download builds)
       // to this phone's fixed slot at <FB parent>/logs/<tag>. Manual
       // tap only; overwrites the previous send. See send-logs spec.
-      function sendLogs() {
-        var btn = $('logSendBtn');
+      function sendLogs() { sendLogsCore(null, null); }
+      // v8.37: one send core, three triggers (route complete / got-off /
+      // requested from test-alerts). Manual sends (reasons == null) keep
+      // the original behaviour exactly — button state, toasts, outcome
+      // wording. Quiet sends show no toast, never touch the button, and
+      // log 'Logs sent (<reasons>)'. A successful send settles whatever
+      // it covered: the showing ending (handled ride id) and/or a
+      // pending log request (record deleted). Failures settle nothing:
+      // the ending retries on a later open, the request on a later
+      // check. Requests are honoured regardless of the auto-send
+      // toggle; the toggle governs ride-end auto-send only.
+      var logSendInFlight = false;
+      var logTrigBusy = false;
+      var logReqLastCheck = 0;
+      var logReqPending = null;
+      var logAutoAttempted = '';
+      var logSendCooldownUntil = 0;
+      var logLastSnap = null;
+      function fbParentPath() { var p = FB_PATH.split('/'); return p.slice(0, -1).join('/'); }
+      function autoLogOn() { try { return localStorage.getItem('stcecilia_autolog') !== '0'; } catch (e) { return true; } }
+      function setAutoLog(on) { try { localStorage.setItem('stcecilia_autolog', on ? '1' : '0'); } catch (e) {} }
+      function handledRideId() { try { return localStorage.getItem('stcecilia_handled_ride') || ''; } catch (e) { return ''; } }
+      function setHandledRideId(id) { try { localStorage.setItem('stcecilia_handled_ride', id || ''); } catch (e) {} }
+      function fulfilledReqAt() { try { return parseInt(localStorage.getItem('stcecilia_logreq_done') || '0', 10) || 0; } catch (e) { return 0; } }
+      function setFulfilledReqAt(ms) { try { localStorage.setItem('stcecilia_logreq_done', String(ms)); } catch (e) {} }
+      function sendLogsCore(reasons, settle) {
+        if (logSendInFlight) return;
+        var manual = !reasons;
+        var btn = manual ? $('logSendBtn') : null;
         if (btn) btn.disabled = true;
+        logSendInFlight = true;
         var text = buildFullLogText();
         var stamp = torontoStampParts();
         var parts = FB_PATH.split('/');
@@ -1106,15 +1134,105 @@
         fetch(FB_BASE + '/' + parts.slice(0, -1).join('/') + '/logs/' + DEVICE_ID + '.json', {
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec)
         }).then(function (r) {
+          logSendInFlight = false;
           if (btn) btn.disabled = false;
-          if (r.ok) { showToast('Logs sent ✓'); logEvent('SYS', 'Logs sent to Firebase (' + text.split('\n').length + ' lines)'); persistLogs(); }
-          else { showToast('Send failed — check connection and tap again'); logEvent('SYS', 'Logs send FAILED (HTTP ' + r.status + ')'); persistLogs(); }
+          if (r.ok) {
+            if (manual) { showToast('Logs sent ✓'); logEvent('SYS', 'Logs sent to Firebase (' + text.split('\n').length + ' lines)'); persistLogs(); settleAfterAnySend(); }
+            else {
+              logEvent('SYS', 'Logs sent (' + reasons.join(' + ') + ')'); persistLogs();
+              if (settle && settle.rideId) setHandledRideId(settle.rideId);
+              if (settle && settle.reqAt) { setFulfilledReqAt(settle.reqAt); deleteLogRequest(); }
+            }
+          } else {
+            if (manual) { showToast('Send failed \u2014 check connection and tap again'); logEvent('SYS', 'Logs send FAILED (HTTP ' + r.status + ')'); persistLogs(); }
+            else { logEvent('SYS', 'Logs send FAILED (HTTP ' + r.status + ')'); persistLogs(); noteQuietFailure(settle); }
+          }
+          logReevaluate();
         }).catch(function () {
+          logSendInFlight = false;
           if (btn) btn.disabled = false;
-          showToast('Send failed — check connection and tap again');
-          logEvent('SYS', 'Logs send FAILED (network)');
-          persistLogs();
+          if (manual) { showToast('Send failed \u2014 check connection and tap again'); logEvent('SYS', 'Logs send FAILED (network)'); persistLogs(); }
+          else { logEvent('SYS', 'Logs send FAILED (network)'); persistLogs(); noteQuietFailure(settle); }
+          logReevaluate();
         });
+      }
+      function noteQuietFailure(settle) {
+        logSendCooldownUntil = Date.now() + 60000;
+        if (settle && settle.rideId) logAutoAttempted = settle.rideId;
+      }
+      function deleteLogRequest() {
+        try { fetch(FB_BASE + '/' + fbParentPath() + '/logRequests/' + DEVICE_ID + '.json', { method: 'DELETE' }).catch(function () {}); } catch (e) {}
+      }
+      function settleAfterAnySend() {
+        var t = logLastTrigger();
+        if (t && handledRideId() !== t.rideId) setHandledRideId(t.rideId);
+        if (logReqPending && logReqPending.requestedAt > fulfilledReqAt()) { setFulfilledReqAt(logReqPending.requestedAt); deleteLogRequest(); }
+      }
+      function logLastTrigger() {
+        if (!logLastSnap || !logLastSnap.snap) return null;
+        var s = logLastSnap.state, snap = logLastSnap.snap;
+        if (!snap.rideId) return null;
+        if (s === 'completed') return { reason: 'route complete', rideId: String(snap.rideId) };
+        if (s === 'ended' && snap.endReason === 'got-off') return { reason: 'got-off', rideId: String(snap.rideId) };
+        return null;
+      }
+      function logSeedCheck(state, snap) {
+        var done = false;
+        try { done = localStorage.getItem('stcecilia_log_seed') === '1'; if (!done) localStorage.setItem('stcecilia_log_seed', '1'); } catch (e) { return; }
+        if (done) return;
+        if ((state === 'completed' || state === 'ended') && snap && snap.rideId) setHandledRideId(String(snap.rideId));
+      }
+      function logEndingTrigger(reason, snap) {
+        if (!NATIVE || !snap || !snap.rideId) return;
+        var rid = String(snap.rideId);
+        if (handledRideId() === rid) return;
+        if (logAutoAttempted === rid) return;
+        if (!autoLogOn()) { setHandledRideId(rid); return; }
+        logTrigFire([reason], { rideId: rid, reqAt: 0 }, false);
+      }
+      function logTrigFire(reasons, settle, skipReqFetch) {
+        if (logSendInFlight || logTrigBusy) return;
+        if (Date.now() < logSendCooldownUntil) return;
+        logTrigBusy = true;
+        var go = function (pending) {
+          logTrigBusy = false;
+          var rs = reasons.slice();
+          var st = { rideId: settle.rideId || null, reqAt: settle.reqAt || 0 };
+          if (pending && rs.indexOf('requested') === -1) { rs.push('requested'); st.reqAt = pending.requestedAt; }
+          if (!rs.length) return;
+          sendLogsCore(rs, st);
+        };
+        if (skipReqFetch) { go(logReqPending); return; }
+        fetchLogRequest(go);
+      }
+      function fetchLogRequest(cb) {
+        var done = function (rec) { logReqPending = rec; cb(rec); };
+        try {
+          fetch(FB_BASE + '/' + fbParentPath() + '/logRequests/' + DEVICE_ID + '.json').then(function (r) { return r.ok ? r.json() : null; }).then(function (rec) {
+            if (!rec || typeof rec.requestedAt !== 'number') { done(null); return; }
+            if (Date.now() - rec.requestedAt > 86400000) { done(null); return; }
+            if (rec.requestedAt <= fulfilledReqAt()) { done(null); return; }
+            fetch(FB_BASE + '/' + fbParentPath() + '/logs/' + DEVICE_ID + '/sentAt.json').then(function (r2) { return r2.ok ? r2.json() : null; }).then(function (sentAt) {
+              if (typeof sentAt === 'number' && sentAt > rec.requestedAt) { setFulfilledReqAt(rec.requestedAt); deleteLogRequest(); done(null); return; }
+              done(rec);
+            }).catch(function () { done(rec); });
+          }).catch(function () { done(null); });
+        } catch (e) { done(null); }
+      }
+      function logRequestTick(force) {
+        if (!NATIVE || logSendInFlight || logTrigBusy) return;
+        var now = Date.now();
+        if (!force && now - logReqLastCheck < 10000) return;
+        if (now < logSendCooldownUntil) return;
+        logReqLastCheck = now;
+        fetchLogRequest(function (pending) {
+          if (pending) logTrigFire(['requested'], { rideId: null, reqAt: pending.requestedAt }, true);
+        });
+      }
+      function logReevaluate() {
+        var t = logLastTrigger();
+        if (t) logEndingTrigger(t.reason, logLastSnap.snap);
+        logRequestTick(true);
       }
       function downloadFullLogs() {
         var text = buildFullLogText();
@@ -1177,6 +1295,18 @@
         $('logSendBtn').addEventListener('click', function() {
           try { sendLogs(); } catch (e) { var b = $('logSendBtn'); if (b) b.disabled = false; showToast('Send failed \u2014 check connection and tap again'); }
         });
+        // v8.37: auto-send toggle (native only) + the 30 s request check.
+        var autoRow = $('logAutoRow');
+        if (autoRow) autoRow.style.display = NATIVE ? '' : 'none';
+        var autoT = $('logAutoToggle');
+        if (autoT) {
+          autoT.checked = autoLogOn();
+          autoT.addEventListener('change', function () { setAutoLog(autoT.checked); try { logEvent('SYS', 'Auto-send logs ' + (autoT.checked ? 'on' : 'off')); } catch (e) {} });
+        }
+        if (NATIVE) {
+          setInterval(function () { try { logRequestTick(false); } catch (e) {} }, 30000);
+          try { logRequestTick(true); } catch (e) {}
+        }
         // v8.36: logEvent persists only every 10th entry, so a session's
         // tail (incl. the Send logs outcome lines) was lost on close.
         // Save the whole log whenever the page goes away.
@@ -2059,6 +2189,8 @@ var AM_CHECKPOINTS = [
         else if (status.completed) state = 'completed';
         else if (status.ended) state = 'ended';
         else state = 'none';
+        logLastSnap = { state: state, snap: snap };
+        try { logSeedCheck(state, snap); } catch (e) {}
         // Test All is a local simulation; a live native ride wins.
         if (testAllActive) {
           if (state === 'active') {
@@ -2088,6 +2220,7 @@ var AM_CHECKPOINTS = [
             _switchingForNativeRide = false;
           }
           applySnapshotProgress(status, snap, toast);
+          try { logEndingTrigger('route complete', snap); } catch (e) {}
           if (tracking) stopTracking(false, 'snapshot-completed');
           if (banner) {
             banner.textContent = '\u2713 Route complete (' + (route === 'pm' ? 'PM' : 'AM') + ') \u2014 tap Start for a new ride.';
@@ -2095,8 +2228,10 @@ var AM_CHECKPOINTS = [
           }
         } else { // 'ended' or 'none'
           if (banner) banner.hidden = true;
+          if (state === 'ended' && snap && snap.endReason === 'got-off') { try { logEndingTrigger('got-off', snap); } catch (e) {} }
           if (tracking && state === 'ended') stopTracking(false, 'snapshot-ended');
         }
+        try { logRequestTick(false); } catch (e) {}
         if (snap) renderSettingsFromSnapshot(snap);
         return true;
       }
@@ -2852,6 +2987,10 @@ var AM_CHECKPOINTS = [
           <button class="btn" type="button" id="logSendBtn">Send logs</button>
           <button class="btn" type="button" id="logClearBtn">Clear</button>
           <button class="btn" type="button" id="logCloseBtn">Close</button>
+        </div>
+        <div class="modal-actions" id="logAutoRow" style="justify-content:space-between;align-items:center;">
+          <span>Auto-send logs at ride end</span>
+          <label class="switch" aria-label="Auto-send logs at ride end"><input type="checkbox" id="logAutoToggle" checked /><span class="slider"></span></label>
         </div>
       </div>
     </div>
