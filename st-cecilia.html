@@ -984,7 +984,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.37';
+      var APP_VERSION = '8.38';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -1109,6 +1109,15 @@
       var logSendCooldownUntil = 0;
       var logLastSnap = null;
       function fbParentPath() { var p = FB_PATH.split('/'); return p.slice(0, -1).join('/'); }
+      function presenceStamp() {
+        // Phone Presence page stamp (v8.38): the panel's
+        // 'Open now' proof — a bare epoch-ms number at
+        // presence/<DEVICE_ID>/page, re-stamped every 30 s while the
+        // page is alive. The native poll writes the sibling 'poll'
+        // child. Native apps only (the caller is NATIVE-gated).
+        var url = FB_BASE + '/' + fbParentPath() + '/presence/' + DEVICE_ID + '/page.json';
+        return fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Date.now()) }).catch(function () {});
+      }
       function autoLogOn() { try { return localStorage.getItem('stcecilia_autolog') !== '0'; } catch (e) { return true; } }
       function setAutoLog(on) { try { localStorage.setItem('stcecilia_autolog', on ? '1' : '0'); } catch (e) {} }
       function handledRideId() { try { return localStorage.getItem('stcecilia_handled_ride') || ''; } catch (e) { return ''; } }
@@ -1304,8 +1313,9 @@
           autoT.addEventListener('change', function () { setAutoLog(autoT.checked); try { logEvent('SYS', 'Auto-send logs ' + (autoT.checked ? 'on' : 'off')); } catch (e) {} });
         }
         if (NATIVE) {
-          setInterval(function () { try { logRequestTick(false); } catch (e) {} }, 30000);
+          setInterval(function () { try { logRequestTick(false); } catch (e) {} try { presenceStamp(); } catch (e) {} }, 30000);
           try { logRequestTick(true); } catch (e) {}
+          try { presenceStamp(); } catch (e) {}
         }
         // v8.36: logEvent persists only every 10th entry, so a session's
         // tail (incl. the Send logs outcome lines) was lost on close.
