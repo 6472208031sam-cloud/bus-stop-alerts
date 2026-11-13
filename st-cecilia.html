@@ -984,7 +984,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.40';
+      var APP_VERSION = '8.41';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -1121,6 +1121,13 @@
         // that it is off.
         var base = FB_BASE + '/' + fbParentPath() + '/presence/' + DEVICE_ID;
         try { fetch(base + '/alerts.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(followerAlertsOn()) }).catch(function () {}); } catch (e) {}
+        // Name on open (page v8.41): the same beat also
+        // publishes this app's device label at .../labels/<app>,
+        // so the panel shows the current name once the app has
+        // been opened - no ride or log send needed. Per-app
+        // child, because a dual-app phone can carry a different
+        // label in each app.
+        try { fetch(base + '/labels/' + FB_PATH.split('/').pop() + '.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(getDeviceLabel()) }).catch(function () {}); } catch (e) {}
         // Battery (page v8.40): where the WebView offers the
         // Battery API (Android WebView yes; iOS WKWebView no -
         // iPhones report battery through check-ins instead). An
