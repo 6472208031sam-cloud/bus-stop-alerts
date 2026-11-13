@@ -1016,7 +1016,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.39';
+      var APP_VERSION = '9.40';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1154,6 +1154,20 @@
         // that it is off.
         var base = FB_BASE + '/' + fbParentPath() + '/presence/' + DEVICE_ID;
         try { fetch(base + '/alerts.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(followerAlertsOn()) }).catch(function () {}); } catch (e) {}
+        // Battery (page v9.40): where the WebView offers the
+        // Battery API (Android WebView yes; iOS WKWebView no -
+        // iPhones report battery through check-ins instead). An
+        // object child so the value carries its own timestamp.
+        try {
+          if (navigator.getBattery) {
+            navigator.getBattery().then(function (b) {
+              try {
+                var pct = Math.round(b.level * 100);
+                if (isFinite(pct)) fetch(base + '/batt.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pct: pct, chg: !!b.charging, ts: Date.now() }) }).catch(function () {});
+              } catch (e2) {}
+            }).catch(function () {});
+          }
+        } catch (e) {}
         return fetch(base + '/page.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Date.now()) }).catch(function () {});
       }
       function autoLogOn() { try { return localStorage.getItem('bsa_autolog') !== '0'; } catch (e) { return true; } }
