@@ -477,6 +477,16 @@
             </select>
             <p class="sub">Pick the stop the kid waits at. The app sends &ldquo;waiting&rdquo; / &ldquo;got off&rdquo; for this stop instead of a bus arrival.</p>
           </div>
+          <div class="field">
+            <label for="homeStopInput">My Home Stop <span class="sub-inline">(PM walk-home, optional)</span></label>
+            <input id="homeStopInput" class="btn" style="width:100%;text-align:left;" type="text" inputmode="decimal" placeholder="lat, lng" />
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button class="btn" type="button" id="homeStopHereBtn">Use current location</button>
+              <button class="btn" type="button" id="homeStopClearBtn">Clear</button>
+            </div>
+            <p class="sub" id="homeStopStatus">Not set — PM rides end at got-off, as today.</p>
+            <p class="sub">Optional: your home&rsquo;s GPS point. On a PM ride, got-off at My Stop still sends as today, but tracking then continues privately until the phone reaches this point — no follower dot, no stop alerts — and the ride ends there with a &ldquo;home.&rdquo; message. Leave unset for today&rsquo;s behaviour.</p>
+          </div>
           <div class="notice">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
             <span>Tap Start ride, then choose Allow when your phone asks for location. You can board at any stop — the app picks up from the stop nearest to you and alerts from there on. Keep this page visible during the ride; tracking stops if the browser closes or locks the page.</span>
@@ -1016,7 +1026,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.41';
+      var APP_VERSION = '9.42';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1833,6 +1843,8 @@ var AM_CHECKPOINTS = [
           deviceId: (typeof DEVICE_ID !== 'undefined' ? DEVICE_ID : ''),
           deviceLabel: (typeof getDeviceLabel === 'function' ? getDeviceLabel() : ''),
           myStop: myStopLabels(),
+          homeLat: homeStopCoords() ? homeStopCoords().lat : 0,
+          homeLng: homeStopCoords() ? homeStopCoords().lng : 0,
           topic: NTFY_TOPIC,
           fbBase: FB_BASE,
           fbPath: FB_PATH,
@@ -2920,6 +2932,79 @@ var AM_CHECKPOINTS = [
         $('myStopModal').hidden = true;
         showToast('My Stop saved.');
       });
+      // "My Home Stop" (v9.42): an optional GPS point for the PM
+      // walk-home phase. Stored as one "lat,lng" string; unset or
+      // invalid = today's behaviour exactly (rides end at got-off).
+      function homeStopCoords() {
+        var v = null;
+        try { v = localStorage.getItem('bsa_homestop'); } catch (e) {}
+        if (!v) return null;
+        var parts = String(v).split(',');
+        if (parts.length !== 2) return null;
+        var la = parseFloat(parts[0]), ln = parseFloat(parts[1]);
+        if (!isFinite(la) || !isFinite(ln)) return null;
+        if (la < -90 || la > 90 || ln < -180 || ln > 180) return null;
+        if (la === 0 && ln === 0) return null;
+        return { lat: la, lng: ln };
+      }
+      function refreshHomeStopUI() {
+        var inp = $('homeStopInput'), st = $('homeStopStatus');
+        if (!inp || !st) return;
+        var h = homeStopCoords();
+        if (h) {
+          inp.value = h.lat.toFixed(6) + ', ' + h.lng.toFixed(6);
+          st.textContent = 'Set: ' + h.lat.toFixed(6) + ', ' + h.lng.toFixed(6) + ' — PM rides end at home.';
+        } else {
+          st.textContent = 'Not set — PM rides end at got-off, as today.';
+        }
+      }
+      function saveHomeStopFromInput() {
+        var inp = $('homeStopInput');
+        var raw = inp ? inp.value.trim() : '';
+        if (!raw) { clearHomeStop(); return; }
+        var parts = raw.split(',');
+        var la = parts.length === 2 ? parseFloat(parts[0]) : NaN;
+        var ln = parts.length === 2 ? parseFloat(parts[1]) : NaN;
+        if (!isFinite(la) || !isFinite(ln) || la < -90 || la > 90 || ln < -180 || ln > 180 || (la === 0 && ln === 0)) {
+          showToast('Home point not saved — paste coordinates as "lat, lng".');
+          refreshHomeStopUI();
+          return;
+        }
+        try { localStorage.setItem('bsa_homestop', la + ',' + ln); } catch (e) {}
+        logEvent('HOMESTOP', 'My Home Stop set');
+        pushConfigToNative();
+        refreshHomeStopUI();
+        showToast('My Home Stop saved.');
+      }
+      function clearHomeStop() {
+        try { localStorage.removeItem('bsa_homestop'); } catch (e) {}
+        var inp = $('homeStopInput'); if (inp) inp.value = '';
+        logEvent('HOMESTOP', 'My Home Stop cleared');
+        pushConfigToNative();
+        refreshHomeStopUI();
+        showToast('My Home Stop cleared — PM rides end at got-off.');
+      }
+      var _hsInp = $('homeStopInput');
+      if (_hsInp) {
+        _hsInp.addEventListener('change', saveHomeStopFromInput);
+        _hsInp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); saveHomeStopFromInput(); } });
+      }
+      var _hsHere = $('homeStopHereBtn');
+      if (_hsHere) _hsHere.addEventListener('click', function () {
+        if (!navigator.geolocation) { showToast('This browser has no location access.'); return; }
+        showToast('Getting your location…');
+        navigator.geolocation.getCurrentPosition(function (pos) {
+          var la = pos.coords.latitude, ln = pos.coords.longitude;
+          try { localStorage.setItem('bsa_homestop', la + ',' + ln); } catch (e) {}
+          logEvent('HOMESTOP', 'My Home Stop set from current location');
+          pushConfigToNative();
+          refreshHomeStopUI();
+          showToast('My Home Stop saved from your current location.');
+        }, function () { showToast('Could not get your location.'); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+      });
+      var _hsClear = $('homeStopClearBtn');
+      if (_hsClear) _hsClear.addEventListener('click', clearHomeStop);
+      refreshHomeStopUI();
       // First run: ask once (only when never set before)
       if (currentMyStopValue() === null) {
         setTimeout(function () { $('myStopModal').hidden = false; }, 600);
