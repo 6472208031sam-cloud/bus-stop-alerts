@@ -502,6 +502,18 @@
             <div class="sched-row"><span class="sched-label">Morning on / off</span><input type="time" id="schedOn1" value="08:00" /><span class="sched-dash">–</span><input type="time" id="schedOff1" value="10:00" /></div>
             <div class="sched-row"><span class="sched-label">Afternoon on / off</span><input type="time" id="schedOn2" value="15:30" /><span class="sched-dash">–</span><input type="time" id="schedOff2" value="17:30" /></div>
             <label class="sched-days"><input type="checkbox" id="schedWeekdays" checked /> Weekdays only (Mon–Fri)</label>
+            <div style="border-top:1px solid #e4eaf1;margin:12px 0 4px;"></div>
+            <div class="follower-head">
+              <h3 style="font-size:15px;">Auto-start by location (SLC)</h3>
+              <label class="switch" aria-label="Auto-start rides by location (SLC)"><input type="checkbox" id="slcToggle" checked /><span class="slider"></span></label>
+            </div>
+            <p class="sub">SLC = Significant Location Change, an iPhone feature that wakes the app when the phone moves a good distance. With this on, the app can start a ride by itself during a schedule window — no tap needed. Afternoon: judged against a [pill fence], 500 m each side of the route line through the first stops from school. Morning: a [geofence] — 100 m circles around home and the stop — wakes the app on leaving home or reaching the stop, then judged against the corridor, a [pill fence] 250 m each side of the line from home to the stop. Morning needs My Home Stop filled in above; without one the app can't tell you've left home, so morning auto-start stays off. If a ride it starts reaches no stop in 15 minutes, the app ends it and says so. iPhone only.</p>
+            <div style="border-top:1px solid #e4eaf1;margin:12px 0 4px;"></div>
+            <div class="follower-head">
+              <h3 style="font-size:15px;">Refresh start</h3>
+              <label class="switch" aria-label="Start rides on a background refresh"><input type="checkbox" id="refreshToggle" checked /><span class="slider"></span></label>
+            </div>
+            <p class="sub">If iOS wakes the app for a background refresh during the morning window and no ride has started yet, the ride starts on its own — no location test. If the phone is already at school, the start is vetoed instead and the veto is logged. If a ride it starts reaches no stop within 15 minutes, the app ends it on its own and says so. The schedule above must be on. iPhone only.</p>
           </div>
           <div class="follower-card" id="followerCard">
             <div class="follower-head">
@@ -994,7 +1006,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '8.42';
+      var APP_VERSION = '8.43';
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
       var LOG_MAX = 5000;
@@ -1847,6 +1859,8 @@ var AM_CHECKPOINTS = [
           schedOn2: sched.on2,
           schedOff2: sched.off2,
           schedWeekdaysOnly: sched.weekdaysOnly,
+          slcEnabled: slcEnabled(),
+          refreshEnabled: refreshEnabled(),
           stops: tabStops.map(function (s) {
             return {
               number: s.number,
@@ -1952,6 +1966,8 @@ var AM_CHECKPOINTS = [
           schedOn2: sched.on2,
           schedOff2: sched.off2,
           schedWeekdaysOnly: sched.weekdaysOnly,
+          slcEnabled: slcEnabled(),
+          refreshEnabled: refreshEnabled(),
           stops: stops.map(function (s) {
             return {
               number: s.number,
@@ -2440,6 +2456,16 @@ var AM_CHECKPOINTS = [
 
       function followerAlertsOn() {
         return localStorage.getItem('bsa_follower_stcecilia') !== '0';
+      }
+
+      // ---- SLC + Refresh start switches (v87) ----
+      // Default ON for both: the native side applies the same default
+      // when the config carries no value.
+      function slcEnabled() {
+        try { return localStorage.getItem('stcecilia_slc_enabled') !== '0'; } catch (e) { return true; }
+      }
+      function refreshEnabled() {
+        try { return localStorage.getItem('stcecilia_refresh_enabled') !== '0'; } catch (e) { return true; }
       }
 
       var TEST_PREFIX = '\uD83D\uDD14 TEST: ';
@@ -3008,6 +3034,18 @@ var AM_CHECKPOINTS = [
       $('followerToggle').addEventListener('change', function () {
         localStorage.setItem('bsa_follower_stcecilia', $('followerToggle').checked ? '1' : '0');
         showToast($('followerToggle').checked ? 'Follower alerts on.' : 'Follower alerts off.');
+        pushConfigToNative();
+      });
+      $('slcToggle').checked = slcEnabled();
+      $('slcToggle').addEventListener('change', function () {
+        try { localStorage.setItem('stcecilia_slc_enabled', $('slcToggle').checked ? '1' : '0'); } catch (e) {}
+        showToast($('slcToggle').checked ? 'Location auto-start (SLC) on.' : 'Location auto-start (SLC) off.');
+        pushConfigToNative();
+      });
+      $('refreshToggle').checked = refreshEnabled();
+      $('refreshToggle').addEventListener('change', function () {
+        try { localStorage.setItem('stcecilia_refresh_enabled', $('refreshToggle').checked ? '1' : '0'); } catch (e) {}
+        showToast($('refreshToggle').checked ? 'Refresh start on.' : 'Refresh start off.');
         pushConfigToNative();
       });
       // Tracking schedule controls.

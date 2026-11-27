@@ -513,7 +513,13 @@
               <h3 style="font-size:15px;">Auto-start by location (SLC)</h3>
               <label class="switch" aria-label="Auto-start rides by location (SLC)"><input type="checkbox" id="slcToggle" checked /><span class="slider"></span></label>
             </div>
-            <p class="sub"><strong>SLC = Significant Location Change</strong>, an iPhone feature that wakes the app when the phone moves a good distance. With this on, the app can start a ride <strong>by itself</strong> when the phone is in the right area during a schedule window — no tap needed. Afternoon: at school, for the ride home. Morning: on the walk to the stop. <strong>The morning start needs My Home Stop filled in above</strong> — without a home location, the app can't tell you've left home, so morning auto-start stays off. iPhone only.</p>
+            <p class="sub">SLC = Significant Location Change, an iPhone feature that wakes the app when the phone moves a good distance. With this on, the app can start a ride by itself during a schedule window — no tap needed. Afternoon: judged against a [pill fence], 500 m each side of the route line through the first stops from school. Morning: a [geofence] — 100 m circles around home and the stop — wakes the app on leaving home or reaching the stop, then judged against the corridor, a [pill fence] 250 m each side of the line from home to the stop. Morning needs My Home Stop filled in above; without one the app can't tell you've left home, so morning auto-start stays off. If a ride it starts reaches no stop in 15 minutes, the app ends it and says so. iPhone only.</p>
+            <div style="border-top:1px solid #e4eaf1;margin:12px 0 4px;"></div>
+            <div class="follower-head">
+              <h3 style="font-size:15px;">Refresh start</h3>
+              <label class="switch" aria-label="Start rides on a background refresh"><input type="checkbox" id="refreshToggle" checked /><span class="slider"></span></label>
+            </div>
+            <p class="sub">If iOS wakes the app for a background refresh during the morning window and no ride has started yet, the ride starts on its own — no location test. If the phone is already at school, the start is vetoed instead and the veto is logged. If a ride it starts reaches no stop within 15 minutes, the app ends it on its own and says so. The schedule above must be on. iPhone only.</p>
           </div>
           <div class="follower-card" id="followerCard">
             <div class="follower-head">
@@ -1032,7 +1038,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function () { $('toast').classList.remove('show'); }, 3000);
       }
-      var APP_VERSION = '9.45';
+      var APP_VERSION = '9.46';
       // Update version badge (must be here - inside IIFE scope)
       try { var _vb = document.getElementById("verBadge"); if (_vb) _vb.textContent = 'v' + APP_VERSION; } catch (e) {}
       // ---- Diagnostic logging ----
@@ -1859,6 +1865,7 @@ var AM_CHECKPOINTS = [
           snapDistance: getSnapDistance(),
           schedEnabled: sched.enabled,
           slcEnabled: slcEnabled(),
+          refreshEnabled: refreshEnabled(),
           schedOn1: sched.on1,
           schedOff1: sched.off1,
           schedOn2: sched.on2,
@@ -2404,6 +2411,13 @@ var AM_CHECKPOINTS = [
         try { return localStorage.getItem('bsa_slc_enabled') !== '0'; } catch (e) { return true; }
       }
 
+      // ---- Refresh start switch (v87) ----
+      // Default ON, same reasoning as the SLC switch: the native side
+      // applies the same default when the config carries no value.
+      function refreshEnabled() {
+        try { return localStorage.getItem('bsa_refresh_enabled') !== '0'; } catch (e) { return true; }
+      }
+
       // ---- Controls lock ----
       // When locked (the default), the manual controls are disabled so
       // stray taps can't mark stops, skip, navigate, start/stop via the
@@ -2415,7 +2429,7 @@ var AM_CHECKPOINTS = [
       }
       function applyControlsLock() {
         var un = controlsUnlocked();
-        ['markReachedBtn', 'skipNextBtn', 'navNextBtn', 'gpsPulse', 'schedToggle', 'followerToggle', 'slcToggle'].forEach(function (id) {
+        ['markReachedBtn', 'skipNextBtn', 'navNextBtn', 'gpsPulse', 'schedToggle', 'followerToggle', 'slcToggle', 'refreshToggle'].forEach(function (id) {
           var el = document.getElementById(id);
           if (el) el.disabled = !un;
         });
@@ -3049,6 +3063,12 @@ var AM_CHECKPOINTS = [
       $('slcToggle').addEventListener('change', function () {
         try { localStorage.setItem('bsa_slc_enabled', $('slcToggle').checked ? '1' : '0'); } catch (e) {}
         showToast($('slcToggle').checked ? 'Location auto-start (SLC) on.' : 'Location auto-start (SLC) off.');
+        pushConfigToNative();
+      });
+      $('refreshToggle').checked = refreshEnabled();
+      $('refreshToggle').addEventListener('change', function () {
+        try { localStorage.setItem('bsa_refresh_enabled', $('refreshToggle').checked ? '1' : '0'); } catch (e) {}
+        showToast($('refreshToggle').checked ? 'Refresh start on.' : 'Refresh start off.');
         pushConfigToNative();
       });
       $('controlsLockToggle').checked = controlsUnlocked();
